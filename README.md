@@ -1,5 +1,7 @@
 # @cedric-pouilleux/stellar-hex
 
+[npm](https://www.npmjs.com/package/@cedric-pouilleux/stellar-hex) · [GitHub](https://github.com/cedric-pouilleux/stellar-hex) · [Issues](https://github.com/cedric-pouilleux/stellar-hex/issues)
+
 Procedural celestial body — geometry, physics, simulation and rendering for Three.js and Vue 3.
 
 Generates rocky planets, gas giants, metallic worlds and stars on a hexasphere, with deterministic noise-based terrain, biome classification, physics-driven water/liquid state, and a Three.js render pipeline. All generation is seedable so client and server produce identical worlds from the same inputs.
@@ -7,7 +9,7 @@ Generates rocky planets, gas giants, metallic worlds and stars on a hexasphere, 
 ## Install
 
 ```sh
-npm install @hexasphere/body three simplex-noise
+npm install @cedric-pouilleux/stellar-hex three simplex-noise
 # Optional (only for the Vue / TresJS surface):
 npm install vue @tresjs/core
 ```
@@ -26,14 +28,14 @@ Peer dependencies:
 The package exposes three entry points of increasing scope:
 
 ```ts
-import { initBodySimulation, generateHexasphere } from '@hexasphere/body/sim'
-import { useBody, BodyMaterial }                  from '@hexasphere/body/core'
-import { Body, AtmosphereShell }                  from '@hexasphere/body'
+import { initBodySimulation, generateHexasphere } from '@cedric-pouilleux/stellar-hex/sim'
+import { useBody, BodyMaterial }                  from '@cedric-pouilleux/stellar-hex/core'
+import { Body, AtmosphereShell }                  from '@cedric-pouilleux/stellar-hex'
 ```
 
-- **`@hexasphere/body/sim`** — pure data & physics layer. No Three.js or Vue at runtime; runs in workers, Node or any environment that can execute ES modules. Use for servers, CLIs, or deterministic tests. *TypeScript note:* a few exported types (notably `TerrainLevel`) reference `THREE.Color`, so TypeScript consumers still need `three` installed as a dev-dependency for type-checking.
-- **`@hexasphere/body/core`** — adds the Three.js render layer (shaders, meshes, materials, raycasting). No Vue dependency — drop into a vanilla Three.js scene.
-- **`@hexasphere/body`** — full Vue/TresJS component surface (`<Body>`, `<AtmosphereShell>`, `<OrbitTrail>`, …).
+- **`@cedric-pouilleux/stellar-hex/sim`** — pure data & physics layer. No Three.js or Vue at runtime; runs in workers, Node or any environment that can execute ES modules. Use for servers, CLIs, or deterministic tests. *TypeScript note:* a few exported types (notably `TerrainLevel`) reference `THREE.Color`, so TypeScript consumers still need `three` installed as a dev-dependency for type-checking.
+- **`@cedric-pouilleux/stellar-hex/core`** — adds the Three.js render layer (shaders, meshes, materials, raycasting). No Vue dependency — drop into a vanilla Three.js scene.
+- **`@cedric-pouilleux/stellar-hex`** — full Vue/TresJS component surface (`<Body>`, `<AtmosphereShell>`, `<OrbitTrail>`, …).
 
 ## Quick start (headless)
 
@@ -41,7 +43,7 @@ import { Body, AtmosphereShell }                  from '@hexasphere/body'
 import {
   generateHexasphere,
   initBodySimulation,
-} from '@hexasphere/body/sim'
+} from '@cedric-pouilleux/stellar-hex/sim'
 
 const { tiles } = generateHexasphere(3, 8) // radius, subdivisions
 const sim = initBodySimulation(tiles, {
@@ -64,7 +66,7 @@ for (const [tileId, state] of sim.tileStates) {
 
 ```ts
 import * as THREE from 'three'
-import { useBody, DEFAULT_TILE_SIZE } from '@hexasphere/body/core'
+import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellar-hex/core'
 
 const body = useBody(
   {
@@ -90,7 +92,7 @@ Body treats resource IDs as opaque strings. To attach a resource catalog
 import {
   registerResourceDistributor,
   registerBodyResourceBridge,
-} from '@hexasphere/body/sim'
+} from '@cedric-pouilleux/stellar-hex/sim'
 
 registerResourceDistributor(/* your distributor */)
 registerBodyResourceBridge({

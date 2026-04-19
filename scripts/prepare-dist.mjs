@@ -10,9 +10,9 @@
  *   relative imports (`../body`) keep resolving to source during monorepo
  *   development — stateful singletons (distributor, depletion, bridge)
  *   stay unified across features. The published package must have a full
- *   exports map so npm consumers can import `@hexasphere/body`,
- *   `@hexasphere/body/core` and `@hexasphere/body/sim` through the
- *   compiled output.
+ *   exports map so npm consumers can import `@cedric-pouilleux/stellar-hex`,
+ *   `@cedric-pouilleux/stellar-hex/core` and `@cedric-pouilleux/stellar-hex/sim`
+ *   through the compiled output.
  *
  * Workflow:
  *   npm run build       # vite + vue-tsc + this script
