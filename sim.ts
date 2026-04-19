@@ -61,7 +61,6 @@ export type { BiomeType, RockyBiomeType, SurfaceLiquidType } from './types/surfa
 // ── Simulation ───────────────────────────────────────────────────
 export type { BodySimulation } from './sim/BodySimulation'
 export type { TileState, TileResources } from './sim/TileState'
-export type { BodyLayer } from './sim/tileDepletion'
 export { initBodySimulation } from './sim/BodySimulation'
 export {
   registerResourceDistributor,
@@ -69,10 +68,3 @@ export {
   getBodyResourceBridge,
 } from './sim/resourceDistributionRegistry'
 export type { ResourceDistributor, BodyResourceBridge } from './sim/resourceDistributionRegistry'
-export {
-  initDepletion,
-  resetDepletion,
-  getConcentration,
-  getAllConcentrations,
-  hasDepletionEntry,
-} from './sim/tileDepletion'

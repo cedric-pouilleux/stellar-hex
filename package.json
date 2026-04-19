@@ -1,6 +1,6 @@
 {
   "name": "@cedric-pouilleux/stellar-hex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Procedural celestial body — geometry, physics, simulation and rendering for Three.js / Vue 3.",
   "license": "SEE LICENSE IN LICENSE",
@@ -28,5 +28,16 @@
   "peerDependenciesMeta": {
     "vue":          { "optional": true },
     "@tresjs/core": { "optional": true }
+  },
+  "devDependencies": {
+    "@tresjs/core":      "^5.8.0",
+    "@types/three":      "^0.184.0",
+    "@vitejs/plugin-vue": "^6.0.0",
+    "simplex-noise":     "^4.0.0",
+    "three":             "^0.183.0",
+    "typescript":        "^6.0.0",
+    "vite":              "^8.0.0",
+    "vue":               "^3.5.0",
+    "vue-tsc":           "^3.0.0"
   }
 }

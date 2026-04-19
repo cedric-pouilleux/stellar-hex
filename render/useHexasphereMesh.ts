@@ -650,31 +650,18 @@ function buildMergedGeometry(
     tileVertexRange.set(tile.id, { start: vertexOffset, count: vertCount })
     vertexOffset += vertCount
 
-    // Always use the tile's initial resource state for mesh construction.
-    // Post-depletion vertex colors are updated via updateTileColor() callbacks.
     const resources: TileResources = sim.resourceMap.get(tile.id) ?? new Map()
 
-    // A tile turns dark grey only when it originally had resources that were
-    // fully extracted. Tiles that were always empty keep their terrain color.
-    // Note: at mesh-build time concentrations are always at initial values;
-    // depletion state is applied later via updateTileColor() calls.
-    const hadResources = resources.size > 0
-    let r: number, g: number, b: number, rough: number, metal: number
-    if (resources.size === 0 && hadResources) {
-      // Fully extracted: dark grey
-      r = 0.12; g = 0.12; b = 0.12; rough = 1.0; metal = 0.0
-    } else {
-      const vis = applyResourceBlend(
-        level.color,
-        level.roughness ?? 0.85,
-        level.metalness ?? 0.0,
-        level.emissive,
-        level.emissiveIntensity ?? 0,
-        state.biome,
-        resources,
-      )
-      r = vis.r; g = vis.g; b = vis.b; rough = vis.rough; metal = vis.metal
-    }
+    const vis = applyResourceBlend(
+      level.color,
+      level.roughness ?? 0.85,
+      level.metalness ?? 0.0,
+      level.emissive,
+      level.emissiveIntensity ?? 0,
+      state.biome,
+      resources,
+    )
+    const { r, g, b, rough, metal } = vis
 
     const colors   = new Float32Array(vertCount * 3)
     const roughArr = new Float32Array(vertCount)
@@ -1222,9 +1209,6 @@ function makeBorderMaterial(): THREE.MeshBasicMaterial {
   })
 }
 
-/** Dark grey applied to fully depleted tiles. */
-const DEPLETED_COLOR = { r: 0.12, g: 0.12, b: 0.12, rough: 1.0, metal: 0.0 }
-
 // ── Ocean layer ────────────────────────────────────────────────────
 
 /** Smooth sphere rendered at the planet radius to represent the liquid surface. */
@@ -1437,12 +1421,12 @@ export interface InteractiveMesh {
   tileGeometry:       (tileId: number) => TileGeometryInfo | null
   /**
    * Writes a raw RGB value to every vertex of a tile in the merged color
-   * buffer. No palette / depletion logic — callers decide the color.
+   * buffer. No palette logic — callers decide the color.
    */
   writeTileColor:     (tileId: number, rgb: { r: number; g: number; b: number }) => void
   /**
-   * Computes the palette+depletion base RGB for a tile given its current
-   * resource map. Returns null when the tile id is unknown.
+   * Computes the palette base RGB for a tile given its current resource map.
+   * Returns null when the tile id is unknown.
    */
   computeTileBaseRGB: (tileId: number, resources: TileResources) => { r: number; g: number; b: number } | null
   /**
@@ -1631,10 +1615,6 @@ export function buildInteractiveMesh(
     const level = tileLevel.get(tileId)
     if (!state || !level) return null
 
-    const hadResources = (sim.resourceMap.get(tileId)?.size ?? 0) > 0
-    if (resources.size === 0 && hadResources) {
-      return { r: DEPLETED_COLOR.r, g: DEPLETED_COLOR.g, b: DEPLETED_COLOR.b }
-    }
     const vis = applyResourceBlend(
       level.color,
       level.roughness ?? 0.85,

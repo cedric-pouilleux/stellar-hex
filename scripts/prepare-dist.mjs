@@ -8,9 +8,9 @@
  * Rationale:
  *   The source `package.json` deliberately omits the `exports` field so
  *   relative imports (`../body`) keep resolving to source during monorepo
- *   development — stateful singletons (distributor, depletion, bridge)
- *   stay unified across features. The published package must have a full
- *   exports map so npm consumers can import `@cedric-pouilleux/stellar-hex`,
+ *   development — stateful singletons (distributor, bridge) stay unified
+ *   across features. The published package must have a full exports map
+ *   so npm consumers can import `@cedric-pouilleux/stellar-hex`,
  *   `@cedric-pouilleux/stellar-hex/core` and `@cedric-pouilleux/stellar-hex/sim`
  *   through the compiled output.
  *

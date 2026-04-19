@@ -17,7 +17,6 @@ export interface BodySimulation {
   /**
    * Initial resource concentrations per tile (tileId → resource → 0..1).
    * Separated from TileState so the body domain stays free of game resource types.
-   * This is the source of truth for depletion initialisation and resource overlays.
    */
   readonly resourceMap:        ReadonlyMap<number, TileResources>
   readonly config:             BodyConfig

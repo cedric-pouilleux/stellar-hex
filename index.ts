@@ -3,8 +3,7 @@
  * All external consumers (components, pages) should import from here.
  *
  * Re-exports the pure-core API from `./core` and augments it with the
- * Vue-coupled surface: scene components and the reactive simulation
- * state built on top of the Three.js core.
+ * Vue-coupled surface: scene components built on top of the Three.js core.
  *
  * For a Vue-free consumption (vanilla Three.js, other frameworks),
  * import from `./core` directly.
@@ -12,9 +11,6 @@
 
 // ── Pure core (shaders, geometry, physics, simulation, builders…) ──
 export * from './core'
-
-// ── Reactive simulation state (Vue) ──────────────────────────────
-export { depletionVersion } from './sim/reactive/useDepletionVersion'
 
 // ── Scene controllers ────────────────────────────────────────────
 export { default as Body } from './scene/Body.vue'
