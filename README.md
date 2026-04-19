@@ -1,4 +1,4 @@
-# @hexasphere/body
+# @cedric-pouilleux/stellar-hex
 
 Procedural celestial body — geometry, physics, simulation and rendering for Three.js and Vue 3.
 
