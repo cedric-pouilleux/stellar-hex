@@ -731,6 +731,15 @@ function buildMergedGeometry(
   return { geometry, faceToTileId, tileVertexRange }
 }
 
+/**
+ * Builds a merged hex-tile mesh for raycast / display purposes.
+ * When the body carries a liquid surface, the explicit ocean tiles are
+ * skipped so the smooth water sphere can render on top.
+ *
+ * @param sim    - Pre-computed body simulation (tiles + biomes).
+ * @param levels - Terrain palette driving vertex colours and heights.
+ * @returns      - The mesh and a face→tile id lookup for hover queries.
+ */
 export function buildPlanetMesh(
   sim:    BodySimulation,
   levels: TerrainLevel[],
@@ -750,6 +759,11 @@ export function buildPlanetMesh(
 // Dark metallic/rocky tones for the solid inner core of gas giants
 // (metallic hydrogen + silicates + iron).
 
+/**
+ * Dark metallic/rocky palette used for the solid inner core of gas giants
+ * (metallic hydrogen, silicates, iron). Four levels from deep warm-black to
+ * burnt-bronze highlands.
+ */
 export const PALETTE_ROCKY_CORE: TerrainLevel[] = [
   { threshold:  0.25, height: 0.008, color: new THREE.Color(0x1e1a16), metalness: 0.90, roughness: 0.35 },
   { threshold:  0.55, height: 0.018, color: new THREE.Color(0x3c2e24), metalness: 0.80, roughness: 0.45 },
@@ -809,6 +823,11 @@ const GAS_INTERIOR_FRAG = /* glsl */`
   }
 `
 
+/**
+ * Runtime handle returned by `buildGasInteriorMesh`. Wraps the animated
+ * back-side sphere drawn behind a gas giant's hex core, along with its
+ * per-frame tick and disposal hook.
+ */
 export interface GasInteriorMesh {
   mesh:    THREE.Mesh
   tick:    (dt: number) => void
@@ -1026,6 +1045,16 @@ function buildNearestTileFn(sim: BodySimulation) {
   }
 }
 
+/**
+ * Builds the smooth (non-hex) display sphere for a rocky/metallic body.
+ * Uses procedural elevation + palette lookup to shade each vertex and a
+ * `BodyMaterial` for detail noise, cracks and lava.
+ *
+ * @param sim       - Pre-computed body simulation.
+ * @param levels    - Terrain palette driving vertex colouring.
+ * @param variation - Optional body-scoped visual variation.
+ * @returns         - The mesh and the attached {@link BodyMaterial}.
+ */
 export function buildSmoothSphereMesh(
   sim:       BodySimulation,
   levels:    TerrainLevel[],
@@ -1456,6 +1485,16 @@ export interface InteractiveMesh {
   dispose:            () => void
 }
 
+/**
+ * Builds the interactive hex mesh used when a body is focused — carries
+ * the hover/pin overlays, per-tile color writebacks, and the water shader
+ * animation. Returns an {@link InteractiveMesh} façade consumed by the
+ * scene components.
+ *
+ * @param sim       - Pre-computed body simulation.
+ * @param levels    - Terrain palette driving vertex colouring.
+ * @param hoverCfg  - Optional hover overlay visual tuning.
+ */
 export function buildInteractiveMesh(
   sim:       BodySimulation,
   levels:    TerrainLevel[],

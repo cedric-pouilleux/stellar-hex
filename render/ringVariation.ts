@@ -48,6 +48,11 @@ export interface RingVariation {
   archetype:    RingArchetype
 }
 
+/**
+ * Named ring-shape archetype. Each archetype maps to a fixed 8-sample
+ * radial opacity envelope in {@link ARCHETYPE_PROFILES}, which the ring
+ * shader then jitters per body for variety.
+ */
 export type RingArchetype =
   | 'broad'        // wide Saturn-like envelope
   | 'double'       // two bright bands, dark gap between
@@ -62,11 +67,21 @@ export type RingArchetype =
   | 'dense'        // near-uniform solid band (pleine)
   | 'sparse'       // irregular sparse spikes
 
+/**
+ * Eight-sample radial opacity envelope (inner → outer). Passed verbatim to
+ * the ring shader which interpolates between the samples along the ring
+ * strip.
+ */
 export type Profile8 = readonly [number, number, number, number, number, number, number, number]
 
 // ── Archetype profiles (macroscopic opacity envelope) ────────────────────────
 // Each entry is sampled along t∈[0,1] from inner to outer edge of the ring strip.
 
+/**
+ * Lookup table of 8-sample radial opacity envelopes keyed by
+ * {@link RingArchetype}. Values are in [0, 1] and are sampled from inner to
+ * outer edge of the ring strip. Shared between the generator and tests.
+ */
 export const ARCHETYPE_PROFILES: Record<RingArchetype, Profile8> = {
   broad:     [0.15, 0.55, 0.85, 1.00, 0.92, 0.70, 0.40, 0.10],
   double:    [0.92, 0.70, 0.15, 0.05, 0.10, 0.85, 0.75, 0.25],
@@ -82,6 +97,11 @@ export const ARCHETYPE_PROFILES: Record<RingArchetype, Profile8> = {
   sparse:    [0.12, 0.70, 0.08, 0.65, 0.10, 0.55, 0.08, 0.40],
 }
 
+/**
+ * Canonical ordered list of all ring archetypes. Used by the generator to
+ * uniformly pick an archetype from a PRNG draw; exposed for tests and
+ * gallery displays.
+ */
 export const RING_ARCHETYPES: readonly RingArchetype[] = [
   'broad', 'double', 'narrow', 'dusty', 'triple', 'outer',
   'shepherd', 'quadruple', 'skewedIn', 'skewedOut', 'dense', 'sparse',
@@ -174,6 +194,11 @@ const THIN_MODE_CHANCE = 0.18
 /** Probability the palette is drawn from the exotic pool rather than per-type. */
 const EXOTIC_PALETTE_CHANCE = 0.22
 
+/**
+ * Numeric bounds used by {@link generateRingVariation}. Exposed so test
+ * fixtures and UI sliders can share the exact `[min, max]` bounds without
+ * hard-coding duplicates.
+ */
 export const RING_RANGES = {
   innerRatio:   { min: 1.10, max: 1.75 },
   /** Thin-mode thickness added on top of innerRatio. */

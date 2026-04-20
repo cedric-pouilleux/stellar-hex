@@ -99,6 +99,10 @@ export function hasAtmosphere(config: BodyConfig): boolean {
 
 // ── Aura params ───────────────────────────────────────────────────
 
+/**
+ * Aura tuning returned by {@link auraParamsFor} — colour, intensity and
+ * fresnel power of the atmospheric glow around a body.
+ */
 export interface AuraParams { color: string; intensity: number; power: number }
 
 /** Fallback star aura colour when spectralType is not set, derived from °C. */

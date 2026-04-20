@@ -257,8 +257,17 @@ const LAVA_FRAG = /* glsl */`
   }
 `
 
+/**
+ * Visual effect mode selected by {@link buildBodyEffectLayer}:
+ * - `storms` — animated cloud storms over gas giants.
+ * - `lava`   — molten-surface glow for hot rocky bodies.
+ */
 export type BodyEffectMode = 'storms' | 'lava'
 
+/**
+ * Input configuration for {@link buildBodyEffectLayer}. The body's type and
+ * thermal profile drive the mode selection (storms vs. lava).
+ */
 export interface BodyEffectLayerConfig {
   config:  BodyConfig
   /** Static sun world position. Ignored when `getStarWorldPos` is supplied. Defaults to origin. */
@@ -269,6 +278,11 @@ export interface BodyEffectLayerConfig {
   getCameraWorldPos?: () => THREE.Vector3
 }
 
+/**
+ * Runtime handle returned by {@link buildBodyEffectLayer}. Exposes the
+ * mesh, its tick, and the mode-specific uniforms that callers can tweak
+ * at runtime (warmth for storms, temperature/water-coverage for lava).
+ */
 export interface BodyEffectLayerHandle {
   mode: BodyEffectMode
   mesh: THREE.Mesh

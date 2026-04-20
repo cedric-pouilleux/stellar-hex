@@ -10,6 +10,12 @@
 
 import * as THREE from 'three'
 
+/**
+ * Shared graphics uniforms wired into every hex-based body shader. Each
+ * entry is a plain `{ value }` bag (Three's `IUniform` shape), so toggles,
+ * panels or playground sliders can mutate `.value` directly and all
+ * linked materials update on the next frame.
+ */
 export const hexGraphicsUniforms = {
   // Toggles (0.0 / 1.0)
   uWaterEnabled:        { value: 1.0 },

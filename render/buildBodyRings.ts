@@ -171,6 +171,12 @@ const FRAG = /* glsl */`
   }
 `
 
+/**
+ * Input configuration for {@link buildBodyRings}. Couples the ring
+ * geometry (radii derived from the planet radius), the deterministic
+ * variation (archetype + profile + colours) and the per-frame hooks
+ * needed to compute shadows.
+ */
 export interface BodyRingsConfig {
   /** Planet visual radius (world units). Ring radii are `radius × innerRatio/outerRatio`. */
   radius:        number
@@ -186,6 +192,11 @@ export interface BodyRingsConfig {
   getPlanetWorldPos: () => THREE.Vector3
 }
 
+/**
+ * Runtime handle returned by {@link buildBodyRings}. Owns a `carrier`
+ * group (attached to the planet) and exposes live setters to tweak the
+ * ring variation, spin state and speed without rebuilding.
+ */
 export interface BodyRingsHandle {
   /** The group to attach to the planet's group (NOT the mesh directly). */
   carrier: THREE.Group

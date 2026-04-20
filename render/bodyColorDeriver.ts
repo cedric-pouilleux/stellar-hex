@@ -4,11 +4,19 @@ import { clamp } from '../core/math'
 
 // ── Hex / RGB helpers ─────────────────────────────────────────────
 
+/**
+ * Parse a `#rrggbb` (or `rrggbb`) color string into its `[r, g, b]` byte
+ * components in the [0, 255] range.
+ */
 export function hexToRgb(hex: string): [number, number, number] {
   const n = parseInt(hex.replace('#', ''), 16)
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]
 }
 
+/**
+ * Format RGB byte components as a `#rrggbb` hex string. Each component is
+ * clamped to [0, 255] and rounded to the nearest integer before encoding.
+ */
 export function rgbToHex(r: number, g: number, b: number): string {
   const h = (n: number) => clamp(Math.round(n), 0, 255).toString(16).padStart(2, '0')
   return '#' + h(r) + h(g) + h(b)

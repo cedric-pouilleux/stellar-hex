@@ -12,8 +12,18 @@
 
 import { SHADER_RANGES } from './shaderRanges'
 
+/**
+ * Shader-side body-type identifier. Distinct from `BodyConfig['type']`
+ * ('gaseous' vs 'gas') — this is the discriminator exposed by the shader
+ * presets and consumed by {@link BodyMaterial}.
+ */
 export type LibBodyType = 'rocky' | 'gas' | 'metallic' | 'star'
 
+/**
+ * Definition of a single shader parameter — a slider (numeric + bounds),
+ * a colour picker (`type: 'color'`) or a dropdown (`type: 'select'` with
+ * `options`). Consumed by UI panels to render the right control.
+ */
 export interface ParamDef {
   label:    string
   type?:    'color' | 'select'
@@ -24,12 +34,22 @@ export interface ParamDef {
   options?: string[]
 }
 
+/**
+ * Full shader-parameter catalogue keyed by body type. Each body type maps
+ * to a flat record of `paramName → {@link ParamDef}`. Exposed as the
+ * authoritative schema for any external control panel.
+ */
 export type BodyParamsMap = Record<LibBodyType, Record<string, ParamDef>>
 
 const R = SHADER_RANGES
 
 // ── Available types ───────────────────────────────────────────────────────────
 
+/**
+ * User-facing catalogue of supported body types — used to populate UI
+ * selectors. The `id` field is the source of truth; `label`/`icon` are
+ * cosmetic.
+ */
 export const BODY_TYPES: Array<{ id: LibBodyType; label: string; icon: string }> = [
   { id: 'rocky',    label: 'Rocheuse',   icon: '🪨' },
   { id: 'gas',      label: 'Gazeuse',    icon: '🟠' },
@@ -39,6 +59,11 @@ export const BODY_TYPES: Array<{ id: LibBodyType; label: string; icon: string }>
 
 // ── Parameters by type ────────────────────────────────────────────────────────
 
+/**
+ * Shader parameter catalogue for every supported body type. The
+ * structure mirrors {@link BodyParamsMap}; it is the single source of
+ * truth for default values and UI bounds across the library.
+ */
 export const BODY_PARAMS: BodyParamsMap = {
 
   // Rocky planet: FBM terrain, craters, cracks, lava, clouds
@@ -129,6 +154,11 @@ export const BODY_PARAMS: BodyParamsMap = {
 // Used by `ControlPanel` to organise sliders into collapsible sections.
 // Has no effect on GLSL uniforms.
 
+/**
+ * UI-only grouping of parameter keys into collapsible sections per body
+ * type. Consumed by control-panel components to organise sliders; has
+ * no effect on GLSL uniforms.
+ */
 export const BODY_GROUPS: Record<LibBodyType, Array<{ label: string; keys: string[] }>> = {
   rocky: [
     { label: 'Terrain',  keys: ['seed', 'noiseFreq', 'roughness', 'heightScale'] },

@@ -215,10 +215,16 @@ const ICE_FRAG = GLSL_UNIFORMS_VARS + GLSL_NOISE + /* glsl */`
   }
 `
 
-/** Shared `{ value }` uniform handle. */
+/** Shared `{ value: THREE.Vector3 }` uniform handle — matches Three's IUniform shape. */
 export interface Vec3Uniform   { value: THREE.Vector3 }
+/** Shared `{ value: number }` uniform handle — matches Three's IUniform shape. */
 export interface NumberUniform { value: number }
 
+/**
+ * Input configuration for {@link buildCloudShell}. Drives both the animated
+ * gaseous cloud layer and the frozen Worley ice variant through the same
+ * mesh, sharing uniforms with the host body when needed.
+ */
 export interface CloudShellConfig {
   /** Planet surface radius — the shell is offset above it. */
   radius:   number
@@ -239,6 +245,10 @@ export interface CloudShellConfig {
   cloudColorUniform?:   { value: THREE.Color }
 }
 
+/**
+ * Runtime handle returned by {@link buildCloudShell}. Owns the cloud mesh
+ * and its per-frame `tick` (advancing time) + `dispose` lifecycle.
+ */
 export interface CloudShellHandle {
   mesh: THREE.Mesh
   tick(dt: number): void

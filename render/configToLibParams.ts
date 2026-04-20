@@ -26,6 +26,11 @@ const CRATER_EROSION_T_MAX =  50
 
 // ── Type mapping ──────────────────────────────────────────────────────────────
 
+/**
+ * Maps the high-level `BodyConfig['type']` tag to the narrower shader-side
+ * body-type identifier (`'gaseous'` is renamed to `'gas'` to stay consistent
+ * with the shader presets exposed by `./shaders`).
+ */
 export function bodyTypeToLibType(type: BodyConfig['type']): 'rocky' | 'gas' | 'metallic' | 'star' {
   return type === 'gaseous' ? 'gas' : (type as 'rocky' | 'metallic' | 'star')
 }

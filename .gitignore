@@ -44,3 +44,10 @@ coverage/
 # Temp
 tmp/
 temp/
+
+# Docs — generated API reference + VitePress build output
+docs/api/core/
+docs/api/sim/
+docs/api/typedoc-sidebar.json
+docs/.vitepress/cache/
+docs/.vitepress/dist/

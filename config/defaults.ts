@@ -15,7 +15,17 @@ export const DEFAULT_TILE_SIZE = 0.15
 
 // ── Star reference frame ──────────────────────────────────────────────────────
 // G-type baseline values used by body's own star physics (luminosity, colour).
+
+/**
+ * Reference stellar radius (world units) for a G-type star.
+ * Other stars are sized relative to this baseline via `resolveStarData`.
+ */
 export const REF_STAR_RADIUS = 3       // world units (G-type reference)
+
+/**
+ * Reference stellar surface temperature in Kelvin (G-type baseline, close to
+ * the Sun's 5778 K). Used by `toStarParams` to normalise luminosity.
+ */
 export const REF_STAR_TEMP   = 5_500   // K  (close to Sun's 5778 K)
 
 // ── Terrain elevation thresholds (rocky planets) ─────────────────────────────
@@ -83,6 +93,12 @@ export const METALLIC_PLAIN_THRESH = 0.20
 export const METALLIC_PEAK_THRESH  = 0.80
 
 // ── Spectral type → surface temperature ──────────────────────────────────────
+
+/**
+ * Canonical surface temperature (K) per Morgan–Keenan spectral class.
+ * Used as a fallback when a star config does not specify an explicit
+ * temperature. Keys are single-letter spectral types (O, B, A, F, G, K, M).
+ */
 export const SPECTRAL_KELVIN: Record<string, number> = {
   O: 30_000,
   B: 20_000,

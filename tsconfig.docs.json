@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.build.json",
+  "include": ["sim.ts", "core.ts", "**/*.ts"],
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.vue",
+    "vite.build.config.ts",
+    "scripts/**",
+    "dist",
+    "node_modules",
+    "playground",
+    "docs",
+    "index.ts"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./sim.ts", "./core.ts"],
+  "entryPointStrategy": "resolve",
+  "tsconfig": "./tsconfig.docs.json",
+  "out": "./docs/api",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-vitepress-theme"],
+  "readme": "none",
+  "hideBreadcrumbs": true,
+  "hidePageHeader": true,
+  "entryFileName": "index.md",
+  "fileExtension": ".md",
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeExternals": true,
+  "sort": ["source-order"],
+  "githubPages": false,
+  "navigation": {
+    "includeCategories": false,
+    "includeGroups": true,
+    "includeFolders": false
+  },
+  "docsRoot": "./docs",
+  "useCodeBlocks": true,
+  "disableSources": true,
+  "parametersFormat": "table",
+  "enumMembersFormat": "table",
+  "typeDeclarationFormat": "list"
+}

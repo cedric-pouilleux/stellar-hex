@@ -87,6 +87,10 @@ const _silNormalWorld = new THREE.Vector3()
 
 // ── Public interface ──────────────────────────────────────────────
 
+/**
+ * Runtime handle returned by {@link buildBodyHoverOverlay}. Controls the
+ * visibility of the selection ring and releases its GPU resources.
+ */
 export interface BodyHoverOverlay {
   /** Show or hide the ring. */
   setVisible(visible: boolean): void

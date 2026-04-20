@@ -23,6 +23,10 @@ export const ORBIT_TRAIL_SEGMENTS = 128
 
 // ── God rays ──────────────────────────────────────────────────────────────────
 
+/**
+ * Tunable parameters for the screen-space god-rays (volumetric scattering)
+ * post-processing pass. Fed to `GodRaysShader` uniforms.
+ */
 export interface GodRaysParams {
   /** Overall ray brightness */
   exposure: number
@@ -36,6 +40,10 @@ export interface GodRaysParams {
 
 // ── Lens flare & sun screen FX ────────────────────────────────────────────────
 
+/**
+ * Configuration for the lens-flare overlay rendered in front of a star.
+ * Scales the three flare sub-sprites (glow, ring, ghosts) independently.
+ */
 export interface LensFlareConfig {
   enabled:      boolean
   glowScale:    number   // 0.2 – 3.0
@@ -44,6 +52,10 @@ export interface LensFlareConfig {
   ghostOpacity: number   // 0.0 – 1.0
 }
 
+/**
+ * Screen-space sun effect bundle — blinding glow + concentric rings,
+ * composited on top of the god-rays pass.
+ */
 export interface SunFXConfig {
   blindingEnabled:   boolean
   blindingIntensity: number   // 0.0 – 2.0
@@ -54,6 +66,7 @@ export interface SunFXConfig {
   ringsSpread:       number   // 0.2 – 2.0  (spacing between rings)
 }
 
+/** Default lens-flare configuration — balanced for a G-type reference star. */
 export const DEFAULT_LENS_FLARE: LensFlareConfig = {
   enabled:      true,
   glowScale:    1.0,
@@ -62,6 +75,7 @@ export const DEFAULT_LENS_FLARE: LensFlareConfig = {
   ghostOpacity: 1.0,
 }
 
+/** Default sun-FX configuration — moderate blinding with 5 rings. */
 export const DEFAULT_SUN_FX: SunFXConfig = {
   blindingEnabled:   true,
   blindingIntensity: 0.6,
@@ -74,6 +88,10 @@ export const DEFAULT_SUN_FX: SunFXConfig = {
 
 // ── Tile hover highlight ───────────────────────────────────────────────────────
 
+/**
+ * Visual configuration for the per-tile hover overlay (fill + border ring),
+ * consumed by `TileOverlayMesh` when rendering the hovered hex.
+ */
 export type HoverConfig  = {
   /** Fill overlay color (hex integer, e.g. 0xffffff). */
   fillColor:     number
@@ -100,6 +118,7 @@ export type HoverConfig  = {
   ringExpand:    number
 }
 
+/** Default tile hover overlay — additive white fill with a thin white ring. */
 export const DEFAULT_HOVER: HoverConfig = {
   fillColor:     0xffffff,
   fillOpacity:   0.85,
@@ -112,6 +131,11 @@ export const DEFAULT_HOVER: HoverConfig = {
 
 // ── Body (planet) hover highlight ─────────────────────────────────────────────
 
+/**
+ * Visual configuration for the body-level hover ring drawn around a planet
+ * silhouette. All dimensions are screen-space so the ring stays constant
+ * across camera zoom.
+ */
 export type BodyHoverConfig = {
   /** Circle stroke color. */
   ringColor:    number
@@ -128,6 +152,7 @@ export type BodyHoverConfig = {
   ringWidthPx:  number
 }
 
+/** Default body hover ring — white stroke, 2 px wide, 6 px offset. */
 export const DEFAULT_BODY_HOVER: BodyHoverConfig = {
   ringColor:    0xffffff,
   ringOpacity:  0.85,

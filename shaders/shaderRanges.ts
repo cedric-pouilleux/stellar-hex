@@ -14,6 +14,12 @@ export interface ParamRange {
 
 type RangeMap = Record<string, ParamRange>
 
+/**
+ * Authoritative `{ min, max, step }` bounds for every numeric shader
+ * parameter, keyed by body type. Drives UI sliders, the variation
+ * generator, and any test fixture that needs to stay within the valid
+ * range of a given uniform.
+ */
 export const SHADER_RANGES: {
   rocky:    RangeMap
   gas:      RangeMap

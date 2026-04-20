@@ -22,6 +22,18 @@ import { clamp01 } from '../core/math'
 // ── Tile size → subdivisions ──────────────────────────────────────
 // Shared with useBody — exported so callers can compute tile count independently.
 
+/**
+ * Derives the hexasphere subdivision count needed to make each tile match
+ * `tileSize` on the surface of a sphere of the given `radius`.
+ *
+ * The relation follows from the Goldberg polyhedron tile count:
+ *   N = (4π r²) / tileSize²   and   N = 10·f² + 2
+ * where `f` is the subdivision frequency returned.
+ *
+ * @param radius   - Sphere radius in world units.
+ * @param tileSize - Target tile edge length in world units.
+ * @returns Subdivision frequency (≥ 2).
+ */
 export function tileSizeToSubdivisions(radius: number, tileSize: number): number {
   const N = (4 * Math.PI * radius * radius) / (tileSize * tileSize)
   return Math.max(2, Math.round(Math.sqrt(Math.max(0, (N - 2) / 10))))
@@ -87,6 +99,11 @@ export function tintGasPalette(levels: TerrainLevel[], variation: BodyVariation)
 //   hex gas      → hex tiles at config.radius (atmospheric resources)
 //   hex core     → hex tiles at coreRadius    (rocky/metallic resources)
 
+/**
+ * Input payload for {@link buildGaseousSystem} — bundles the gas-layer
+ * configuration, its pre-computed simulation and the shadow/occluder
+ * uniform handles that the core and ring passes share.
+ */
 export interface GaseousSystemInput {
   config:          BodyConfig
   data:            HexasphereData
@@ -106,6 +123,13 @@ export interface GaseousSystemInput {
   coreAllowedResources?: string[]
 }
 
+/**
+ * Builds the dual-layer gas giant system — animated gas sphere + rocky
+ * core — and wires their shadow, occluder and ring uniforms together.
+ *
+ * @param input - Bundle of config, sim, palette, variation and uniforms.
+ * @returns Collection of meshes, raycast handles and lifecycle hooks.
+ */
 export function buildGaseousSystem(input: GaseousSystemInput) {
   const {
     config, data, gasSim, palette, variation, tileSize,

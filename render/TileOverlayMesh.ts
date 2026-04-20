@@ -55,6 +55,10 @@ export interface TileOverlayOptions {
   initiallyVisible?: boolean
 }
 
+/**
+ * Handle returned by {@link createTileOverlayMesh}. Wraps a reusable mesh
+ * whose geometry is rebuilt on demand to cover a given set of tiles.
+ */
 export interface TileOverlayMesh {
   /** Underlying THREE mesh — caller adds/removes from any parent group. */
   mesh: THREE.Mesh

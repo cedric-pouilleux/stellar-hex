@@ -8,11 +8,17 @@ export interface RaycastBody {
   config: { radius: number }
 }
 
+/** Optional tuning for {@link raycastBodies}. */
 export interface RaycastBodiesOptions {
   /** Index of the focused body — skipped as a candidate and used as occluder. */
   focusedIndex?: number | null
 }
 
+/**
+ * Result returned by {@link raycastBodies} — the index of the first body
+ * hit and the raw THREE intersection for callers that need the exact point
+ * or object.
+ */
 export interface RaycastHit {
   bodyIndex:    number
   intersection: THREE.Intersection

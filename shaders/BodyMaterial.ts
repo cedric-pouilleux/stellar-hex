@@ -28,6 +28,11 @@ export interface OceanMaskOptions {
   radius:      number
 }
 
+/**
+ * Constructor options for {@link BodyMaterial}. Configures the primary
+ * light (kelvin + intensity + direction), ambient tint, vertex-color
+ * support and an optional ocean mask texture bundle.
+ */
 export interface BodyMaterialOptions {
   lightKelvin?:    number
   lightIntensity?: number
@@ -37,6 +42,10 @@ export interface BodyMaterialOptions {
   ocean?:          OceanMaskOptions
 }
 
+/**
+ * Mutable subset of the light state accepted by `BodyMaterial.updateLight`.
+ * Any field omitted leaves the current value untouched.
+ */
 export interface BodyLightUpdate {
   kelvin?:       number
   intensity?:    number
@@ -44,7 +53,14 @@ export interface BodyLightUpdate {
   ambientColor?: string | THREE.Color
 }
 
+/**
+ * Shader parameter value — broad enough to cover all presets across
+ * rocky / gas / metallic / star bodies (scalar floats, hex colours,
+ * `noiseSeed` arrays, feature toggles).
+ */
 export type ParamValue = number | string | number[] | boolean
+
+/** Flat bag of shader parameters keyed by uniform name. */
 export type ParamMap   = Record<string, ParamValue>
 
 interface LightState {

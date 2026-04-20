@@ -18,13 +18,22 @@ export { buildGasCoreConfig, tileSizeToSubdivisions } from './buildGaseousSystem
 // ── Static palette overrides ──────────────────────────────────────
 // Used when an explicit palette is set in BodyConfig (e.g. Moon).
 
+/**
+ * Canonical rocky palette used for Moon-like airless bodies — three
+ * desaturated grey levels (dark mare, highlands, bright peaks). Referenced
+ * via `BodyConfig.palette` to bypass the procedural rocky generator.
+ */
 export const PALETTE_MOON: TerrainLevel[] = [
   { threshold:  0.20, height: 0.000, color: new THREE.Color(0x4a4a4a), metalness: 0.0, roughness: 1.00 },
   { threshold:  0.65, height: 0.020, color: new THREE.Color(0x7a7a7a), metalness: 0.0, roughness: 0.95 },
   { threshold:  Infinity, height: 0.045, color: new THREE.Color(0xa8a8a8), metalness: 0.1, roughness: 0.90 },
 ]
 
-// Fallback palette used when no composition data is available (Jovian default)
+/**
+ * Fallback gaseous palette used when no composition data is available —
+ * Jovian-style warm ochre bands. Referenced by `choosePalette` when a
+ * gaseous body omits {@link BodyConfig.gasComposition}.
+ */
 export const PALETTE_GAS_GIANT: TerrainLevel[] = [
   { threshold: -0.30, height: 0.00, color: new THREE.Color(0xc08040), metalness: 0.0, roughness: 0.60 },
   { threshold:  0.10, height: 0.00, color: new THREE.Color(0xe8b870), metalness: 0.0, roughness: 0.50 },
@@ -161,6 +170,19 @@ function makeInteractiveController(
 const _wPos = new THREE.Vector3()
 const _dir  = new THREE.Vector3()
 
+/**
+ * Factory that builds a complete celestial body — hex mesh, interactive
+ * raycast proxy, smooth display mesh, atmosphere glow, rings and effect
+ * layers — deterministically from a {@link BodyConfig}.
+ *
+ * Dispatches to the appropriate sub-builder (star / gaseous / rocky /
+ * metallic) and returns the common runtime interface used by scene
+ * components (hover, focus, per-frame tick, disposal).
+ *
+ * @param config    - Physics + visual configuration of the body.
+ * @param tileSize  - Target world-space tile edge length (drives subdivisions).
+ * @param options   - Optional hooks — sun position provider + core resource gate.
+ */
 export function useBody(
   config: BodyConfig,
   tileSize: number,

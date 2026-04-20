@@ -24,7 +24,11 @@
       "Bash(node check2.mjs)",
       "Bash(taskkill /F /IM node.exe)",
       "Bash(cmd.exe //c \"taskkill /F /IM node.exe\")",
-      "Bash(node verify.mjs)"
+      "Bash(node verify.mjs)",
+      "Bash(node -e ' *)",
+      "Bash(npm i *)",
+      "Bash(npx typedoc *)",
+      "Bash(npx vitepress *)"
     ],
     "additionalDirectories": [
       "\\tmp\\test-playground",

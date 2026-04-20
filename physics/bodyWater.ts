@@ -1,6 +1,11 @@
 import type { BodyConfig, BodyType } from '../types/body.types'
 import type { BiomeType, SurfaceLiquidType } from '../types/surface.types'
 
+/**
+ * Minimal temperature profile needed by the liquid/frozen eligibility
+ * helpers. Accepted as a narrower alternative to `BodyConfig` when the
+ * consumer only has the thermal data in hand.
+ */
 export interface BodyWaterProfile {
   type: BodyType
   temperatureMin: number
@@ -8,29 +13,45 @@ export interface BodyWaterProfile {
 }
 
 // ── Water (H₂O) temperature bounds ──────────────────────────────
+/** Minimum daily average (°C) at which liquid water (H₂O) is plausible. */
 export const LIQUID_WATER_MIN_AVG   = -15
+/** Maximum daily average (°C) at which liquid water (H₂O) stays stable. */
 export const LIQUID_WATER_MAX_AVG   = 60
+/** Lowest daily average (°C) at which a water-ice surface sheet is still considered. */
 export const FROZEN_WATER_MIN_AVG   = -60
+/** Lower bound (°C) for atmospheric water vapour presence. */
 export const ATMOSPHERIC_WATER_MIN_AVG_TEMP = -60
+/** Upper bound (°C) for atmospheric water vapour presence. */
 export const ATMOSPHERIC_WATER_MAX_AVG_TEMP = 100
 
 // ── Ammonia (NH₃) temperature bounds ────────────────────────────
+/** Minimum daily average (°C) at which liquid ammonia (NH₃) is plausible. */
 export const LIQUID_AMMONIA_MIN_AVG = -78
+/** Maximum daily average (°C) at which liquid ammonia (NH₃) stays stable. */
 export const LIQUID_AMMONIA_MAX_AVG = -33
+/** Lowest daily average (°C) at which a frozen ammonia sheet is still considered. */
 export const FROZEN_AMMONIA_MIN_AVG = -110
 
 // ── Methane (CH₄) temperature bounds ────────────────────────────
+/** Minimum daily average (°C) at which liquid methane (CH₄) is plausible. */
 export const LIQUID_METHANE_MIN_AVG = -183
+/** Maximum daily average (°C) at which liquid methane (CH₄) stays stable. */
 export const LIQUID_METHANE_MAX_AVG = -161
+/** Lowest daily average (°C) at which a frozen methane sheet is still considered. */
 export const FROZEN_METHANE_MIN_AVG = -210
 
 // ── Nitrogen (N₂) temperature bounds ────────────────────────────
+/** Minimum daily average (°C) at which liquid nitrogen (N₂) is plausible. */
 export const LIQUID_NITROGEN_MIN_AVG = -210
+/** Maximum daily average (°C) at which liquid nitrogen (N₂) stays stable. */
 export const LIQUID_NITROGEN_MAX_AVG = -196
+/** Lowest daily average (°C) at which a frozen nitrogen sheet is still considered. */
 export const FROZEN_NITROGEN_MIN_AVG = -230
 
 // ── Legacy aliases (keep imports stable) ─────────────────────────
+/** @deprecated Alias for `LIQUID_WATER_MAX_AVG`. Kept for import stability. */
 export const LIQUID_SURFACE_MAX_AVG_TEMP = LIQUID_WATER_MAX_AVG
+/** @deprecated Alias for `LIQUID_WATER_MIN_AVG`. Kept for import stability. */
 export const LIQUID_SURFACE_MIN_AVG_TEMP = LIQUID_WATER_MIN_AVG
 
 // ── Helpers ──────────────────────────────────────────────────────

@@ -90,6 +90,10 @@ const FRAG = /* glsl */`
 /** Shared `{ value }` uniform handle — matches Three.js's IUniform shape. */
 export interface NumberUniform { value: number }
 
+/**
+ * Input configuration for {@link buildAtmosphereShell}. Combines the shell
+ * geometry (radius) with the Rayleigh/Mie scattering shader tuning.
+ */
 export interface AtmosphereShellConfig {
   /** Pre-computed atmosphere shell radius (see atmosphereRadius in sceneBodyUtils). */
   radius:    number
@@ -110,6 +114,10 @@ export interface AtmosphereShellConfig {
   atmoOpacityUniform?: NumberUniform
 }
 
+/**
+ * Runtime handle returned by {@link buildAtmosphereShell}. Groups the
+ * renderable mesh with its lifecycle hooks (per-frame tick + dispose).
+ */
 export interface AtmosphereShellHandle {
   /** Renderable mesh — callers attach/detach it to their scene graph. */
   mesh: THREE.Mesh

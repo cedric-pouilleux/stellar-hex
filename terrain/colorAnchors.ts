@@ -4,7 +4,11 @@ import { c } from './colorUtils'
 // ── Temperature anchor definitions ───────────────────────────────
 // 5 key temperatures (°C): -150 / -40 / 15 / 120 / 400
 
-// Level 0 — deep ocean / base rock (tiles below sea level)
+/**
+ * Level 0 (WET) — deep ocean / submerged base-rock colours keyed by
+ * temperature (°C). Sampled by `generateTerrainPalette` for tiles sitting
+ * below sea level on water-bearing planets.
+ */
 export const L0_WET: [number, THREE.Color][] = [
   [-150, c(0xd8ecfc)],  // deep-freeze flat ice — near-white blue
   [ -40, c(0x3870b0)],  // cold deep ocean — blue-grey
@@ -12,6 +16,10 @@ export const L0_WET: [number, THREE.Color][] = [
   [ 120, c(0x4a2810)],  // hot mudflats / dry seabed
   [ 400, c(0x100504)],  // dark basalt / cooling lava
 ]
+/**
+ * Level 0 (DRY) — dry lowland / base-rock colours keyed by temperature.
+ * Used for rocky worlds without surface liquid.
+ */
 export const L0_DRY: [number, THREE.Color][] = [
   [-150, c(0xc8d8e8)],  // deep-freeze pale ice plain
   [ -40, c(0x6070a0)],  // cold grey-blue rock
@@ -20,14 +28,20 @@ export const L0_DRY: [number, THREE.Color][] = [
   [ 400, c(0x1a0800)],  // dark volcanic basalt
 ]
 
-// Level 0 — ice sheet (used when temperatureMax <= 0 — always frozen)
+/**
+ * Level 0 (ICE) — ice-sheet colours used when `temperatureMax <= 0` so the
+ * surface stays permanently frozen. Covers the -150 → 0 °C band only.
+ */
 export const L0_ICE: [number, THREE.Color][] = [
   [-150, c(0xeaf4fc)],  // deep-freeze mirror ice (near white)
   [ -40, c(0xc0d4e8)],  // cold ice sheet
   [   0, c(0x90b0c0)],  // just-frozen grey-blue ice
 ]
 
-// Level 0 — ammonia ocean (yellow-green murky liquid)
+/**
+ * Level 0 (AMMONIA) — ammonia ocean / frozen-ammonia colours, yellow-green
+ * murky liquid tones. Keyed by temperature in the NH₃ stability window.
+ */
 export const L0_AMMONIA: [number, THREE.Color][] = [
   [-110, c(0x8aa860)],  // frozen ammonia — pale olive
   [ -78, c(0x6a8838)],  // cold ammonia — deep olive
@@ -35,7 +49,10 @@ export const L0_AMMONIA: [number, THREE.Color][] = [
   [ -33, c(0x90a848)],  // warm ammonia — bright olive
 ]
 
-// Level 0 — methane ocean (amber-orange, Titan-like)
+/**
+ * Level 0 (METHANE) — methane ocean colours, amber-orange Titan-like tones.
+ * Keyed by temperature in the CH₄ stability window.
+ */
 export const L0_METHANE: [number, THREE.Color][] = [
   [-210, c(0x604020)],  // frozen methane — dark brown
   [-183, c(0x6a4820)],  // cold methane — deep amber
@@ -43,7 +60,10 @@ export const L0_METHANE: [number, THREE.Color][] = [
   [-161, c(0x8a6830)],  // liquid methane — rich amber
 ]
 
-// Level 0 — nitrogen ocean (pale rose-transparent, Pluto-like)
+/**
+ * Level 0 (NITROGEN) — nitrogen ocean colours, pale rose-transparent
+ * Pluto-like tones. Keyed by temperature in the N₂ stability window.
+ */
 export const L0_NITROGEN: [number, THREE.Color][] = [
   [-230, c(0xe0d8e0)],  // frozen nitrogen — near white
   [-210, c(0xd0c0c8)],  // cold nitrogen — pale rose
@@ -51,7 +71,7 @@ export const L0_NITROGEN: [number, THREE.Color][] = [
   [-196, c(0xc0a0a8)],  // liquid nitrogen — muted rose
 ]
 
-// Level SHORE — ammonia coast
+/** Shore band above an ammonia ocean — lighter olive/lime coastal palette. */
 export const L_SHORE_AMMONIA: [number, THREE.Color][] = [
   [-110, c(0xa0b878)],  // frozen shore — pale lime
   [ -78, c(0x88a858)],  // cold shore — olive
@@ -59,7 +79,7 @@ export const L_SHORE_AMMONIA: [number, THREE.Color][] = [
   [ -33, c(0xb0c870)],  // warm shore — bright lime
 ]
 
-// Level SHORE — methane coast
+/** Shore band above a methane ocean — bronze coastal palette. */
 export const L_SHORE_METHANE: [number, THREE.Color][] = [
   [-210, c(0x785830)],  // frozen shore — dark bronze
   [-183, c(0x886838)],  // cold shore — bronze
@@ -67,7 +87,7 @@ export const L_SHORE_METHANE: [number, THREE.Color][] = [
   [-161, c(0xa88848)],  // liquid shore — golden bronze
 ]
 
-// Level SHORE — nitrogen coast
+/** Shore band above a nitrogen ocean — pale rose coastal palette. */
 export const L_SHORE_NITROGEN: [number, THREE.Color][] = [
   [-230, c(0xe8e0e4)],  // frozen shore — near white
   [-210, c(0xd8c8d0)],  // cold shore — pale rose
@@ -75,7 +95,10 @@ export const L_SHORE_NITROGEN: [number, THREE.Color][] = [
   [-196, c(0xc8b0b8)],  // liquid shore — muted rose
 ]
 
-// Level SHORE — shallow water / coast (band just above sea level)
+/**
+ * Shore band (WET) — shallow water / coastal colours sitting just above the
+ * water sea level. Paired with `L0_WET` for water-bearing planets.
+ */
 export const L_SHORE_WET: [number, THREE.Color][] = [
   [-150, c(0xd4e8f0)],  // deep-freeze ice shore — pale white
   [ -40, c(0x6aa0b0)],  // cold pebble shore / pale teal
@@ -83,6 +106,10 @@ export const L_SHORE_WET: [number, THREE.Color][] = [
   [ 120, c(0xc8a060)],  // hot mud / dry estuary
   [ 400, c(0x3a1808)],  // volcanic shore
 ]
+/**
+ * Shore band (DRY) — arid shore / beach colours keyed by temperature. Used
+ * for dry worlds so the shore band still looks coherent even without liquid.
+ */
 export const L_SHORE_DRY: [number, THREE.Color][] = [
   [-150, c(0xbcccd8)],  // deep-freeze grey-white ice shore
   [ -40, c(0x707878)],  // grey pebbles
@@ -91,7 +118,7 @@ export const L_SHORE_DRY: [number, THREE.Color][] = [
   [ 400, c(0x2a0e06)],  // dark volcanic shore
 ]
 
-// Level 1 — lowlands (coastal plains / flats)
+/** Level 1 (WET) — lowland / coastal plain colours for water-bearing worlds. */
 export const L1_WET: [number, THREE.Color][] = [
   [-150, c(0xd4e4f0)],  // deep-freeze glacier plain — pale grey-white
   [ -40, c(0x7090a8)],  // cold grey-blue tundra with ice patches
@@ -99,6 +126,7 @@ export const L1_WET: [number, THREE.Color][] = [
   [ 120, c(0xc89050)],  // warm savanna
   [ 400, c(0x5a1a08)],  // volcanic lowlands
 ]
+/** Level 1 (DRY) — lowland / flat colours for dry worlds. */
 export const L1_DRY: [number, THREE.Color][] = [
   [-150, c(0xd0dce8)],  // deep-freeze pale grey ice flat
   [ -40, c(0x8090a8)],  // cold grey-blue stone flat
@@ -107,7 +135,7 @@ export const L1_DRY: [number, THREE.Color][] = [
   [ 400, c(0x401005)],  // dark lava rock
 ]
 
-// Level 2 — midlands (hills, plateaux)
+/** Level 2 (WET) — midland / hill / plateau colours for water-bearing worlds. */
 export const L2_WET: [number, THREE.Color][] = [
   [-150, c(0xe0eef8)],  // deep-freeze ice ridge — near white
   [ -40, c(0x90a8b8)],  // cold icy highland
@@ -115,6 +143,7 @@ export const L2_WET: [number, THREE.Color][] = [
   [ 120, c(0xd4956a)],  // arid plateau
   [ 400, c(0x8b2200)],  // dark red volcanic
 ]
+/** Level 2 (DRY) — midland / plateau colours for dry worlds. */
 export const L2_DRY: [number, THREE.Color][] = [
   [-150, c(0xe8f0f8)],  // deep-freeze near-white ice highland
   [ -40, c(0xa0a8b8)],  // cold grey-blue highland
@@ -123,7 +152,11 @@ export const L2_DRY: [number, THREE.Color][] = [
   [ 400, c(0x6a1500)],  // dark volcanic highland
 ]
 
-// Level 3 — peaks
+/**
+ * Level 3 — peak / summit colours shared by both wet and dry palettes,
+ * keyed by temperature (°C). The coldest entry produces pure white spires,
+ * the hottest emits active-lava orange.
+ */
 export const L3: [number, THREE.Color][] = [
   [-150, c(0xffffff)],  // deep-freeze: pure white ice spires
   [ -40, c(0xd8ecf0)],  // snow-covered peaks
@@ -133,15 +166,29 @@ export const L3: [number, THREE.Color][] = [
 ]
 
 // ── Height schedule (vary with temperature) ───────────────────────
-// Deep-freeze (-150): dramatic crevasse relief — flat plains + tall spires
+// Deep-freeze (-150): dramatic crevasse relief — flat plains + tall spires.
 // Sea tiles carve a shallow basin — ocean surface sits below shore rim.
+
+/**
+ * Vertical drop (world units) from the shore rim down to the ocean surface.
+ * Small value so the ocean appears as a shallow basin, not a deep chasm.
+ */
 export const SEA_DEPTH = 0.03
+
+/** Lowland elevation schedule keyed by temperature (°C). */
 export const LOW_HEIGHT: [number, number][]  = [
   [-150, 0.025], [-40, 0.020], [15, 0.030], [120, 0.030], [400, 0.015],
 ]
+
+/** Midland elevation schedule keyed by temperature (°C). */
 export const MID_HEIGHT: [number, number][]  = [
   [-150, 0.120], [-40, 0.060], [15, 0.080], [120, 0.080], [400, 0.030],
 ]
+
+/**
+ * Peak elevation schedule keyed by temperature (°C). Deep-freeze values are
+ * deliberately tall to produce crevasse-style relief on frozen worlds.
+ */
 export const PEAK_HEIGHT: [number, number][] = [
   [-150, 0.240], [-40, 0.100], [15, 0.140], [120, 0.110], [400, 0.050],
 ]
@@ -149,7 +196,10 @@ export const PEAK_HEIGHT: [number, number][] = [
 // ── Metallic palette color anchors ────────────────────────────────
 // Temperature range: -150 / -40 / 15 / 120 / 400 °C
 
-// Crater floors — darkest band, roughly 2× darker than plains
+/**
+ * Metallic — crater-floor colours (darkest band, ~2× darker than plains).
+ * Keyed by surface temperature (°C).
+ */
 export const M_DEEP: [number, THREE.Color][] = [
   [-150, c(0x3a1a10)],  // dark frozen iron rust
   [ -40, c(0x242830)],  // dark cold gunmetal
@@ -158,7 +208,10 @@ export const M_DEEP: [number, THREE.Color][] = [
   [ 400, c(0x160400)],  // near-black molten base
 ]
 
-// Plains — primary surface; mid-dark, sets the overall planet tone
+/**
+ * Metallic — plains colours. Primary surface tone, mid-dark; sets the
+ * overall look of the planet. Keyed by temperature.
+ */
 export const M_PLAIN: [number, THREE.Color][] = [
   [-150, c(0x7a3820)],  // iron oxide warm brown
   [ -40, c(0x505860)],  // cold dark steel
@@ -167,7 +220,10 @@ export const M_PLAIN: [number, THREE.Color][] = [
   [ 400, c(0x903010)],  // hot dark iron
 ]
 
-// Highlands — noticeably lighter than plains, clear step up
+/**
+ * Metallic — highland colours, noticeably lighter than plains. Provides a
+ * clear visual step up from `M_PLAIN`.
+ */
 export const M_HIGH: [number, THREE.Color][] = [
   [-150, c(0xa85040)],  // rust highlight
   [ -40, c(0x7a8898)],  // steel blue-grey
@@ -176,7 +232,10 @@ export const M_HIGH: [number, THREE.Color][] = [
   [ 400, c(0xd85010)],  // bright hot orange
 ]
 
-// Peaks — brightest band, strong specular response
+/**
+ * Metallic — peak colours. Brightest band with strong specular response;
+ * used for metallic summits (chrome, gold, molten).
+ */
 export const M_PEAK: [number, THREE.Color][] = [
   [-150, c(0xd07858)],  // pale rust peak
   [ -40, c(0xa8b4c0)],  // polished steel peak
@@ -185,13 +244,21 @@ export const M_PEAK: [number, THREE.Color][] = [
   [ 400, c(0xff6820)],  // molten peak
 ]
 
-// Height schedule for metallic worlds — sharper relief than rocky
+/**
+ * Peak elevation schedule for metallic worlds, keyed by temperature.
+ * Values are tuned to produce sharper relief than rocky bodies.
+ */
 export const M_PEAK_HEIGHT: [number, number][] = [
   [-150, 0.160], [-40, 0.130], [15, 0.120], [120, 0.100], [400, 0.060],
 ]
 
 // ── Gas giant tile archetypes ─────────────────────────────────────
-// Archetype [dark, mid-dark, mid-light, light] RGB per atmospheric molecule.
+
+/**
+ * Per-molecule gas-giant tile archetypes. Each entry is a 4-tuple of RGB
+ * triples ordered from dark → mid-dark → mid-light → light. Blended in
+ * proportion to the body's atmospheric composition by `buildGasPalette`.
+ */
 export const GAS_TILE_ARCH: Record<string, [number, number, number][]> = {
   H2He:   [[0xc0, 0x80, 0x40], [0xe8, 0xb8, 0x70], [0xf0, 0xd0, 0xa0], [0xd4, 0x95, 0x6a]],
   CH4:    [[0x0a, 0x1a, 0x28], [0x1a, 0x50, 0x70], [0x30, 0x90, 0xb8], [0x70, 0xc8, 0xe0]],

@@ -11,6 +11,14 @@ import { getResourceDistributor, type ResourceDistributor } from './resourceDist
 
 export type { ResourceDistributor }
 
+/**
+ * Authoritative simulation state for a single celestial body.
+ *
+ * Pure data-layer result of {@link initBodySimulation} — captures per-tile
+ * elevation/biome, sea level, water coverage, dominant surface liquid
+ * and initial resource distribution. Independent from any render layer
+ * so it can run in a headless environment.
+ */
 export interface BodySimulation {
   readonly tiles:              readonly Tile[]
   readonly tileStates:         ReadonlyMap<number, TileState>
@@ -65,6 +73,21 @@ function nameToWaterCoverage(
   return min + rng() * (max - min)
 }
 
+/**
+ * Deterministically derives a {@link BodySimulation} from a seed/config
+ * and a pre-generated tile mesh.
+ *
+ * Five-step pipeline:
+ *   1. Compute per-tile seeded simplex elevation.
+ *   2. Resolve water coverage + sea level (rocky bodies only).
+ *   3. Classify biomes.
+ *   4. Delegate resource distribution (opt-in registry).
+ *   5. Assemble immutable `TileState` map.
+ *
+ * @param tiles      - Hexasphere tiles produced by `generateHexasphere`.
+ * @param config     - Full body physics/visual configuration.
+ * @param distribute - Optional override for the registered resource distributor.
+ */
 export function initBodySimulation(
   tiles:       Tile[],
   config:      BodyConfig,

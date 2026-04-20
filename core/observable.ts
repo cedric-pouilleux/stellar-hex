@@ -13,6 +13,11 @@ export interface Observable<T> {
   subscribe(fn: (value: T) => void): () => void
 }
 
+/**
+ * Writable variant of `Observable<T>` — exposes a settable `value` so the
+ * producer can push updates. Consumers should depend on `Observable<T>`
+ * when they only need to read.
+ */
 export interface MutableObservable<T> extends Observable<T> {
   value: T
 }
