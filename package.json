@@ -11,6 +11,7 @@
   },
   "homepage": "https://github.com/cedric-pouilleux/stellar-hex#readme",
   "bugs": "https://github.com/cedric-pouilleux/stellar-hex/issues",
+  "workspaces": ["docs"],
   "scripts": {
     "build": "vite build -c vite.build.config.ts && vue-tsc -p tsconfig.build.json && node scripts/prepare-dist.mjs",
     "build:js": "vite build -c vite.build.config.ts",
@@ -18,10 +19,10 @@
     "build:pkg": "node scripts/prepare-dist.mjs",
     "typecheck": "vue-tsc --noEmit -p tsconfig.build.json",
     "publish:dist": "npm publish ./dist",
-    "docs:api": "typedoc",
-    "docs:dev": "npm run docs:api && vitepress dev docs",
-    "docs:build": "npm run docs:api && vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:api":     "npm run api     -w @cedric-pouilleux/stellar-hex-docs",
+    "docs:dev":     "npm run dev     -w @cedric-pouilleux/stellar-hex-docs",
+    "docs:build":   "npm run build   -w @cedric-pouilleux/stellar-hex-docs",
+    "docs:preview": "npm run preview -w @cedric-pouilleux/stellar-hex-docs"
   },
   "peerDependencies": {
     "@tresjs/core": "^5.8.0",
@@ -41,14 +42,11 @@
     "@tresjs/core": "^5.8.0",
     "@types/three": "^0.184.0",
     "@vitejs/plugin-vue": "^6.0.0",
+    "esbuild": "^0.28.0",
     "simplex-noise": "^4.0.0",
     "three": "^0.183.0",
-    "typedoc": "^0.28.19",
-    "typedoc-plugin-markdown": "^4.11.0",
-    "typedoc-vitepress-theme": "^1.1.2",
     "typescript": "^6.0.0",
     "vite": "^8.0.0",
-    "vitepress": "^1.6.4",
     "vue": "^3.5.0",
     "vue-tsc": "^3.0.0"
   }

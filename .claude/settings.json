@@ -28,7 +28,9 @@
       "Bash(node -e ' *)",
       "Bash(npm i *)",
       "Bash(npx typedoc *)",
-      "Bash(npx vitepress *)"
+      "Bash(npx vitepress *)",
+      "Bash(rm -rf node_modules docs/node_modules)",
+      "Bash(npm ci *)"
     ],
     "additionalDirectories": [
       "\\tmp\\test-playground",

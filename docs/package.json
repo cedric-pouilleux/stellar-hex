@@ -1,0 +1,19 @@
+{
+  "name": "@cedric-pouilleux/stellar-hex-docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Documentation site for @cedric-pouilleux/stellar-hex.",
+  "scripts": {
+    "api":     "typedoc --options ../typedoc.json",
+    "dev":     "npm run api && vitepress dev .",
+    "build":   "npm run api && vitepress build .",
+    "preview": "vitepress preview ."
+  },
+  "devDependencies": {
+    "typedoc":                 "^0.28.19",
+    "typedoc-plugin-markdown": "^4.11.0",
+    "typedoc-vitepress-theme": "^1.1.2",
+    "vitepress":               "^1.6.4"
+  }
+}
