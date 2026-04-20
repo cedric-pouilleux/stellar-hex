@@ -105,12 +105,15 @@ function gasCloudColorRange(config: BodyConfig): ColorRange {
  * Generate complete deterministic visual variation for a planet.
  * Every shader parameter visible in the playground is covered.
  *
- * @param config     - Planet physics config (informs palette ranges + feature gates).
- * @param shaderSeed - uint32 stored in backend. Omit to derive from planet name.
+ * The variation is seeded purely from `config.name` — a body's visual identity
+ * (rings, cracks, band offsets, noise domain) is intrinsic to the same seed
+ * that drives its terrain and simulation, so two bodies with the same name
+ * always render identically.
+ *
+ * @param config - Planet physics config (informs palette ranges + feature gates).
  */
-export function generateBodyVariation(config: BodyConfig, shaderSeed?: number): BodyVariation {
-  const seedStr = shaderSeed !== undefined ? String(shaderSeed) : 'var:' + config.name
-  const rng     = seededPrng(seedStr)
+export function generateBodyVariation(config: BodyConfig): BodyVariation {
+  const rng     = seededPrng('var:' + config.name)
   const r       = (min: number, max: number) => min + rng() * (max - min)
   const ri      = (min: number, max: number) => Math.floor(r(min, max + 1))  // inclusive integer
 

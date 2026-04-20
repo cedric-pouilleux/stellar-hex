@@ -8,6 +8,8 @@
  * mutate `.value` directly. The canonical default values live here.
  */
 
+import * as THREE from 'three'
+
 export const hexGraphicsUniforms = {
   // Toggles (0.0 / 1.0)
   uWaterEnabled:        { value: 1.0 },
@@ -19,6 +21,7 @@ export const hexGraphicsUniforms = {
   // Cloud shader params (continuous)
   uCloudOpacity:        { value: 0.90 },
   uCloudSpeed:          { value: 1.0 },
+  uCloudColor:          { value: new THREE.Color(1, 1, 1) },
   // Atmosphere shader params (continuous)
   uAtmoOpacity:         { value: 1.0 },
   // Water shader params (continuous)

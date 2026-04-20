@@ -35,6 +35,7 @@ const GLSL_UNIFORMS_VARS = /* glsl */`
   uniform vec3  uSunWorldPos;
   uniform float uCloudOpacity;
   uniform float uCloudSpeed;
+  uniform vec3  uCloudColor;
   varying vec3  vLocalPos;
   varying vec3  vWorldPos;
   varying vec3  vWorldNormal;
@@ -114,7 +115,7 @@ const CLOUD_FRAG = GLSL_UNIFORMS_VARS + GLSL_NOISE + /* glsl */`
 
     ${GLSL_OCCLUDER_CHECK}
 
-    gl_FragColor = vec4(vec3(brightness * light), alpha * uCloudOpacity);
+    gl_FragColor = vec4(uCloudColor * brightness * light, alpha * uCloudOpacity);
   }
 `
 
@@ -234,6 +235,8 @@ export interface CloudShellConfig {
   cloudOpacityUniform?: NumberUniform
   /** Optional shared `uCloudSpeed` uniform (e.g. `hexGraphicsUniforms.uCloudSpeed`). */
   cloudSpeedUniform?:   NumberUniform
+  /** Optional shared `uCloudColor` vec3 uniform (e.g. `hexGraphicsUniforms.uCloudColor`). */
+  cloudColorUniform?:   { value: THREE.Color }
 }
 
 export interface CloudShellHandle {
@@ -256,6 +259,7 @@ export function buildCloudShell(config: CloudShellConfig): CloudShellHandle {
     uOccluderRadius: config.occluderUniforms?.radius ?? { value: 0.0 },
     uCloudOpacity:   config.cloudOpacityUniform ?? { value: 1.0 },
     uCloudSpeed:     speedUniform,
+    uCloudColor:     config.cloudColorUniform   ?? { value: new THREE.Color(1, 1, 1) },
   }
 
   const shellOffset = config.frozen ? config.radius * 0.08 : config.radius * 0.14
@@ -279,8 +283,12 @@ export function buildCloudShell(config: CloudShellConfig): CloudShellHandle {
   const frozen       = config.frozen
 
   function tick(dt: number): void {
+    // `uCloudSpeed` is already multiplied into `uTime` inside the shader, so
+    // raising it churns the FBM pattern faster. Mesh rotation is kept at a
+    // fixed slow drift on top of the parent body's spin — otherwise clouds
+    // would overtake the terrain whenever speed is increased.
     timeUniform.value += dt
-    if (!frozen) mesh.rotation.y += dt * 0.025 * speedUniform.value
+    if (!frozen) mesh.rotation.y += dt * 0.01
     if (mesh.parent) findDominantLightWorldPos(findSceneRoot(mesh), sunPosUni)
   }
 

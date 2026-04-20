@@ -35,6 +35,13 @@ export interface RingVariation {
   opacity:      number
   /** Strength of the low-frequency azimuthal lobes [0..1]. Higher = more angular asymmetry. */
   lobeStrength: number
+  /**
+   * Keplerian differential rotation [0..1]. At 0 the ring rotates as a rigid
+   * block (texture locked to the mesh); at 1 each radial band drifts at its
+   * own Kepler rate (ω ∝ r^-3/2), so outer bands visibly lag behind inner
+   * ones over time — producing Saturn-like shear spirals.
+   */
+  keplerShear:  number
   /** Seed used by the 1D hash-noise in the shader — keeps patterns deterministic. */
   noiseSeed:    number
   /** Archetype label — purely informational, useful for tests / debug. */
@@ -55,12 +62,12 @@ export type RingArchetype =
   | 'dense'        // near-uniform solid band (pleine)
   | 'sparse'       // irregular sparse spikes
 
-type Profile8 = readonly [number, number, number, number, number, number, number, number]
+export type Profile8 = readonly [number, number, number, number, number, number, number, number]
 
 // ── Archetype profiles (macroscopic opacity envelope) ────────────────────────
 // Each entry is sampled along t∈[0,1] from inner to outer edge of the ring strip.
 
-const ARCHETYPE_PROFILES: Record<RingArchetype, Profile8> = {
+export const ARCHETYPE_PROFILES: Record<RingArchetype, Profile8> = {
   broad:     [0.15, 0.55, 0.85, 1.00, 0.92, 0.70, 0.40, 0.10],
   double:    [0.92, 0.70, 0.15, 0.05, 0.10, 0.85, 0.75, 0.25],
   narrow:    [0.00, 0.05, 0.25, 0.95, 1.00, 0.55, 0.10, 0.00],
@@ -75,7 +82,7 @@ const ARCHETYPE_PROFILES: Record<RingArchetype, Profile8> = {
   sparse:    [0.12, 0.70, 0.08, 0.65, 0.10, 0.55, 0.08, 0.40],
 }
 
-const ARCHETYPE_KEYS: readonly RingArchetype[] = [
+export const RING_ARCHETYPES: readonly RingArchetype[] = [
   'broad', 'double', 'narrow', 'dusty', 'triple', 'outer',
   'shepherd', 'quadruple', 'skewedIn', 'skewedOut', 'dense', 'sparse',
 ]
@@ -100,8 +107,8 @@ export const RING_SPAWN_WEIGHTS: Record<BodyType, number> = {
 type RGBRange = [from: [number, number, number], to: [number, number, number]]
 
 function pickArchetype(r: () => number): RingArchetype {
-  const i = Math.floor(r() * ARCHETYPE_KEYS.length)
-  return ARCHETYPE_KEYS[Math.min(i, ARCHETYPE_KEYS.length - 1)]
+  const i = Math.floor(r() * RING_ARCHETYPES.length)
+  return RING_ARCHETYPES[Math.min(i, RING_ARCHETYPES.length - 1)]
 }
 
 function typePaletteRanges(type: BodyType): { inner: RGBRange, outer: RGBRange } {
@@ -180,6 +187,7 @@ export const RING_RANGES = {
   grainAmount:  { min: 0.20, max: 0.95 },
   grainFreq:    { min: 90,   max: 520 },
   lobeStrength: { min: 0.06, max: 0.42 },
+  keplerShear:  { min: 0.00, max: 1.00 },
 } as const
 
 // ── Generator ────────────────────────────────────────────────────────────────
@@ -250,6 +258,13 @@ export function generateRingVariation(
   const opacity      = lerp(opacityMin, RING_RANGES.opacity.max, opacityRaw)
   const lobeStrength = lerp(RING_RANGES.lobeStrength.min, RING_RANGES.lobeStrength.max, rng())
   const noiseSeed    = Math.floor(rng() * 10_000)
+  // Dusty archetype stays visually coherent with a muted shear; shepherd
+  // narrow rings also keep low shear so a single band doesn't smear. Other
+  // archetypes sample the full range — Saturn-like broad discs benefit most.
+  const shearRaw     = rng()
+  const keplerShear  = archetype === 'dusty' || archetype === 'shepherd'
+    ? lerp(RING_RANGES.keplerShear.min, 0.35, shearRaw)
+    : lerp(RING_RANGES.keplerShear.min, RING_RANGES.keplerShear.max, shearRaw)
 
   // `star` bodies never carry hasRings — defensive early-out to keep types honest.
   if (config.type === 'star' || !config.hasRings) return null
@@ -267,6 +282,7 @@ export function generateRingVariation(
     grainFreq,
     opacity,
     lobeStrength,
+    keplerShear,
     noiseSeed,
     archetype,
   }

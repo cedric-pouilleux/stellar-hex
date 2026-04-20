@@ -166,7 +166,6 @@ export function useBody(
   tileSize: number,
   options?: {
     getSunPos?:            () => THREE.Vector3
-    shaderSeed?:           number
     /**
      * Resource IDs allowed on the rocky core of a gaseous planet. Forwarded
      * to {@link buildGasCoreConfig}. Ignored for non-gaseous bodies.
@@ -184,7 +183,7 @@ export function useBody(
     : config.radius
   const subdivisions = tileSizeToSubdivisions(tileRefRadius, tileSize)
   const data         = generateHexasphere(config.radius, subdivisions)
-  const variation    = generateBodyVariation(config, config.shaderSeed ?? options?.shaderSeed)
+  const variation    = generateBodyVariation(config)
   const sim          = initBodySimulation(data.tiles, config)
   const palette      = choosePalette(config, sim.seaLevelElevation)
   const group        = new THREE.Group()
@@ -231,6 +230,7 @@ export function useBody(
       getLayerSims:       () => [{ layer: 'surface' as const, sim }],
       tick: tickStar,
       dispose,
+      planetMaterial:     starMat,
     }
   }
 

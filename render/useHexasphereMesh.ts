@@ -24,6 +24,7 @@ function dominantResource(resources: ReadonlyMap<string, number>): string | unde
 }
 import { BodyMaterial } from '../shaders'
 import type { ParamMap } from '../shaders'
+import { buildPermTable, permTableToTexture } from '../core/oceanMask'
 import { configToLibParams, bodyTypeToLibType } from './configToLibParams'
 import type { BodyVariation } from './bodyVariation'
 import { type HoverConfig, DEFAULT_HOVER } from '../config/render'
@@ -1066,7 +1067,21 @@ export function buildSmoothSphereMesh(
 
   const libType   = bodyTypeToLibType(config.type)
   const params    = configToLibParams(config, variation)
-  const planetMat = new BodyMaterial(libType, params, { vertexColors: true })
+
+  // Ocean mask — replicates the CPU simplex3D elevation in GLSL so crack/lava
+  // effects match the tile-level ocean boundary exactly. Only enabled on
+  // rocky bodies that actually have surface water.
+  const useOceanMask = libType === 'rocky' && sim.seaLevelElevation > -1
+  const ocean = useOceanMask
+    ? {
+        permTexture: permTableToTexture(buildPermTable(config.name)),
+        seaLevel:    sim.seaLevelElevation,
+        noiseScale:  config.noiseScale ?? 1.4,
+        radius:      config.radius,
+      }
+    : undefined
+
+  const planetMat = new BodyMaterial(libType, params, { vertexColors: true, ocean })
   return { mesh: new THREE.Mesh(geo, planetMat.material), planetMaterial: planetMat }
 }
 

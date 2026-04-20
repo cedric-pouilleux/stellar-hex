@@ -38,6 +38,8 @@ const FRAG = /* glsl */`
   uniform float uGrainFreq;
   uniform float uOpacity;
   uniform float uLobeStrength;
+  uniform float uKeplerShear;
+  uniform float uRotationPhase;
   uniform float uNoiseSeed;
   uniform vec3  uColorInner;
   uniform vec3  uColorOuter;
@@ -109,7 +111,15 @@ const FRAG = /* glsl */`
     float micro = fbm1(t * uBandFreq);
     micro = mix(0.5, micro, uBandContrast);
 
-    float theta = atan(vLocalXY.y, vLocalXY.x);
+    // Keplerian shear — outer bands lag behind inner as rotation accumulates.
+    // factor(r) = 1 - (r_inner/r)^1.5 is 0 at the inner edge and grows toward
+    // the outer edge. Multiplied by the accumulated rotation phase and the
+    // shear strength, it adds an in-shader azimuthal offset on top of the
+    // mesh mono-block spin so shear=0 keeps the pattern locked to the mesh.
+    float rN       = max(r, uInnerR);
+    float keplerF  = 1.0 - pow(uInnerR / rN, 1.5);
+    float shearPhi = uKeplerShear * keplerF * uRotationPhase;
+    float theta    = atan(vLocalXY.y, vLocalXY.x) + shearPhi;
 
     float phi = theta + t * 1.4 + uNoiseSeed * 0.01;
     float lobes = 0.45 * cos(2.0 * phi)
@@ -142,7 +152,12 @@ const FRAG = /* glsl */`
     float shadow    = 0.0;
     if (tCA > 0.0 && tCA < fragDist) {
       float d  = length(sunToPlan - tCA * rayDir);
-      shadow = 1.0 - smoothstep(uPlanetRadius * 0.97, uPlanetRadius * 1.04, d);
+      // Penumbra widens with the fragment's distance behind the planet along
+      // the sun ray — points far from the occluder see a more diffuse edge
+      // (geometric umbra/penumbra divergence with a finite-size light source).
+      float distBehind = fragDist - tCA;
+      float penK       = clamp(distBehind / uPlanetRadius * 0.045, 0.03, 0.22);
+      shadow = 1.0 - smoothstep(uPlanetRadius * (1.0 - penK), uPlanetRadius * (1.0 + penK * 1.25), d);
     }
     color *= mix(1.0, 0.15, shadow);
 
@@ -211,6 +226,8 @@ export function buildBodyRings(config: BodyRingsConfig): BodyRingsHandle {
     uGrainFreq:      { value: config.variation.grainFreq },
     uOpacity:        { value: config.variation.opacity },
     uLobeStrength:   { value: config.variation.lobeStrength },
+    uKeplerShear:    { value: config.variation.keplerShear },
+    uRotationPhase:  { value: 0 },
     uNoiseSeed:      { value: config.variation.noiseSeed },
     uColorInner:     { value: new THREE.Color(config.variation.colorInner) },
     uColorOuter:     { value: new THREE.Color(config.variation.colorOuter) },
@@ -251,6 +268,10 @@ export function buildBodyRings(config: BodyRingsConfig): BodyRingsHandle {
     Q_spin.setFromAxisAngle(Y_AXIS, spinAngle)
     mesh.quaternion.multiplyQuaternions(Q_spin, Q_base)
 
+    // Kepler shear compensates in-shader against the mesh spin, so it must
+    // track the same accumulated phase — pausing freezes both in lockstep.
+    uniforms.uRotationPhase.value = spinAngle
+
     uniforms.uPlanetWorldPos.value.copy(getPlanetWP())
     if (mesh.parent) findDominantLightWorldPos(findSceneRoot(mesh), uniforms.uSunWorldPos.value)
   }
@@ -276,6 +297,7 @@ export function buildBodyRings(config: BodyRingsConfig): BodyRingsHandle {
     uniforms.uGrainFreq.value    = v.grainFreq
     uniforms.uOpacity.value      = v.opacity
     uniforms.uLobeStrength.value = v.lobeStrength
+    uniforms.uKeplerShear.value  = v.keplerShear
     uniforms.uNoiseSeed.value    = v.noiseSeed
     uniforms.uColorInner.value.set(v.colorInner)
     uniforms.uColorOuter.value.set(v.colorOuter)

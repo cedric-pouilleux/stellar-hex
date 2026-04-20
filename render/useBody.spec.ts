@@ -78,6 +78,15 @@ describe('useBody — star', () => {
     star.dispose()
   })
 
+  it('exposes planetMaterial so ShaderPane can live-update star uniforms', () => {
+    // The playground's shader slider pipeline calls `body.planetMaterial.setParams`
+    // on every input event. Omitting this field here (previous regression) broke
+    // every star shader control — temperature, pulsation, corona, granulation…
+    const star = useBody(makeStarConfig(), TILE_SIZE)
+    expect((star as any).planetMaterial?.setParams).toBeTypeOf('function')
+    star.dispose()
+  })
+
   it('switches to non-indexed hex mesh in interactive mode and back on deactivate', () => {
     // Same smooth ↔ hex swap lifecycle as rocky planets.
     const star = useBody(makeStarConfig(), TILE_SIZE)

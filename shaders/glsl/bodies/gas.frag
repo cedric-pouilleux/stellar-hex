@@ -2,7 +2,7 @@ precision highp float;
 
 uniform float uTime;
 uniform float uSeed;
-uniform vec3  uNoiseSeed;   // per-planet domain offset (from shaderSeed variation)
+uniform vec3  uNoiseSeed;   // per-planet domain offset (from body variation)
 uniform float uNoiseFreq;   // global noise frequency multiplier
 // Bandes
 uniform float uBandCount;

@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git restore *)",
+      "Bash(git reset *)",
+      "Bash(npx --no-install vue-tsc --noEmit -p tsconfig.json)",
+      "Bash(npx --no-install vite build)",
+      "Bash(npx --no-install vite --port 5174 --strictPort)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:5174/)",
+      "Bash(npx --no-install vite --port 5199 --strictPort)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:5199/)",
+      "Bash(npx vue-tsc *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(echo \"libexit=$?\")",
+      "Bash(echo \"pg=$?\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(git stash *)",
+      "Bash(ls node_modules/puppeteer)",
+      "Bash(ls node_modules/jsdom)",
+      "Bash(ls node_modules/playwright)",
+      "Bash(find node_modules -maxdepth 2 -name \"puppeteer*\")",
+      "Bash(curl -s http://localhost:5175/)",
+      "Bash(node check.mjs)",
+      "Bash(node check2.mjs)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(cmd.exe //c \"taskkill /F /IM node.exe\")",
+      "Bash(node verify.mjs)"
+    ],
+    "additionalDirectories": [
+      "\\tmp\\test-playground",
+      "d:\\tmp\\test-playground",
+      "C:\\Users\\minom\\AppData\\Local\\Temp\\test-playground"
+    ]
+  }
+}

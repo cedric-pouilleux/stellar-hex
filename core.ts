@@ -97,7 +97,8 @@ export { buildCloudShell } from './render/buildCloudShell'
 export type { CloudShellConfig, CloudShellHandle } from './render/buildCloudShell'
 export { buildBodyRings } from './render/buildBodyRings'
 export type { BodyRingsConfig, BodyRingsHandle } from './render/buildBodyRings'
-export type { RingVariation, RingArchetype } from './render/ringVariation'
+export type { RingVariation, RingArchetype, Profile8 } from './render/ringVariation'
+export { RING_RANGES, RING_ARCHETYPES, ARCHETYPE_PROFILES } from './render/ringVariation'
 export { generateBodyVariation } from './render/bodyVariation'
 export type { BodyVariation } from './render/bodyVariation'
 export { createTileOverlayMesh } from './render/TileOverlayMesh'
@@ -107,6 +108,7 @@ export type { BodyEffectLayerConfig, BodyEffectLayerHandle, BodyEffectMode } fro
 export { atmosphereColorFromTemp } from './render/atmosphereColor'
 export { godRaysFromStar } from './render/godRaysFromStar'
 export { hexGraphicsUniforms } from './render/hexGraphicsUniforms'
+export { findSceneRoot, findDominantLightWorldPos } from './render/findDominantLight'
 export {
   registerResourceVisual,
   getResourceVisual,

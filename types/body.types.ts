@@ -29,7 +29,6 @@ export interface BodyConfig {
   rotationSpeed:  number         // rad/s
   axialTilt:      number         // radians
   mass?:                number   // M_earth
-  albedo?:              number   // 0..1 bond albedo; default 0.30
   atmosphereThickness?: number   // 0..1; 0 = no atmosphere
   waterCoverage?:       number   // 0..1
   noiseScale?:          number   // default 1.4
@@ -58,7 +57,6 @@ export interface BodyConfig {
   hasLava?:         boolean
   /** When true, a decorative ring system is generated around this body (visual only). */
   hasRings?:        boolean
-  shaderSeed?:      number
   /** Spectral classification (star bodies only). */
   spectralType?:    SpectralType
 }
@@ -91,7 +89,6 @@ export interface StarBodyConfig {
   rotationSpeed: number
   axialTilt:     number
   palette?:      TerrainLevel[]
-  shaderSeed?:   number
 }
 
 // ── Union — the single type accepted by all render/physics APIs ───

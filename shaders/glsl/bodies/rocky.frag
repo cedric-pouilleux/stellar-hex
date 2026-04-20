@@ -2,7 +2,7 @@ precision highp float;
 
 uniform float uTime;
 uniform float uSeed;
-uniform vec3  uNoiseSeed;   // per-planet domain offset (from shaderSeed variation)
+uniform vec3  uNoiseSeed;   // per-planet domain offset (from body variation)
 uniform float uNoiseFreq;   // global terrain frequency multiplier
 uniform float uRoughness;
 uniform float uCraterDensity;
@@ -45,6 +45,9 @@ varying vec3  vVertexColor;
 #include ../lib/lighting.glsl
 #include ../lib/cracks.glsl
 #include ../lib/lava.glsl
+#ifdef USE_OCEAN_MASK
+#include ../lib/oceanMask.glsl
+#endif
 
 // Crater shape function (inverted quartic profile)
 float craterShape(float d, float r) {
@@ -109,18 +112,33 @@ void main() {
   float craterMask = clamp(-craters * uCraterDensity, 0.0, 1.0);
   baseColor = mix(baseColor, uColorA * 0.5, craterMask * uCraterDepth);
 
-  // ── Cracks ───────────────────────────────────────────────────
-  float crackMaskFull = 0.0; // exposed for lava channel seeding
-  if (uCrackAmount > 0.0) {
-    crackMaskFull = computeCracks(baseColor, p, uCrackAmount, uCrackScale, uCrackWidth, uCrackDepth, uCrackColor, uCrackBlend);
-  }
+  // ── Crack / lava placement mask ──────────────────────────────
+  // On planets with surface water, `oceanLandMask` (when USE_OCEAN_MASK is
+  // defined) replicates the CPU simplex3D elevation field exactly, so cracks
+  // and lava are suppressed precisely where the CPU classified tiles as
+  // ocean — matching the blue tile colours at their own boundary.
+  // Otherwise the mask is 1.0 and the effects apply uniformly.
+  #ifdef USE_OCEAN_MASK
+    float landMask = oceanLandMask(vPosition);
+  #else
+    float landMask = 1.0;
+  #endif
 
   // ── Lava ─────────────────────────────────────────────────────
+  // Applied BEFORE cracks so fissures stay visible when both effects are
+  // active — cracks overpaint lava channels with their dark edges. The
+  // `crackMask` seed is disabled (passed as 0.0) so lava and cracks form
+  // independent networks instead of colliding on the same voronoi cells.
   vec3 lavaEmissiveContrib = vec3(0.0);
-  if (uLavaAmount > 0.0) {
+  if (uLavaAmount > 0.0 && landMask > 0.5) {
     // Channel width grows with lava amount (wider channels = more surface coverage)
     float netWidth = mix(0.015, 0.22, uLavaAmount);
-    lavaEmissiveContrib = computeLava(baseColor, p, uTime, uLavaAmount, uCrackScale, netWidth, crackMaskFull, uLavaColor, uLavaEmissive);
+    lavaEmissiveContrib = computeLava(baseColor, p, uTime, uLavaAmount, uCrackScale, netWidth, 0.0, uLavaColor, uLavaEmissive);
+  }
+
+  // ── Cracks ───────────────────────────────────────────────────
+  if (uCrackAmount > 0.0 && landMask > 0.5) {
+    computeCracks(baseColor, p, uCrackAmount, uCrackScale, uCrackWidth, uCrackDepth, uCrackColor, uCrackBlend);
   }
 
   // ── Nuages ──────────────────────────────────────────────────

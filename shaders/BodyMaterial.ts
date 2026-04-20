@@ -10,12 +10,31 @@ import { VERTEX_SHADER, FRAG_SHADERS } from './shaderSources'
 import { kelvinToThreeColor } from './kelvin'
 import { getDefaultParams, type LibBodyType } from './params'
 
+/**
+ * Ocean-mask configuration (rocky bodies with surface water).
+ *
+ * When provided, the fragment shader excludes ocean regions from per-fragment
+ * effects (cracks, lava) by replicating the CPU simplex3D elevation field
+ * through `uOceanPerm` and comparing against `seaLevel`.
+ */
+export interface OceanMaskOptions {
+  /** 512×1 `UNSIGNED_BYTE` permutation texture (see `core/oceanMask.ts`). */
+  permTexture: THREE.DataTexture
+  /** Elevation threshold from `BodySimulation.seaLevelElevation`. */
+  seaLevel:    number
+  /** `config.noiseScale` — must match the CPU sampling frequency. */
+  noiseScale:  number
+  /** Body radius used to normalise object-space positions to the unit sphere. */
+  radius:      number
+}
+
 export interface BodyMaterialOptions {
   lightKelvin?:    number
   lightIntensity?: number
   lightDir?:       number[] | THREE.Vector3
   ambientColor?:   string   | THREE.Color
   vertexColors?:   boolean
+  ocean?:          OceanMaskOptions
 }
 
 export interface BodyLightUpdate {
@@ -119,12 +138,14 @@ export class BodyMaterial {
   private _params:       ParamMap
   private _vertexColors: boolean
   private _light:        LightState
+  private _ocean?:       OceanMaskOptions
   private _material:     THREE.ShaderMaterial
 
   constructor(type: LibBodyType, params: ParamMap = {}, options: BodyMaterialOptions = {}) {
     this._type         = type
     this._params       = { ...getDefaultParams(type), ...params }
     this._vertexColors = options.vertexColors ?? false
+    this._ocean        = options.ocean
     this._light = {
       kelvin:    options.lightKelvin    ?? 5778,
       intensity: options.lightIntensity ?? 2.0,
@@ -209,10 +230,13 @@ export class BodyMaterial {
   // ── Private ───────────────────────────────────────────────────────────────
 
   private _build(): THREE.ShaderMaterial {
+    const defines: Record<string, string | number | boolean> = {}
+    if (this._ocean) defines.USE_OCEAN_MASK = ''
     return new THREE.ShaderMaterial({
       vertexShader:   VERTEX_SHADER,
       fragmentShader: FRAG_SHADERS[this._type],
       uniforms:       this._buildUniforms(),
+      defines,
       vertexColors:   this._vertexColors,
       side:           THREE.FrontSide,
     })
@@ -221,7 +245,7 @@ export class BodyMaterial {
   private _buildUniforms(): Record<string, THREE.IUniform> {
     const { kelvin, intensity, dir, ambient } = this._light
     const { r, g, b } = kelvinToThreeColor(kelvin)
-    return {
+    const uniforms: Record<string, THREE.IUniform> = {
       uTime:           { value: 0 },
       uLightColor:     { value: new THREE.Color(r, g, b) },
       uLightDir:       { value: dir.clone() },
@@ -230,6 +254,13 @@ export class BodyMaterial {
       uFlatLighting:   { value: 0.0 },
       ...paramsToUniforms(this._type, this._params),
     }
+    if (this._ocean) {
+      uniforms.uOceanPerm       = { value: this._ocean.permTexture }
+      uniforms.uSeaLevel        = { value: this._ocean.seaLevel }
+      uniforms.uOceanNoiseScale = { value: this._ocean.noiseScale }
+      uniforms.uOceanRadius     = { value: this._ocean.radius }
+    }
+    return uniforms
   }
 
   /** Pushes current params into existing uniforms (no reallocation). */

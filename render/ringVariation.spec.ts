@@ -95,6 +95,8 @@ describe('generateRingVariation', () => {
       expect(v.bandFreq).toBeLessThanOrEqual(RING_RANGES.bandFreq.max + EPS)
       expect(v.lobeStrength).toBeGreaterThanOrEqual(RING_RANGES.lobeStrength.min)
       expect(v.lobeStrength).toBeLessThanOrEqual(RING_RANGES.lobeStrength.max + EPS)
+      expect(v.keplerShear).toBeGreaterThanOrEqual(RING_RANGES.keplerShear.min)
+      expect(v.keplerShear).toBeLessThanOrEqual(RING_RANGES.keplerShear.max + EPS)
       expect(v.profile).toHaveLength(8)
       for (const sample of v.profile) {
         expect(sample).toBeGreaterThanOrEqual(0)
@@ -111,6 +113,16 @@ describe('generateRingVariation', () => {
     }
     // With THIN_MODE_CHANCE ≈ 0.18 plus shepherd archetype always thin, we expect ≥ 40/300.
     expect(thinSeen).toBeGreaterThan(30)
+  })
+
+  it('clamps keplerShear to a muted range for dusty / shepherd archetypes', () => {
+    // Muted archetypes must not smear — their upper bound is 0.35 by design.
+    for (let i = 0; i < 400; i++) {
+      const v = generateRingVariation(makeGasConfig(), seededPrng('kep-' + i))!
+      if (v.archetype === 'dusty' || v.archetype === 'shepherd') {
+        expect(v.keplerShear).toBeLessThanOrEqual(0.35 + 1e-9)
+      }
+    }
   })
 
   it('spreads across every archetype given a varied seed space', () => {
@@ -158,8 +170,8 @@ describe('generateBodyVariation — ring integration', () => {
   it('exposes rings=null when hasRings is false, but keeps the rest reproducible', () => {
     const cfgNo  = makeGasConfig({ hasRings: false })
     const cfgYes = makeGasConfig({ hasRings: true })
-    const vNo    = generateBodyVariation(cfgNo,  42)
-    const vYes   = generateBodyVariation(cfgYes, 42)
+    const vNo    = generateBodyVariation(cfgNo)
+    const vYes   = generateBodyVariation(cfgYes)
     expect(vNo.rings).toBeNull()
     expect(vYes.rings).not.toBeNull()
     // All other fields are identical — PRNG stream unaffected by hasRings
@@ -168,10 +180,10 @@ describe('generateBodyVariation — ring integration', () => {
     expect(vNo.gasCloudColor).toEqual(vYes.gasCloudColor)
   })
 
-  it('persists ring variation across identical shader seeds', () => {
+  it('persists ring variation across repeated calls with the same config', () => {
     const cfg = makeGasConfig()
-    const v1  = generateBodyVariation(cfg, 1234)
-    const v2  = generateBodyVariation(cfg, 1234)
+    const v1  = generateBodyVariation(cfg)
+    const v2  = generateBodyVariation(cfg)
     expect(v1.rings).toEqual(v2.rings)
   })
 })
