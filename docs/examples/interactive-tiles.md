@@ -1,35 +1,49 @@
+<script setup>
+import HexPlanetDemo from '../.vitepress/theme/demos/HexPlanetDemo.vue'
+import HexPlanetDemoRaw from '../.vitepress/theme/demos/HexPlanetDemo.vue?raw'
+
+const tabs = [
+  { label: 'Three.js', code: HexPlanetDemoRaw, lang: 'vue' },
+]
+</script>
+
 # Interactive Tiles
 
-Hover / click individual hex tiles using `raycastBodies` and the overlay
-mesh helper.
+Hover individual hex tiles to inspect biome and elevation data.
+Drag to orbit, scroll to zoom.
+
+<ClientOnly>
+  <DemoBlock :tabs="tabs">
+    <HexPlanetDemo />
+  </DemoBlock>
+</ClientOnly>
+
+## How it works
+
+Call `activateInteractive()` on the body to swap the smooth display mesh for
+the full hex tile mesh, then drive `queryHover` / `setHover` from a raycaster
+each frame.
 
 ```ts
 import * as THREE from 'three'
-import {
-  raycastBodies,
-  createTileOverlayMesh,
-} from '@cedric-pouilleux/stellar-hex/core'
+import { useBody, DEFAULT_TILE_SIZE, resolveTileHeight } from '@cedric-pouilleux/stellar-hex/core'
 
-const overlay = createTileOverlayMesh({
-  tiles,                  // from generateHexasphere
-  color: '#ffe066',
-  opacity: 0.35,
-})
-scene.add(overlay.mesh)
+const body = useBody(config, DEFAULT_TILE_SIZE)
+body.activateInteractive?.()
+scene.add(body.group)
 
 const raycaster = new THREE.Raycaster()
 const pointer   = new THREE.Vector2()
 
-window.addEventListener('pointermove', (e) => {
-  pointer.x = (e.clientX / innerWidth)  * 2 - 1
-  pointer.y = -(e.clientY / innerHeight) * 2 + 1
+// in animation loop:
+raycaster.setFromCamera(pointer, camera)
+const tileId = body.queryHover?.(raycaster) ?? null
+body.setHover?.(tileId)
 
-  raycaster.setFromCamera(pointer, camera)
-  const hit = raycastBodies(raycaster, [{ mesh, tiles }])
-  if (hit) overlay.highlight([hit.tileId])
-  else     overlay.highlight([])
-})
+// read tile state from the simulation:
+const sim   = body.sim
+const state = sim.tileStates.get(tileId)
+const h     = resolveTileHeight(config, sim.seaLevelElevation, state.elevation)
 ```
 
-See [`RaycastHit`](/api/) and [`TileOverlayMesh`](/api/) for the full
-surface — including multi-tile highlighting and custom colours.
+Calling `deactivateInteractive()` swaps back to the smooth display mesh.

@@ -23,7 +23,7 @@ const sim   = initBodySimulation(tiles, {
 
 // Everything below is serialisable: ship it to the client.
 console.log(sim.biomeMap.size)
-console.log(sim.waterCoverage)
+console.log(sim.liquidCoverage)
 console.log(sim.surfaceLiquid)
 ```
 

@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: Stellar Hex
+  name: Playable, hexagonale celestial bodies
   text: Procedural celestial bodies
   tagline: Geometry, physics, simulation and rendering — for Three.js and Vue 3.
   actions:
