@@ -41,6 +41,9 @@ coverage/
 *.lcov
 .nyc_output/
 
+# Claude Code — local config, never pushed
+.claude/
+
 # Temp
 tmp/
 temp/
