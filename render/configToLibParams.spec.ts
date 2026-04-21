@@ -14,7 +14,7 @@ function rockyConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
     rotationSpeed: 0.1,
     axialTilt: 0,
     atmosphereThickness: 0.5,
-    waterCoverage: 0.4,
+    liquidCoverage: 0.4,
     noiseScale: 1.0,
     ...overrides,
   }
@@ -30,7 +30,7 @@ function gaseousConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
     rotationSpeed: 0.5,
     axialTilt: 5,
     atmosphereThickness: 1,
-    waterCoverage: 0,
+    liquidCoverage: 0,
     noiseScale: 1.0,
     ...overrides,
   }
@@ -46,7 +46,7 @@ function metallicConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
     rotationSpeed: 0.05,
     axialTilt: 0,
     atmosphereThickness: 0.05,
-    waterCoverage: 0,
+    liquidCoverage: 0,
     noiseScale: 1.0,
     ...overrides,
   }
@@ -88,25 +88,30 @@ describe('configToLibParams — rocky', () => {
     expect(p.crackAmount).toBe(0)
   })
 
-  it('hot rocky planet (avg > 200 °C) → lava enabled', () => {
+  it('hot rocky planet without hasLava → lava disabled (caller decides)', () => {
     const p = configToLibParams(rockyConfig({ temperatureMin: 180, temperatureMax: 260 }))
+    expect(Number(p.lavaAmount)).toBe(0)
+  })
+
+  it('hot rocky planet with hasLava:true → lava enabled', () => {
+    const p = configToLibParams(rockyConfig({ temperatureMin: 180, temperatureMax: 260, hasLava: true }))
     expect(Number(p.lavaAmount)).toBeGreaterThan(0)
   })
 
-  it('wet planet (high waterCoverage) → lower roughness than dry planet', () => {
-    const wet = configToLibParams(rockyConfig({ waterCoverage: 0.9, atmosphereThickness: 0.8 }))
-    const dry = configToLibParams(rockyConfig({ waterCoverage: 0.0, atmosphereThickness: 0.0 }))
+  it('wet planet (high liquidCoverage) → lower roughness than dry planet', () => {
+    const wet = configToLibParams(rockyConfig({ liquidCoverage: 0.9, atmosphereThickness: 0.8 }))
+    const dry = configToLibParams(rockyConfig({ liquidCoverage: 0.0, atmosphereThickness: 0.0 }))
     expect(Number(wet.roughness)).toBeLessThan(Number(dry.roughness))
   })
 
   it('heavy erosion (thick atmo + high water) → lower craterDensity than bare rock', () => {
     // Erosion = atmo*0.85 + water*0.40; higher erosion → fewer craters
     const eroded = configToLibParams(rockyConfig({
-      atmosphereThickness: 0.9, waterCoverage: 0.5,
+      atmosphereThickness: 0.9, liquidCoverage: 0.5,
       temperatureMin: -80, temperatureMax: -40,
     }))
     const bare = configToLibParams(rockyConfig({
-      atmosphereThickness: 0, waterCoverage: 0,
+      atmosphereThickness: 0, liquidCoverage: 0,
       temperatureMin: -80, temperatureMax: -40,
     }))
     expect(Number(eroded.craterDensity)).toBeLessThan(Number(bare.craterDensity))
@@ -213,7 +218,7 @@ describe('configToLibParams — star', () => {
       name: 'test-star', type: 'star', radius: 3,
       temperatureMin: 4000, temperatureMax: 6000,
       rotationSpeed: 0.02, axialTilt: 0,
-      atmosphereThickness: 0, waterCoverage: 0,
+      atmosphereThickness: 0, liquidCoverage: 0,
       spectralType: 'G',
     }
     const p = configToLibParams(cfg)
@@ -230,7 +235,7 @@ describe('configToLibParams — star', () => {
       name: 'star', type: 'star', radius: 2,
       temperatureMin: 3000, temperatureMax: 3500,
       rotationSpeed: 0.02, axialTilt: 0,
-      atmosphereThickness: 0, waterCoverage: 0,
+      atmosphereThickness: 0, liquidCoverage: 0,
     }
     const mStar = configToLibParams({ ...base, spectralType: 'M' })
     const gStar = configToLibParams({ ...base, spectralType: 'G' })

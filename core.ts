@@ -81,11 +81,13 @@ export type {
 } from './shaders'
 
 // ── Rendering ────────────────────────────────────────────────────
+export { DEFAULT_TILE_SIZE } from './config/defaults'
 export {
   useBody,
   tileSizeToSubdivisions,
   buildGasCoreConfig,
   resolveTileHeight,
+  resolveTileLevel,
   choosePalette,
   PALETTE_MOON,
   PALETTE_GAS_GIANT,
@@ -119,10 +121,10 @@ export type { ResourceVisual } from './render/resourceVisualRegistry'
 export {
   BODY_TYPE_LABEL,
   BODY_TYPE_COLOR,
-  hasAtmosphere,
   atmosphereRadius,
+  bodyOuterRadius,
+  cloudShellRadius,
   auraParamsFor,
-  cloudCoverageFor,
 } from './render/sceneBodyUtils'
 
 // ── Interaction ──────────────────────────────────────────────────

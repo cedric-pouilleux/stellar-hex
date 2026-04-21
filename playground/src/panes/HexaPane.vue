@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import * as THREE from 'three'
-import { useBody, resolveTileHeight } from '@lib'
+import { useBody, resolveTileHeight, resolveTileLevel } from '@lib'
 import type { BodyConfig, BiomeType } from '@lib'
 import { getBodyResourceBridge } from '@lib'
 import { installOrbitCamera, applyCamera } from '../lib/orbitCamera'
@@ -41,6 +41,14 @@ let ro:       ResizeObserver | null = null
 const raycaster = new THREE.Raycaster()
 const pointer   = new THREE.Vector2()
 let  pointerIn  = false
+
+/**
+ * Incremented each time the body is rebuilt. Used to invalidate `hoverInfo`
+ * when a rebuild changes the sim under a stationary cursor — otherwise the
+ * tooltip stays pinned to the previous sim's biome/height and diverges from
+ * the rendered mesh (e.g. black ocean tile showing a stale "forest" biome).
+ */
+let bodyVersion = 0
 
 const spin = createBodySpin()
 
@@ -84,6 +92,7 @@ function rebuildBody() {
     power:     atmosphereShaderParams.powerOverride,
     color:     atmosphereShaderParams.colorOverride,
   })
+  bodyVersion++
 }
 
 function buildHoverInfo(tileId: number): HoverInfo | null {
@@ -94,6 +103,7 @@ function buildHoverInfo(tileId: number): HoverInfo | null {
   if (!state) return null
 
   const height = resolveTileHeight(props.config, sim.seaLevelElevation, state.elevation)
+  const level  = resolveTileLevel(props.config, sim.seaLevelElevation, state.elevation)
 
   const bridge = getBodyResourceBridge()
   const res    = sim.resourceMap.get(tileId) as Map<string, number> | undefined
@@ -111,7 +121,9 @@ function buildHoverInfo(tileId: number): HoverInfo | null {
     biome:     state.biome ? bridge?.getBiomeLabel(state.biome as BiomeType) ?? state.biome : undefined,
     elevation: state.elevation,
     height,
+    level,
     resources,
+    bodyVersion,
   }
 }
 
@@ -183,11 +195,14 @@ onMounted(() => {
 
       if (pointerIn && body && camera) {
         raycaster.setFromCamera(pointer, camera)
-        const id = body.queryHover?.(raycaster) ?? null
-        if (id !== (hoverInfo.value?.tileId ?? null)) {
+        const id         = body.queryHover?.(raycaster) ?? null
+        const currentId  = hoverInfo.value?.tileId      ?? null
+        const currentVer = hoverInfo.value?.bodyVersion ?? -1
+        const stale      = currentVer !== bodyVersion
+        if (id !== currentId || (id != null && stale)) {
           const info = id != null ? buildHoverInfo(id) : null
           hoverInfo.value = info
-          body.setHover?.(id)
+          if (id !== currentId) body.setHover?.(id)
         }
       }
 
@@ -273,6 +288,9 @@ function hex(n: number) { return '#' + n.toString(16).padStart(6, '0') }
       </div>
       <div class="row-kv">
         <span class="k">Biome</span><span class="v">{{ hoverInfo.biome ?? '—' }}</span>
+      </div>
+      <div class="row-kv">
+        <span class="k">Level</span><span class="v">{{ hoverInfo.level >= 0 ? `+${hoverInfo.level}` : hoverInfo.level }}</span>
       </div>
       <div class="row-kv">
         <span class="k">Elev.</span><span class="v">{{ hoverInfo.elevation.toFixed(3) }}</span>

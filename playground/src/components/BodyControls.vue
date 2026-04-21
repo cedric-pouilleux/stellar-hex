@@ -4,9 +4,7 @@ import type { BodyConfig, SpectralType } from '@lib'
 import { tileSize } from '../lib/state'
 import RingControls from './RingControls.vue'
 import TemperatureControls from './TemperatureControls.vue'
-import WaterControls from './WaterControls.vue'
-import CloudControls from './CloudControls.vue'
-import AtmosphereControls from './AtmosphereControls.vue'
+import LiquidControls from './LiquidControls.vue'
 
 const props = defineProps<{ config: BodyConfig }>()
 
@@ -89,13 +87,8 @@ function setInt(key: keyof BodyConfig, evt: Event) {
   </details>
 
   <details class="group" v-if="isRocky" open>
-    <summary>Water / Ocean</summary>
-    <WaterControls :config="config" />
-  </details>
-
-  <details class="group" v-if="isRocky || isGaseous">
-    <summary>Clouds</summary>
-    <CloudControls />
+    <summary>Liquid / Ocean</summary>
+    <LiquidControls :config="config" />
   </details>
 
   <details class="group" v-if="isStar" open>
@@ -139,16 +132,6 @@ function setInt(key: keyof BodyConfig, evt: Event) {
   <details class="group" open>
     <summary>Variation</summary>
     <div class="group-body">
-      <div class="row" style="grid-template-columns: 110px 1fr auto;">
-        <label>Cracks</label>
-        <span></span>
-        <input type="checkbox" :checked="config.hasCracks ?? false" @change="set('hasCracks', ($event.target as HTMLInputElement).checked)" />
-      </div>
-      <div class="row" style="grid-template-columns: 110px 1fr auto;" v-if="isRocky || config.type === 'metallic'">
-        <label>Lava</label>
-        <span></span>
-        <input type="checkbox" :checked="config.hasLava ?? false" @change="set('hasLava', ($event.target as HTMLInputElement).checked)" />
-      </div>
       <div class="row">
         <label>Resource density</label>
         <input type="range" min="0" max="2" step="0.05" :value="config.resourceDensity ?? 1" @input="setNum('resourceDensity', $event)" />
@@ -167,10 +150,5 @@ function setInt(key: keyof BodyConfig, evt: Event) {
       </div>
     </div>
     <RingControls v-if="config.hasRings" />
-  </details>
-
-  <details class="group" v-if="!isStar">
-    <summary>Atmosphere</summary>
-    <AtmosphereControls />
   </details>
 </template>

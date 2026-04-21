@@ -51,7 +51,8 @@ function makeRockyConfig(radius = 1): BodyConfig {
   return {
     name: 'TestRocky', type: 'rocky',
     temperatureMin: -10, temperatureMax: 30,
-    atmosphereThickness: 0.5, waterCoverage: 0.5,
+    atmosphereThickness: 0.5,
+    liquidType: 'water', liquidState: 'liquid', liquidCoverage: 0.5,
     radius, rotationSpeed: 0.05, axialTilt: 0,
   }
 }

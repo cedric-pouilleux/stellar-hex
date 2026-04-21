@@ -12,8 +12,7 @@ import * as THREE from 'three'
 import {
   buildAtmosphereShell, type AtmosphereShellHandle,
   buildCloudShell,      type CloudShellHandle,
-  atmosphereRadius,     cloudCoverageFor,      auraParamsFor,
-  hasAtmosphere,
+  atmosphereRadius,     cloudShellRadius, auraParamsFor,
   hexGraphicsUniforms,
   type BodyConfig,
 } from '@lib'
@@ -46,20 +45,18 @@ export interface BodyShellsHandle {
 }
 
 /**
- * Attaches atmosphere + cloud shells onto a body group when the config
- * calls for them. Returns a handle whose `tick` forwards to the underlying
- * builders and whose `dispose` detaches + releases everything.
- *
- * The atmosphere is built whenever `hasAtmosphere(config)` is true (matches
- * the production gating from `sceneBodyUtils`). Clouds only spawn when
- * `cloudCoverageFor(config)` returns a non-null coverage.
+ * Attaches atmosphere + cloud shells onto a body group.
+ * Atmosphere shows when atmosphereThickness >= 0.05 or the body is a star.
+ * Clouds show when rocky + liquidCoverage > 0.1 + atmosphereThickness > 0.15,
+ * or when gaseous (fixed coverage 0.55).
  */
 export function attachBodyShells(group: THREE.Group, config: BodyConfig): BodyShellsHandle {
   const wp = new THREE.Vector3()
   let atmosphere: AtmosphereShellHandle | null = null
   let clouds:     CloudShellHandle      | null = null
 
-  const auraDerived = hasAtmosphere(config) ? auraParamsFor(config) : null
+  const showAtmosphere = config.type === 'star' || (config.atmosphereThickness ?? 0) >= 0.05
+  const auraDerived    = showAtmosphere ? auraParamsFor(config) : null
 
   if (auraDerived) {
     atmosphere = buildAtmosphereShell({
@@ -74,19 +71,21 @@ export function attachBodyShells(group: THREE.Group, config: BodyConfig): BodySh
     group.add(atmosphere.mesh)
   }
 
-  // Rocky planets use the CPU-derived coverage. Gas giants always carry
-  // a swirling cloud layer so the band animation reads visually — it's
-  // what brings `gasJetStream` / `gasCloudDetail` to life in the preview.
-  const rockyCoverage = cloudCoverageFor(config)
-  const gasCoverage   = config.type === 'gaseous' ? 0.55 : null
-  const derived       = rockyCoverage ?? gasCoverage
+  const atmo    = config.atmosphereThickness ?? 0
+  const liquid  = config.liquidCoverage      ?? 0
+  const rockyCoverage = config.type === 'rocky' && atmo >= 0.15 && liquid >= 0.10
+    ? Math.min(0.75, liquid * 0.55 + atmo * 0.20)
+    : null
+  const gasCoverage = config.type === 'gaseous' ? 0.55 : null
+  const derived     = rockyCoverage ?? gasCoverage
   const override      = cloudShaderParams.coverageOverride
   const coverage      = override ?? derived
   if (coverage !== null) {
+    const frozen = false
     clouds = buildCloudShell({
-      radius:              config.radius,
+      radius:              cloudShellRadius(config, frozen),
       coverage,
-      frozen:              false,
+      frozen,
       cloudOpacityUniform: hexGraphicsUniforms.uCloudOpacity,
       cloudSpeedUniform:   hexGraphicsUniforms.uCloudSpeed,
       cloudColorUniform:   hexGraphicsUniforms.uCloudColor,

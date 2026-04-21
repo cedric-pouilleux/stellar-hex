@@ -58,24 +58,6 @@ export const DEFAULT_TERRAIN_LEVEL_COUNT = 20
 export const TERRAIN_LEVEL_STEP_PER_RADIUS = 0.012
 
 /**
- * Default surface-liquid coverage ranges, per liquid type, used when a
- * `BodyConfig.waterCoverage` value is not explicitly provided.
- *
- * Water worlds can have oceans covering a wide fraction of the surface
- * (Earth ≈ 70 %). Exotic cryogenic liquids — ammonia, methane, nitrogen —
- * are far more confined in nature (Titan's methane lakes cover ~2 % of the
- * surface), so their default range is much narrower.
- *
- * Each entry is a `[min, max]` tuple in [0, 1].
- */
-export const WATER_COVERAGE_RANGE = {
-  water:    [0.10, 0.80],
-  ammonia:  [0.02, 0.20],
-  methane:  [0.01, 0.15],
-  nitrogen: [0.01, 0.10],
-} as const
-
-/**
  * Minimum vegetation potential required for a tile to classify as forest.
  * Derived from atmosphere density and temperate-zone proximity — a purely
  * climate-driven score, independent of any consumer-level habitability logic.

@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import ShaderPane      from './panes/ShaderPane.vue'
-import HexaPane        from './panes/HexaPane.vue'
-import ShaderControls  from './components/ShaderControls.vue'
-import BodyControls    from './components/BodyControls.vue'
+import ShaderPane         from './panes/ShaderPane.vue'
+import HexaPane           from './panes/HexaPane.vue'
+import ShaderControls     from './components/ShaderControls.vue'
+import BodyControls       from './components/BodyControls.vue'
+import CloudControls      from './components/CloudControls.vue'
+import AtmosphereControls from './components/AtmosphereControls.vue'
 import { BODY_TYPES, generateBodyVariation, type LibBodyType } from '@lib'
 import { configToLibParams } from '@render/configToLibParams'
 import {
@@ -82,6 +84,18 @@ function setType(t: LibBodyType) {
 // re-run the full derivation at mousemove frequency.
 watch(bodyConfig, scheduleResync, { deep: true })
 
+// Liquid fields (`liquidType`, `liquidState`, `liquidColor`) are user-driven
+// through `LiquidControls` — the playground does not derive them from
+// temperature anymore. Non-rocky bodies just drop any stale liquid values so
+// the lib skips the ocean palette branch.
+watch(() => bodyConfig.type, (t) => {
+  if (t !== 'rocky') {
+    bodyConfig.liquidType  = undefined
+    bodyConfig.liquidState = 'none'
+    bodyConfig.liquidColor = undefined
+  }
+})
+
 // Rebuild the hex body when a structural field changes (not just uniforms).
 // Radius/terrainLevelCount/name drive geometry + seed — they can't be
 // live-patched through `setParams`, so we bump rebuildKey to force both panes
@@ -96,7 +110,10 @@ watch(() => bodyConfig.name,                 () => rebuildKey.value++)
 // Atmosphere / cloud shells depend on these fields at attach time — the shells
 // are built from scratch on rebuild, so changes must bump rebuildKey to flow.
 watch(() => bodyConfig.atmosphereThickness,  () => rebuildKey.value++)
-watch(() => bodyConfig.waterCoverage,        () => rebuildKey.value++)
+watch(() => bodyConfig.liquidCoverage,        () => rebuildKey.value++)
+watch(() => bodyConfig.liquidType,           () => rebuildKey.value++)
+watch(() => bodyConfig.liquidState,          () => rebuildKey.value++)
+watch(() => bodyConfig.liquidColor,          () => rebuildKey.value++)
 watch(() => bodyConfig.spectralType,         () => rebuildKey.value++)
 watch(() => bodyConfig.temperatureMin,       () => rebuildKey.value++)
 watch(() => bodyConfig.temperatureMax,       () => rebuildKey.value++)
@@ -111,6 +128,19 @@ const warning = computed(() => {
   }
   return null
 })
+
+// ── Feature applicability (per body type) ────────────────────────
+// Whether each optional feature makes sense for the current body type.
+// The lib no longer enforces these rules — the playground decides which
+// feature toggles to expose so the UI only shows what the caller can apply.
+const canHaveAtmosphere = computed(() => bodyConfig.type !== 'star')
+const canHaveClouds     = computed(() => bodyConfig.type === 'rocky' || bodyConfig.type === 'gaseous')
+const canHaveCracks     = computed(() => bodyConfig.type === 'rocky' || bodyConfig.type === 'metallic')
+const canHaveLava       = computed(() => bodyConfig.type === 'rocky' || bodyConfig.type === 'metallic')
+
+function setBody<K extends keyof typeof bodyConfig>(key: K, value: (typeof bodyConfig)[K]) {
+  ;(bodyConfig as any)[key] = value
+}
 
 /**
  * Shader groups gated by a Body checkbox. Kept in sync with the group
@@ -145,13 +175,49 @@ const hiddenShaderGroups = computed(() => {
       <span class="pill">Drag: orbit · Scroll: zoom · Hover a tile for details</span>
     </div>
 
-    <!-- LEFT sidebar: shader params -->
+    <!-- LEFT sidebar: shader params + feature toggles -->
     <aside class="panel">
       <h2>Shader parameters</h2>
       <p v-if="autoSync" class="hint" style="margin:0 0 6px;">
         Derived from the body config. Tweaks persist until the next config change.
       </p>
+
+      <!-- Feature toggles — caller-side rendering decisions (no longer in lib). -->
+      <details class="group" v-if="canHaveCracks || canHaveLava" open>
+        <summary>Features</summary>
+        <div class="group-body">
+          <div v-if="canHaveCracks" class="row" style="grid-template-columns: 110px 1fr auto;">
+            <label>Cracks</label>
+            <span></span>
+            <input
+              type="checkbox"
+              :checked="bodyConfig.hasCracks ?? false"
+              @change="setBody('hasCracks', ($event.target as HTMLInputElement).checked)"
+            />
+          </div>
+          <div v-if="canHaveLava" class="row" style="grid-template-columns: 110px 1fr auto;">
+            <label>Lava</label>
+            <span></span>
+            <input
+              type="checkbox"
+              :checked="bodyConfig.hasLava ?? false"
+              @change="setBody('hasLava', ($event.target as HTMLInputElement).checked)"
+            />
+          </div>
+        </div>
+      </details>
+
       <ShaderControls :type="bodyType" :values="shaderParams" :hidden-groups="hiddenShaderGroups" @update="onShaderUpdate" />
+
+      <details v-if="canHaveAtmosphere" class="group">
+        <summary>Atmosphere shell</summary>
+        <AtmosphereControls />
+      </details>
+
+      <details v-if="canHaveClouds" class="group">
+        <summary>Cloud shell</summary>
+        <CloudControls />
+      </details>
     </aside>
 
     <!-- LEFT view: continuous shader preview -->

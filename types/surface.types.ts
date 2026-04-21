@@ -6,11 +6,6 @@
 /** Discriminant for all planetary body categories. */
 export type BodyType = 'rocky' | 'gaseous' | 'metallic' | 'star'
 
-/** Type of liquid forming oceans on a rocky planet's surface.
- * Determined by temperature: water (temperate) > ammonia (cold) > methane (very cold) > nitrogen (extreme cold).
- */
-export type SurfaceLiquidType = 'water' | 'ammonia' | 'methane' | 'nitrogen'
-
 /** Rocky surface biomes — gaseous and metallic planets carry no biome. */
 export type RockyBiomeType =
   | 'ocean'

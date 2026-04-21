@@ -226,7 +226,12 @@ export interface NumberUniform { value: number }
  * mesh, sharing uniforms with the host body when needed.
  */
 export interface CloudShellConfig {
-  /** Planet surface radius — the shell is offset above it. */
+  /**
+   * Absolute shell radius. The builder draws the sphere at exactly this radius,
+   * so callers are responsible for placing it above the tallest terrain. Use
+   * `cloudShellRadius(config, frozen)` to derive a value that also clears the
+   * hex extrusion, matching the `atmosphereRadius` pattern.
+   */
   radius:   number
   /** Cloud / ice coverage ratio [0..1]. */
   coverage: number
@@ -243,6 +248,18 @@ export interface CloudShellConfig {
   cloudSpeedUniform?:   NumberUniform
   /** Optional shared `uCloudColor` vec3 uniform (e.g. `hexGraphicsUniforms.uCloudColor`). */
   cloudColorUniform?:   { value: THREE.Color }
+  /**
+   * Optional callback returning the dominant light's world-space position each
+   * frame. When provided, it takes precedence over the automatic scene-traversal
+   * done by {@link findDominantLightWorldPos}, which requires the mesh to already
+   * be in a fully updated scene graph. Prefer this in vanilla Three.js setups
+   * where tick runs before the renderer's implicit `updateMatrixWorld`.
+   *
+   * For a directional light at position `p` pointing toward the origin, pass
+   * `() => p.clone().normalize().multiplyScalar(1e5)` (or a pre-allocated Vector3
+   * updated each frame).
+   */
+  getSunWorldPos?: () => THREE.Vector3
 }
 
 /**
@@ -272,8 +289,7 @@ export function buildCloudShell(config: CloudShellConfig): CloudShellHandle {
     uCloudColor:     config.cloudColorUniform   ?? { value: new THREE.Color(1, 1, 1) },
   }
 
-  const shellOffset = config.frozen ? config.radius * 0.08 : config.radius * 0.14
-  const geo = new THREE.SphereGeometry(config.radius + shellOffset, 32, 16)
+  const geo = new THREE.SphereGeometry(config.radius, 32, 16)
   const mat = new THREE.ShaderMaterial({
     vertexShader:   VERT,
     fragmentShader: config.frozen ? ICE_FRAG : CLOUD_FRAG,
@@ -289,8 +305,9 @@ export function buildCloudShell(config: CloudShellConfig): CloudShellHandle {
   mesh.frustumCulled = false
   mesh.raycast       = () => {}
 
-  const sunPosUni    = uniforms.uSunWorldPos.value
-  const frozen       = config.frozen
+  const sunPosUni      = uniforms.uSunWorldPos.value
+  const frozen         = config.frozen
+  const getSunWorldPos = config.getSunWorldPos
 
   function tick(dt: number): void {
     // `uCloudSpeed` is already multiplied into `uTime` inside the shader, so
@@ -299,7 +316,13 @@ export function buildCloudShell(config: CloudShellConfig): CloudShellHandle {
     // would overtake the terrain whenever speed is increased.
     timeUniform.value += dt
     if (!frozen) mesh.rotation.y += dt * 0.01
-    if (mesh.parent) findDominantLightWorldPos(findSceneRoot(mesh), sunPosUni)
+    // Prefer the explicit callback (reliable before renderer.updateMatrixWorld);
+    // fall back to scene-traversal when running inside a fully-managed scene.
+    if (getSunWorldPos) {
+      sunPosUni.copy(getSunWorldPos())
+    } else if (mesh.parent) {
+      findDominantLightWorldPos(findSceneRoot(mesh), sunPosUni)
+    }
   }
 
   function dispose(): void {

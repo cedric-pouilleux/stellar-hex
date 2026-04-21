@@ -1,17 +1,14 @@
 import * as THREE from 'three'
 import type { TerrainLevel } from '../types/body.types'
-import type { SurfaceLiquidType } from '../types/surface.types'
-import { averageBodyTemperature, canHaveLiquidSurfaceWater, getSurfaceLiquidType, hasLiquidSurface } from '../physics/bodyWater'
 import { DEFAULT_TERRAIN_LEVEL_COUNT, TERRAIN_LEVEL_STEP_PER_RADIUS } from '../config/defaults'
 import { lerp, tempLerp } from './colorUtils'
 import {
-  L0_WET, L0_DRY, L0_ICE, L0_AMMONIA, L0_METHANE, L0_NITROGEN,
-  L_SHORE_WET, L_SHORE_DRY, L_SHORE_AMMONIA, L_SHORE_METHANE, L_SHORE_NITROGEN,
+  L0_DRY, L0_ICE,
+  L0_WATER, L0_AMMONIA, L0_METHANE, L0_NITROGEN,
+  L_SHORE_DRY,
+  L_SHORE_WATER, L_SHORE_AMMONIA, L_SHORE_METHANE, L_SHORE_NITROGEN,
   L1_WET, L1_DRY, L2_WET, L2_DRY, L3,
 } from './colorAnchors'
-
-/** How dark the deepest ocean band becomes relative to the surface sea colour. */
-const OCEAN_DEEPEST_DARKEN = 0.90
 
 type ClimateKey = 'volcanic' | 'deepFreeze' | 'frozen' | 'cold' | 'temperate'
 
@@ -45,11 +42,16 @@ function resolveAnchors(
   temperatureMin:      number,
   temperatureMax:      number,
   atmosphereThickness: number,
+  liquidType:          string | undefined,
+  liquidState:         'liquid' | 'frozen' | 'none',
+  liquidColor:         THREE.ColorRepresentation | undefined,
 ): PaletteAnchors {
-  const avg       = averageBodyTemperature({ type: 'rocky', temperatureMin, temperatureMax })
+  const avg       = (temperatureMin + temperatureMax) / 2
   const atmo      = Math.max(0, Math.min(1, atmosphereThickness))
-  const isFrozen  = temperatureMax <= 0
-  const hasSurfaceWater = canHaveLiquidSurfaceWater({ type: 'rocky', temperatureMin, temperatureMax })
+  // A flowing water ocean still enables a wetter LAND palette (lusher
+  // lowlands/midlands below). It no longer tints the liquid itself — every
+  // supported liquid now resolves to a flat canonical colour.
+  const hasSurfaceWater = liquidType === 'water' && liquidState === 'liquid'
 
   const tempFactor = Math.max(0, 1 - Math.abs(avg - 15) / 55)
   const vegetation = atmo * tempFactor
@@ -58,27 +60,34 @@ function resolveAnchors(
   const blend = (wet: [number, THREE.Color][], dry: [number, THREE.Color][]): THREE.Color =>
     lerp(tempLerp(dry, avg), tempLerp(wet, avg), wetFactor)
 
-  const liquidType: SurfaceLiquidType | undefined = getSurfaceLiquidType(
-    { type: 'rocky', temperatureMin, temperatureMax },
-  )
-
+  // Sea + shore colours are driven solely by the caller-owned liquid fields —
+  // no temperature lerp, no wet/dry blend. A caller-supplied `liquidColor`
+  // wins over the type-keyed canonical tone so the UI can tweak it live.
   let seaColor: THREE.Color
   let shoreColor: THREE.Color
-  if (liquidType === 'ammonia') {
-    seaColor   = tempLerp(L0_AMMONIA, avg)
-    shoreColor = tempLerp(L_SHORE_AMMONIA, avg)
-  } else if (liquidType === 'methane') {
-    seaColor   = tempLerp(L0_METHANE, avg)
-    shoreColor = tempLerp(L_SHORE_METHANE, avg)
-  } else if (liquidType === 'nitrogen') {
-    seaColor   = tempLerp(L0_NITROGEN, avg)
-    shoreColor = tempLerp(L_SHORE_NITROGEN, avg)
-  } else if (isFrozen) {
-    seaColor   = tempLerp(L0_ICE, avg)
+  if (liquidState === 'liquid' && liquidType === 'water') {
+    seaColor   = L0_WATER.clone()
+    shoreColor = L_SHORE_WATER.clone()
+  } else if (liquidState === 'liquid' && liquidType === 'ammonia') {
+    seaColor   = L0_AMMONIA.clone()
+    shoreColor = L_SHORE_AMMONIA.clone()
+  } else if (liquidState === 'liquid' && liquidType === 'methane') {
+    seaColor   = L0_METHANE.clone()
+    shoreColor = L_SHORE_METHANE.clone()
+  } else if (liquidState === 'liquid' && liquidType === 'nitrogen') {
+    seaColor   = L0_NITROGEN.clone()
+    shoreColor = L_SHORE_NITROGEN.clone()
+  } else if (liquidState === 'frozen') {
+    seaColor   = L0_ICE.clone()
     shoreColor = tempLerp(L_SHORE_DRY, avg)
   } else {
-    seaColor   = blend(L0_WET, L0_DRY)
-    shoreColor = blend(L_SHORE_WET, L_SHORE_DRY)
+    // No surface liquid — dry lowland rock stands in for the sea level band.
+    seaColor   = tempLerp(L0_DRY, avg)
+    shoreColor = tempLerp(L_SHORE_DRY, avg)
+  }
+
+  if (liquidColor !== undefined && liquidState !== 'none') {
+    seaColor = new THREE.Color(liquidColor)
   }
 
   const lowColor  = blend(L1_WET, L1_DRY)
@@ -89,12 +98,18 @@ function resolveAnchors(
   const isVolcanic   = avg > 200
   const isCold       = avg < -20
   const isDeepFreeze = avg < -80
+  // Climate key drives material roughness/metalness for the non-liquid land
+  // bands. `frozen` here is a land-temperature tag (avg ≤ 0 °C), not the
+  // caller's liquid state — a caller may mark a warm world as `liquidState:
+  // 'frozen'` without implying frozen land, and we don't want that to leak
+  // into land material values.
+  const isFrozenLand = temperatureMax <= 0
 
   const climate: ClimateKey =
-    isVolcanic   ? 'volcanic'   :
-    isDeepFreeze ? 'deepFreeze' :
-    isFrozen     ? 'frozen'     :
-    isCold       ? 'cold'       : 'temperate'
+    isVolcanic   ? 'volcanic'    :
+    isDeepFreeze ? 'deepFreeze'  :
+    isFrozenLand ? 'frozen'      :
+    isCold       ? 'cold'        : 'temperate'
 
   const SEA_METAL:   Record<ClimateKey, number> = { volcanic: 0.70, deepFreeze: 0.05, frozen: 0.02, cold: 0.40, temperate: 0.62 }
   const SEA_ROUGH:   Record<ClimateKey, number> = { volcanic: 0.20, deepFreeze: 0.55, frozen: 0.65, cold: 0.30, temperate: 0.04 }
@@ -177,10 +192,13 @@ export function generateTerrainPalette(
   temperatureMax:      number,
   atmosphereThickness: number,
   seaLevel:            number,
+  liquidType:          string | undefined,
+  liquidState:         'liquid' | 'frozen' | 'none',
   levelCount:          number = DEFAULT_TERRAIN_LEVEL_COUNT,
   radius:              number = 1,
+  liquidColor?:        THREE.ColorRepresentation,
 ): TerrainLevel[] {
-  const anchors = resolveAnchors(temperatureMin, temperatureMax, atmosphereThickness)
+  const anchors = resolveAnchors(temperatureMin, temperatureMax, atmosphereThickness, liquidType, liquidState, liquidColor)
   const N       = Math.max(2, Math.floor(levelCount))
   const step    = Math.max(1e-4, radius * TERRAIN_LEVEL_STEP_PER_RADIUS)
 
@@ -189,7 +207,7 @@ export function generateTerrainPalette(
   // above the sphere. Frozen and dry worlds keep every band ABOVE the
   // reference sphere — no ocean basin to carve, so the planet stays a solid
   // ball.
-  const hasWetSurface = seaLevel > -0.99 && hasLiquidSurface({ type: 'rocky', temperatureMin, temperatureMax })
+  const hasWetSurface = seaLevel > -0.99 && liquidState === 'liquid'
 
   if (!hasWetSurface) {
     const result: TerrainLevel[] = []
@@ -222,18 +240,27 @@ export function generateTerrainPalette(
 
   // Ocean side — indexes 0..oceanLevels-1, deepest first.
   // - Threshold splits the ocean noise range into equal slices.
+  //   The LAST ocean threshold is pinned to `seaLevel` exactly (rather than
+  //   `-1 + oceanRange`) — IEEE-754 rounding can lift the arithmetic result
+  //   a few ULPs above `seaLevel`, causing `classifyBiome` (which compares
+  //   `elevation < seaLevel` directly) to disagree with `getTileLevel`
+  //   (which compares `elevation < threshold`) on tiles that sit exactly on
+  //   the waterline.
   // - Height drops below the reference surface by (i - N/2 + 0.5) * step.
-  // - Colour darkens linearly with depth so the sea floor fades to near-black
-  //   while the surface band keeps the full sea colour.
+  // - Every ocean band shares the flat sea colour so submerged hex tiles read
+  //   as a uniform liquid surface (smooth-sphere vertex colours inherit this,
+  //   which lets the shader view render a clean ocean without mixing extra
+  //   palette stops). Depth variation is carried by `height` / `roughness`
+  //   for geometry, not colour.
   for (let i = 0; i < oceanLevels; i++) {
-    const threshold  = -1 + ((i + 1) / oceanLevels) * oceanRange
-    const height     = (i - N / 2 + 0.5) * step
-    const depthNorm  = 1 - (i + 0.5) / oceanLevels       // 1 deepest, 0 at surface
-    const shade      = 1 - depthNorm * OCEAN_DEEPEST_DARKEN
+    const threshold = i === oceanLevels - 1
+      ? seaLevel
+      : -1 + ((i + 1) / oceanLevels) * oceanRange
+    const height    = (i - N / 2 + 0.5) * step
     result.push({
       threshold,
       height,
-      color:     anchors.seaColor.clone().multiplyScalar(shade),
+      color:     anchors.seaColor.clone(),
       metalness: anchors.seaMetal,
       roughness: anchors.seaRough,
     })

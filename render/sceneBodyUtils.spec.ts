@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { cloudCoverageFor, hasAtmosphere, auraParamsFor, atmosphereRadius } from './sceneBodyUtils'
+import { auraParamsFor, atmosphereRadius, bodyOuterRadius, cloudShellRadius } from './sceneBodyUtils'
 import type { BodyConfig } from '../types/body.types'
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -77,68 +77,53 @@ describe('atmosphereRadius', () => {
   })
 })
 
-// ── cloudCoverageFor ──────────────────────────────────────────────
+// ── bodyOuterRadius ───────────────────────────────────────────────
 
-describe('cloudCoverageFor', () => {
-  it('returns null for non-rocky bodies', () => {
-    expect(cloudCoverageFor({ ...rocky(), type: 'gaseous' })).toBeNull()
-    expect(cloudCoverageFor({ ...rocky(), type: 'metallic' })).toBeNull()
-    expect(cloudCoverageFor(star())).toBeNull()
+describe('bodyOuterRadius', () => {
+  it('equals radius + palette max height when palette is provided', () => {
+    const maxH = 0.045
+    const config = rocky({
+      radius: 1,
+      palette: [
+        { threshold: 0.5, height: 0.02, color: {} as any },
+        { threshold: 1.0, height: maxH, color: {} as any },
+      ],
+    })
+    expect(bodyOuterRadius(config)).toBeCloseTo(1 + maxH, 5)
   })
 
-  it('returns null when atmosphere is too thin', () => {
-    expect(cloudCoverageFor(rocky({ atmosphereThickness: 0.10, waterCoverage: 0.5 }))).toBeNull()
-  })
-
-  it('returns null when water coverage is too low', () => {
-    expect(cloudCoverageFor(rocky({ atmosphereThickness: 0.5, waterCoverage: 0.05 }))).toBeNull()
-  })
-
-  it('returns null when planet is too cold for atmospheric water', () => {
-    // canHaveAtmosphericWater requires avg temp > -60°C approximately
-    expect(cloudCoverageFor(rocky({
-      temperatureMin: -150,
-      temperatureMax: -80,
-      atmosphereThickness: 0.5,
-      waterCoverage: 0.5,
-    }))).toBeNull()
-  })
-
-  it('returns a coverage in (0, 0.75] for a temperate rocky planet', () => {
-    const coverage = cloudCoverageFor(rocky({
-      atmosphereThickness: 0.75,
-      waterCoverage: 0.71,
-    }))
-    expect(coverage).not.toBeNull()
-    expect(coverage!).toBeGreaterThan(0)
-    expect(coverage!).toBeLessThanOrEqual(0.75)
-  })
-
-  it('caps coverage at 0.75', () => {
-    const coverage = cloudCoverageFor(rocky({
-      atmosphereThickness: 1.0,
-      waterCoverage: 1.0,
-    }))
-    expect(coverage).not.toBeNull()
-    expect(coverage!).toBeLessThanOrEqual(0.75)
+  it('uses the 0.06 fallback when palette is absent', () => {
+    expect(bodyOuterRadius(rocky({ radius: 1 }))).toBeCloseTo(1.06, 5)
   })
 })
 
-// ── hasAtmosphere ─────────────────────────────────────────────────
+// ── cloudShellRadius ──────────────────────────────────────────────
 
-describe('hasAtmosphere', () => {
-  it('always returns true for stars', () => {
-    expect(hasAtmosphere(star())).toBe(true)
+describe('cloudShellRadius', () => {
+  it('clears the terrain top with an explicit gap (non-frozen)', () => {
+    const maxH = 0.045
+    const config = rocky({
+      radius: 1,
+      palette: [{ threshold: Infinity, height: maxH, color: {} as any }],
+    })
+    expect(cloudShellRadius(config, false)).toBeGreaterThan(1 + maxH)
   })
 
-  it('returns false when atmosphereThickness is below threshold', () => {
-    expect(hasAtmosphere(rocky({ atmosphereThickness: 0.03 }))).toBe(false)
-    expect(hasAtmosphere(rocky({ atmosphereThickness: undefined }))).toBe(false)
+  it('frozen shell sits closer to the surface than the animated shell', () => {
+    const config = rocky({ radius: 1 })
+    expect(cloudShellRadius(config, true)).toBeLessThan(cloudShellRadius(config, false))
   })
 
-  it('returns true when atmosphereThickness is at or above 0.05', () => {
-    expect(hasAtmosphere(rocky({ atmosphereThickness: 0.05 }))).toBe(true)
-    expect(hasAtmosphere(rocky({ atmosphereThickness: 0.75 }))).toBe(true)
+  it('scales proportionally with planet radius when palette is flat', () => {
+    const palette = [{ threshold: Infinity, height: 0, color: {} as any }]
+    const r1 = cloudShellRadius(rocky({ radius: 1, palette }), false)
+    const r2 = cloudShellRadius(rocky({ radius: 2, palette }), false)
+    expect(r2 / r1).toBeCloseTo(2, 5)
+  })
+
+  it('stays below the atmosphere radius (clouds hug the planet)', () => {
+    const config = rocky({ radius: 1 })
+    expect(cloudShellRadius(config, false)).toBeLessThan(atmosphereRadius(config))
   })
 })
 
@@ -153,27 +138,36 @@ describe('auraParamsFor', () => {
   })
 
   it('gives blue color for a planet with liquid water', () => {
-    const p = auraParamsFor(rocky({ waterCoverage: 0.71, atmosphereThickness: 0.75 }))
+    const p = auraParamsFor(rocky({
+      liquidCoverage: 0.71, liquidType: 'water', liquidState: 'liquid',
+      atmosphereThickness: 0.75,
+    }))
     expect(p.color).toBe('#2255ff')
   })
 
   it('gives olive color for an ammonia-liquid world', () => {
-    // avg = -70, tempMax = -20 → ammonia liquid range, not frozen water
     const p = auraParamsFor(rocky({
       temperatureMin: -120,
       temperatureMax: -20,
-      waterCoverage: 0.2,
+      liquidCoverage: 0.2, liquidType: 'ammonia', liquidState: 'liquid',
       atmosphereThickness: 0.1,
     }))
     expect(p.color).toBe('#88aa33')
   })
 
-  it('gives cyan color for a frozen world (no liquid)', () => {
-    // avg = -155, tempMax = -130 → frozen water, no liquid of any kind
+  it('falls back to blue for an unknown liquid tag', () => {
+    const p = auraParamsFor(rocky({
+      liquidCoverage: 0.4, liquidType: 'plasma-soup', liquidState: 'liquid',
+      atmosphereThickness: 0.3,
+    }))
+    expect(p.color).toBe('#2255ff')
+  })
+
+  it('gives cyan color for a frozen world (no liquid flow)', () => {
     const p = auraParamsFor(rocky({
       temperatureMin: -180,
       temperatureMax: -130,
-      waterCoverage: 0.2,
+      liquidCoverage: 0.2, liquidType: 'water', liquidState: 'frozen',
       atmosphereThickness: 0.1,
     }))
     expect(p.color).toBe('#99ddff')
@@ -183,14 +177,14 @@ describe('auraParamsFor', () => {
     const p = auraParamsFor(rocky({
       temperatureMin: 200,
       temperatureMax: 420,
-      waterCoverage: 0,
+      liquidCoverage: 0,
       atmosphereThickness: 0.9,
     }))
     expect(p.color).toBe('#ff6622')
   })
 
   it('falls back to grey-blue for dry rocky planet', () => {
-    const p = auraParamsFor(rocky({ waterCoverage: 0, atmosphereThickness: 0.18 }))
+    const p = auraParamsFor(rocky({ liquidCoverage: 0, atmosphereThickness: 0.18 }))
     expect(p.color).toBe('#7799bb')
   })
 

@@ -35,28 +35,17 @@ export type { Point3D, Tile, HexasphereData } from './geometry/hexasphere.types'
 export { buildNeighborMap, getNeighbors } from './geometry/hexNeighbors'
 
 // ── Physics ───────────────────────────────────────────────────────
-export {
-  averageBodyTemperature,
-  canHaveLiquidSurfaceWater,
-  canHaveAtmosphericWater,
-  canHaveSurfaceWaterBody,
-  hasLiquidSurface,
-  canHaveFrozenSurface,
-  isSurfaceWaterBiome,
-  getSurfaceLiquidType,
-  canHaveLiquidAmmonia,
-  canHaveLiquidMethane,
-  canHaveLiquidNitrogen,
-  canHaveFrozenAmmonia,
-  canHaveFrozenMethane,
-  canHaveFrozenNitrogen,
-} from './physics/bodyWater'
+// Note: surface-liquid physics (water/ammonia/methane/nitrogen thresholds,
+// coverage ranges, substance selection) is no longer part of the public API.
+// Callers populate `BodyConfig.liquidType` / `liquidState` / `liquidCoverage`
+// from their own physical model — the playground ships one such model in
+// `playground/src/lib/bodyWater.ts`.
 export { SPECTRAL_TABLE, resolveStarData, toStarParams } from './physics/starPhysics'
 export { REF_STAR_RADIUS, REF_STAR_TEMP, DEFAULT_TILE_SIZE } from './config/defaults'
 export type { StarConfig } from './types/body.types'
 
 // ── Surface types ─────────────────────────────────────────────────
-export type { BiomeType, RockyBiomeType, SurfaceLiquidType } from './types/surface.types'
+export type { BiomeType, RockyBiomeType } from './types/surface.types'
 
 // ── Simulation ───────────────────────────────────────────────────
 export type { BodySimulation } from './sim/BodySimulation'

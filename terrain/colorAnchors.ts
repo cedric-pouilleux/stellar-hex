@@ -5,18 +5,6 @@ import { c } from './colorUtils'
 // 5 key temperatures (°C): -150 / -40 / 15 / 120 / 400
 
 /**
- * Level 0 (WET) — deep ocean / submerged base-rock colours keyed by
- * temperature (°C). Sampled by `generateTerrainPalette` for tiles sitting
- * below sea level on water-bearing planets.
- */
-export const L0_WET: [number, THREE.Color][] = [
-  [-150, c(0xd8ecfc)],  // deep-freeze flat ice — near-white blue
-  [ -40, c(0x3870b0)],  // cold deep ocean — blue-grey
-  [  15, c(0x2878d0)],  // Earth deep ocean — vivid blue
-  [ 120, c(0x4a2810)],  // hot mudflats / dry seabed
-  [ 400, c(0x100504)],  // dark basalt / cooling lava
-]
-/**
  * Level 0 (DRY) — dry lowland / base-rock colours keyed by temperature.
  * Used for rocky worlds without surface liquid.
  */
@@ -28,87 +16,36 @@ export const L0_DRY: [number, THREE.Color][] = [
   [ 400, c(0x1a0800)],  // dark volcanic basalt
 ]
 
-/**
- * Level 0 (ICE) — ice-sheet colours used when `temperatureMax <= 0` so the
- * surface stays permanently frozen. Covers the -150 → 0 °C band only.
- */
-export const L0_ICE: [number, THREE.Color][] = [
-  [-150, c(0xeaf4fc)],  // deep-freeze mirror ice (near white)
-  [ -40, c(0xc0d4e8)],  // cold ice sheet
-  [   0, c(0x90b0c0)],  // just-frozen grey-blue ice
-]
+// ── Liquid-type color constants ───────────────────────────────────
+// One flat colour per liquid type — deliberately temperature-independent.
+// The caller's `liquidType` (opaque string) selects the sea + shore colour,
+// and that choice is the ONLY physical input: the lib no longer tries to
+// tint oceans based on how warm or cold the world is.
 
-/**
- * Level 0 (AMMONIA) — ammonia ocean / frozen-ammonia colours, yellow-green
- * murky liquid tones. Keyed by temperature in the NH₃ stability window.
- */
-export const L0_AMMONIA: [number, THREE.Color][] = [
-  [-110, c(0x8aa860)],  // frozen ammonia — pale olive
-  [ -78, c(0x6a8838)],  // cold ammonia — deep olive
-  [ -55, c(0x7a9840)],  // mid ammonia — yellow-green
-  [ -33, c(0x90a848)],  // warm ammonia — bright olive
-]
+/** Canonical deep-water colour used whenever `liquidType === 'water'`. */
+export const L0_WATER    = c(0x2878d0)  // Earth-ocean blue
+/** Canonical deep colour for ammonia oceans (`liquidType === 'ammonia'`). */
+export const L0_AMMONIA  = c(0x7a9840)  // yellow-green olive
+/** Canonical deep colour for methane oceans (`liquidType === 'methane'`). */
+export const L0_METHANE  = c(0x7a5828)  // Titan warm amber
+/** Canonical deep colour for nitrogen oceans (`liquidType === 'nitrogen'`). */
+export const L0_NITROGEN = c(0xc8b0b8)  // Pluto-like dusty rose
+/** Canonical deep colour for a frozen surface sheet (any liquid). */
+export const L0_ICE      = c(0x90b0c0)  // just-frozen grey-blue ice
 
-/**
- * Level 0 (METHANE) — methane ocean colours, amber-orange Titan-like tones.
- * Keyed by temperature in the CH₄ stability window.
- */
-export const L0_METHANE: [number, THREE.Color][] = [
-  [-210, c(0x604020)],  // frozen methane — dark brown
-  [-183, c(0x6a4820)],  // cold methane — deep amber
-  [-172, c(0x7a5828)],  // mid methane — warm amber
-  [-161, c(0x8a6830)],  // liquid methane — rich amber
-]
+/** Shore band above a water ocean — tropical turquoise. */
+export const L_SHORE_WATER    = c(0x4dc8a8)
+/** Shore band above an ammonia ocean — lighter yellow-green coastal palette. */
+export const L_SHORE_AMMONIA  = c(0x98b860)
+/** Shore band above a methane ocean — warm bronze coastal palette. */
+export const L_SHORE_METHANE  = c(0x987840)
+/** Shore band above a nitrogen ocean — dusty rose coastal palette. */
+export const L_SHORE_NITROGEN = c(0xd0b8c0)
 
-/**
- * Level 0 (NITROGEN) — nitrogen ocean colours, pale rose-transparent
- * Pluto-like tones. Keyed by temperature in the N₂ stability window.
- */
-export const L0_NITROGEN: [number, THREE.Color][] = [
-  [-230, c(0xe0d8e0)],  // frozen nitrogen — near white
-  [-210, c(0xd0c0c8)],  // cold nitrogen — pale rose
-  [-203, c(0xc8b0b8)],  // mid nitrogen — dusty rose
-  [-196, c(0xc0a0a8)],  // liquid nitrogen — muted rose
-]
-
-/** Shore band above an ammonia ocean — lighter olive/lime coastal palette. */
-export const L_SHORE_AMMONIA: [number, THREE.Color][] = [
-  [-110, c(0xa0b878)],  // frozen shore — pale lime
-  [ -78, c(0x88a858)],  // cold shore — olive
-  [ -55, c(0x98b860)],  // mid shore — yellow-green
-  [ -33, c(0xb0c870)],  // warm shore — bright lime
-]
-
-/** Shore band above a methane ocean — bronze coastal palette. */
-export const L_SHORE_METHANE: [number, THREE.Color][] = [
-  [-210, c(0x785830)],  // frozen shore — dark bronze
-  [-183, c(0x886838)],  // cold shore — bronze
-  [-172, c(0x987840)],  // mid shore — warm bronze
-  [-161, c(0xa88848)],  // liquid shore — golden bronze
-]
-
-/** Shore band above a nitrogen ocean — pale rose coastal palette. */
-export const L_SHORE_NITROGEN: [number, THREE.Color][] = [
-  [-230, c(0xe8e0e4)],  // frozen shore — near white
-  [-210, c(0xd8c8d0)],  // cold shore — pale rose
-  [-203, c(0xd0b8c0)],  // mid shore — dusty rose
-  [-196, c(0xc8b0b8)],  // liquid shore — muted rose
-]
-
-/**
- * Shore band (WET) — shallow water / coastal colours sitting just above the
- * water sea level. Paired with `L0_WET` for water-bearing planets.
- */
-export const L_SHORE_WET: [number, THREE.Color][] = [
-  [-150, c(0xd4e8f0)],  // deep-freeze ice shore — pale white
-  [ -40, c(0x6aa0b0)],  // cold pebble shore / pale teal
-  [  15, c(0x4dc8a8)],  // tropical shallows — turquoise
-  [ 120, c(0xc8a060)],  // hot mud / dry estuary
-  [ 400, c(0x3a1808)],  // volcanic shore
-]
 /**
  * Shore band (DRY) — arid shore / beach colours keyed by temperature. Used
- * for dry worlds so the shore band still looks coherent even without liquid.
+ * for dry worlds and frozen-sheet worlds so the coastal rock step still
+ * reads coherent without any liquid present.
  */
 export const L_SHORE_DRY: [number, THREE.Color][] = [
   [-150, c(0xbcccd8)],  // deep-freeze grey-white ice shore

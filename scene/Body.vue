@@ -24,11 +24,12 @@
   <CloudShell
     v-if="showClouds"
     :group="body.group"
-    :radius="body.config.radius"
+    :radius="cloudShellRadius(body.config, body.config.temperatureMax <= 0)"
     :coverage="cloudCoverage!"
     :frozen="body.config.temperatureMax <= 0"
     :occluder-uniforms="occluderUniforms"
   />
+
 
   <BodyRings
     v-if="body.variation.rings"
@@ -73,7 +74,7 @@ import CloudShell from './CloudShell.vue'
 import BodyRings from './BodyRings.vue'
 import ShadowUpdater from './ShadowUpdater.vue'
 import OrbitTrail from './OrbitTrail.vue'
-import { atmosphereRadius, auraParamsFor, cloudCoverageFor, hasAtmosphere } from '../render/sceneBodyUtils'
+import { atmosphereRadius, cloudShellRadius, auraParamsFor } from '../render/sceneBodyUtils'
 import type { OccluderUniforms } from '../render/useHexasphereMesh'
 import type { RenderableBody } from '../types/renderableBody'
 
@@ -92,8 +93,10 @@ const props = withDefaults(defineProps<{
   previewMode?:     boolean
   /** Accumulated user-drag quaternion (preview mode). */
   userDragQuat?:    THREE.Quaternion
-  /** Fully resolved cloud visibility gate — combined with the body's intrinsic cloud coverage. */
-  cloudsVisible?:   boolean
+  /** Show the atmosphere shell. Caller decides — the lib does not enforce any threshold. */
+  showAtmosphere?:  boolean
+  /** Cloud coverage [0..1]. null = no cloud shell. Caller decides the value and conditions. */
+  cloudCoverage?:   number | null
   /** Mount ShadowUpdater (pushes this body's position into its parent's shadow uniforms). */
   showShadow?:      boolean
   /** Mount OrbitTrail (decorative polyline around the parent). */
@@ -126,7 +129,8 @@ const props = withDefaults(defineProps<{
   occluderUniforms: undefined,
   previewMode:     false,
   userDragQuat:    undefined,
-  cloudsVisible:   true,
+  showAtmosphere:  false,
+  cloudCoverage:   null,
   showShadow:      false,
   showTrail:       false,
   hoveredTileId:   null,
@@ -135,10 +139,7 @@ const props = withDefaults(defineProps<{
   interactive:     false,
 })
 
-const showAtmosphere = computed(() => hasAtmosphere(props.body.config))
-
-const cloudCoverage = computed(() => cloudCoverageFor(props.body.config))
-const showClouds    = computed(() => props.cloudsVisible && cloudCoverage.value !== null)
+const showClouds = computed(() => props.cloudCoverage !== null && props.cloudCoverage !== undefined)
 
 // ── Controlled tile-state watchers ────────────────────────────────
 // Body stays passive: every visual effect is driven by a reactive prop, never

@@ -2,11 +2,9 @@ import { createNoise3D } from 'simplex-noise'
 import type { Tile } from '../geometry/hexasphere.types'
 import type { BodyConfig } from '../types/body.types'
 import type { TileState, TileResources } from './TileState'
-import type { BiomeType, SurfaceLiquidType } from '../types/surface.types'
+import type { BiomeType } from '../types/surface.types'
 import { classifyBiome } from '../biomes/BiomeClassifier'
-import { canHaveSurfaceWaterBody, getSurfaceLiquidType } from '../physics/bodyWater'
 import { seededPrng } from '../core/prng'
-import { WATER_COVERAGE_RANGE } from '../config/defaults'
 import { getResourceDistributor, type ResourceDistributor } from './resourceDistributionRegistry'
 
 export type { ResourceDistributor }
@@ -15,7 +13,7 @@ export type { ResourceDistributor }
  * Authoritative simulation state for a single celestial body.
  *
  * Pure data-layer result of {@link initBodySimulation} — captures per-tile
- * elevation/biome, sea level, water coverage, dominant surface liquid
+ * elevation/biome, sea level, liquid coverage, dominant surface liquid
  * and initial resource distribution. Independent from any render layer
  * so it can run in a headless environment.
  */
@@ -34,8 +32,8 @@ export interface BodySimulation {
    * smooth-sphere vertex coloring without knowing internal implementation details.
    */
   readonly elevationAt:        (x: number, y: number, z: number) => number
-  /** Fraction of tiles below sea level (0..1). 0 for stars / gaseous. */
-  readonly waterCoverage:      number
+  /** Fraction of tiles below sea level (0..1). 0 for stars / gaseous / dry worlds. */
+  readonly liquidCoverage:     number
   /** Noise elevation value at the water-line — the Nth percentile of all tile elevations. */
   readonly seaLevelElevation:  number
   /**
@@ -44,33 +42,10 @@ export interface BodySimulation {
    */
   readonly biomeMap:           ReadonlyMap<number, BiomeType>
   /**
-   * Dominant surface liquid type for the planet (water, ammonia, methane, nitrogen).
+   * Dominant surface liquid type for the planet (caller-chosen opaque tag).
    * Undefined for dry worlds, gaseous, metallic, and stars.
    */
-  readonly surfaceLiquid:      SurfaceLiquidType | undefined
-}
-
-/**
- * Deterministic default water coverage for a rocky body, derived from the
- * planet name and the dominant surface liquid type. The coverage range
- * differs per liquid — water oceans span a wide fraction, while exotic
- * cryogenic liquids (ammonia, methane, nitrogen) stay confined to small
- * lakes to match real cold-world references such as Titan.
- *
- * Falls back to the water range when no liquid type is available (e.g. dry
- * or frozen worlds that still want a sensible fallback).
- *
- * @param name   - Planet name, used as the PRNG seed (independent of noise).
- * @param liquid - Dominant surface liquid, or `undefined` for no-liquid worlds.
- * @returns A deterministic coverage in the liquid-specific `[min, max]` range.
- */
-function nameToWaterCoverage(
-  name:    string,
-  liquid?: SurfaceLiquidType,
-): number {
-  const rng         = seededPrng('wc:' + name)
-  const [min, max]  = WATER_COVERAGE_RANGE[liquid ?? 'water']
-  return min + rng() * (max - min)
+  readonly surfaceLiquid:      string | undefined
 }
 
 /**
@@ -107,17 +82,22 @@ export function initBodySimulation(
     elevations.set(tile.id, elevationAt(x, y, z))
   }
 
-  // ── Step 2: water coverage + sea level ───────────────────────
-  const surfaceLiquid = config.type === 'rocky' ? getSurfaceLiquidType(config) : undefined
-  let waterCoverage     = 0
+  // ── Step 2: liquid coverage + sea level ──────────────────────
+  // Caller owns `liquidType` / `liquidState` / `liquidCoverage`. The lib no
+  // longer infers a substance or coverage default from temperature — we just
+  // honour what's in the config. A rocky body with no declared liquid is dry.
+  const surfaceLiquid = config.type === 'rocky' ? config.liquidType : undefined
+  const hasLiquidBody = config.type === 'rocky'
+    && surfaceLiquid !== undefined
+    && (config.liquidState ?? 'none') !== 'none'
+  let liquidCoverage    = 0
   let seaLevelElevation = -1
 
-  if (config.type === 'rocky' && canHaveSurfaceWaterBody(config)) {
-    waterCoverage = config.waterCoverage ?? nameToWaterCoverage(config.name, surfaceLiquid)
-    waterCoverage = Math.max(0, Math.min(1, waterCoverage))
+  if (hasLiquidBody) {
+    liquidCoverage = Math.max(0, Math.min(1, config.liquidCoverage ?? 0))
 
     const sorted = Array.from(elevations.values()).sort((a, b) => a - b)
-    const idx    = Math.min(Math.floor(waterCoverage * sorted.length), sorted.length - 1)
+    const idx    = Math.min(Math.floor(liquidCoverage * sorted.length), sorted.length - 1)
     seaLevelElevation = sorted[idx]
   }
 
@@ -135,7 +115,7 @@ export function initBodySimulation(
   // stays empty and body still works (geometry, terrain, biomes are independent).
   const fn = distribute ?? getResourceDistributor()
   const resourceMap: ReadonlyMap<number, TileResources> = fn
-    ? fn({ tiles, biomeMap, config, waterCoverage, surfaceLiquid })
+    ? fn({ tiles, biomeMap, config, liquidCoverage, surfaceLiquid })
     : new Map()
 
   // ── Step 5: assemble TileStates ──────────────────────────────
@@ -156,7 +136,7 @@ export function initBodySimulation(
     resourceMap,
     config,
     elevationAt,
-    waterCoverage,
+    liquidCoverage,
     seaLevelElevation,
     biomeMap,
     surfaceLiquid,

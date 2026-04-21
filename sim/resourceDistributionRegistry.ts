@@ -1,6 +1,6 @@
 import type { Tile } from '../geometry/hexasphere.types'
 import type { BodyConfig } from '../types/body.types'
-import type { BiomeType, SurfaceLiquidType, BodyType } from '../types/surface.types'
+import type { BiomeType, BodyType } from '../types/surface.types'
 import type { TileResources } from './TileState'
 
 /**
@@ -15,8 +15,8 @@ export type ResourceDistributor = (input: {
   tiles:         readonly Tile[]
   biomeMap:      ReadonlyMap<number, BiomeType>
   config:        BodyConfig
-  waterCoverage: number
-  surfaceLiquid: SurfaceLiquidType | undefined
+  liquidCoverage: number
+  surfaceLiquid:  string | undefined
 }) => ReadonlyMap<number, TileResources>
 
 /**

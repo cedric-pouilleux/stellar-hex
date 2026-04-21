@@ -5,15 +5,32 @@ import type { BodyConfig } from '../types/body.types'
 // ── Helpers ───────────────────────────────────────────────────────
 
 function rockyConfig(avg = 15, atmo = 0.5, tempRange = 40): BodyConfig {
+  const temperatureMin = avg - tempRange / 2
+  const temperatureMax = avg + tempRange / 2
+  // Derive caller-owned liquid fields via a minimal local rule, keeping the
+  // spec independent of the playground's physics module. The lib itself no
+  // longer infers these from temperature.
+  let liquidType:  string | undefined
+  let liquidState: 'liquid' | 'frozen' | 'none' = 'none'
+  if (avg >= -15 && avg <= 60 && temperatureMax > 0) {
+    liquidType  = 'water'
+    liquidState = 'liquid'
+  } else if (temperatureMax <= 0) {
+    liquidType  = 'water'
+    liquidState = 'frozen'
+  }
   return {
     name:                'TestRocky',
     type:                'rocky',
-    temperatureMin:      avg - tempRange / 2,
-    temperatureMax:      avg + tempRange / 2,
+    temperatureMin,
+    temperatureMax,
     atmosphereThickness: atmo,
     radius:              1,
     rotationSpeed:       0.05,
     axialTilt:           0,
+    liquidType,
+    liquidState,
+    liquidCoverage:      liquidType ? 0.5 : 0,
   }
 }
 
@@ -62,7 +79,7 @@ describe('classifyBiome — metallic planet', () => {
 
 describe('classifyBiome — rocky: ocean / ice_sheet', () => {
   it('just below sea level on temperate water world → ocean (top ocean band)', () => {
-    // avg=15 → canHaveSurfaceWaterBody = true and hasLiquidSurface = true.
+    // avg=15 → liquidType='water' liquidState='liquid'.
     // With default 20 levels, ocean gets 10 bands; the topmost slice
     // (seaLevel - bandSize → seaLevel) classifies as 'ocean'.
     expect(classifyBiome(0.45, 0.5, rockyConfig(15))).toBe('ocean')
@@ -74,7 +91,7 @@ describe('classifyBiome — rocky: ocean / ice_sheet', () => {
   })
 
   it('frozen world below sea level → ice_sheet (no liquid surface)', () => {
-    // temperatureMax <= 0 → frozen water, hasLiquidSurface = false
+    // temperatureMax <= 0 → liquidType='water' liquidState='frozen'
     const frozen = rockyConfig(-80, 0, 40)  // max = -60 ≤ 0
     expect(classifyBiome(0.0, 0.5, frozen)).toBe('ice_sheet')
   })

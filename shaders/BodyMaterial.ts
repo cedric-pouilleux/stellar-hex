@@ -9,6 +9,22 @@ import * as THREE from 'three'
 import { VERTEX_SHADER, FRAG_SHADERS } from './shaderSources'
 import { kelvinToThreeColor } from './kelvin'
 import { getDefaultParams, type LibBodyType } from './params'
+import type { TerrainLevel } from '../types/body.types'
+
+/**
+ * Maximum number of palette entries passed to the rocky shader. Matches
+ * `PALETTE_MAX` in `shaders/glsl/bodies/rocky.frag` — entries beyond this are
+ * silently dropped (a 32-level palette already covers the default
+ * `DEFAULT_TERRAIN_LEVEL_COUNT = 20` with headroom).
+ */
+export const BODY_SHADER_PALETTE_MAX = 32
+
+/**
+ * Finite stand-in value pushed into `uPaletteThresholds` when a palette entry
+ * declares `threshold: Infinity` (last band). WebGL floats cannot carry
+ * `Infinity`; any value greater than the palette's native [-1..1] range works.
+ */
+const PALETTE_INFINITY_SENTINEL = 10.0
 
 /**
  * Ocean-mask configuration (rocky bodies with surface water).
@@ -40,6 +56,13 @@ export interface BodyMaterialOptions {
   ambientColor?:   string   | THREE.Color
   vertexColors?:   boolean
   ocean?:          OceanMaskOptions
+  /**
+   * Optional terrain palette — when set, the rocky fragment shader samples its
+   * base colour from the palette (same thresholds & colours as the hex tile
+   * bands) instead of the two-tone `uColorA/uColorB` gradient. Non-rocky
+   * shaders ignore the palette uniforms.
+   */
+  palette?:        TerrainLevel[]
 }
 
 /**
@@ -91,6 +114,35 @@ function resolveDir(dir: number[] | THREE.Vector3): THREE.Vector3 {
 /** Normalises a colour to a `THREE.Color`. */
 function resolveColor(c: string | THREE.Color): THREE.Color {
   return c instanceof THREE.Color ? c.clone() : new THREE.Color(c)
+}
+
+/**
+ * Packs a `TerrainLevel[]` into fixed-size arrays suitable for the rocky
+ * fragment shader uniforms. The arrays are always {@link BODY_SHADER_PALETTE_MAX}
+ * long — unused slots are zero-filled. `Infinity` thresholds (typically the
+ * last palette entry) are replaced by {@link PALETTE_INFINITY_SENTINEL} so the
+ * shader's `smoothstep` still behaves correctly at the top end of the range.
+ */
+function buildPaletteUniformData(palette: TerrainLevel[] | undefined): {
+  count:      number
+  colors:     THREE.Vector3[]
+  thresholds: Float32Array
+} {
+  const colors:     THREE.Vector3[] = []
+  const thresholds                  = new Float32Array(BODY_SHADER_PALETTE_MAX)
+  for (let i = 0; i < BODY_SHADER_PALETTE_MAX; i++) {
+    colors.push(new THREE.Vector3(0, 0, 0))
+  }
+  if (!palette || palette.length === 0) {
+    return { count: 0, colors, thresholds }
+  }
+  const count = Math.min(palette.length, BODY_SHADER_PALETTE_MAX)
+  for (let i = 0; i < count; i++) {
+    const level = palette[i]
+    colors[i].set(level.color.r, level.color.g, level.color.b)
+    thresholds[i] = Number.isFinite(level.threshold) ? level.threshold : PALETTE_INFINITY_SENTINEL
+  }
+  return { count, colors, thresholds }
 }
 
 /**
@@ -155,6 +207,7 @@ export class BodyMaterial {
   private _vertexColors: boolean
   private _light:        LightState
   private _ocean?:       OceanMaskOptions
+  private _palette?:     TerrainLevel[]
   private _material:     THREE.ShaderMaterial
 
   constructor(type: LibBodyType, params: ParamMap = {}, options: BodyMaterialOptions = {}) {
@@ -162,6 +215,7 @@ export class BodyMaterial {
     this._params       = { ...getDefaultParams(type), ...params }
     this._vertexColors = options.vertexColors ?? false
     this._ocean        = options.ocean
+    this._palette      = options.palette
     this._light = {
       kelvin:    options.lightKelvin    ?? 5778,
       intensity: options.lightIntensity ?? 2.0,
@@ -238,6 +292,16 @@ export class BodyMaterial {
     }
   }
 
+  /**
+   * Replaces the terrain palette uniforms at runtime (no material rebuild).
+   * Pass `null`/`undefined` to clear the palette and fall back to the legacy
+   * two-tone gradient.
+   */
+  setPalette(palette: TerrainLevel[] | null | undefined): void {
+    this._palette = palette ?? undefined
+    this._syncPaletteUniforms()
+  }
+
   /** Releases the material's GPU memory. */
   dispose(): void {
     this._material.dispose()
@@ -276,7 +340,27 @@ export class BodyMaterial {
       uniforms.uOceanNoiseScale = { value: this._ocean.noiseScale }
       uniforms.uOceanRadius     = { value: this._ocean.radius }
     }
+    // Palette uniforms — always allocated (fixed-size arrays are required by
+    // GLSL) and zero-filled when no palette is provided. `uPaletteCount` at 0
+    // tells the shader to fall back to the legacy gradient.
+    const { count, colors, thresholds } = buildPaletteUniformData(this._palette)
+    uniforms.uPaletteCount      = { value: count }
+    uniforms.uPaletteColors     = { value: colors }
+    uniforms.uPaletteThresholds = { value: thresholds }
     return uniforms
+  }
+
+  /** Pushes the current palette into existing uniforms (no reallocation). */
+  private _syncPaletteUniforms(): void {
+    const u = this._material.uniforms
+    if (!u.uPaletteCount) return
+    const { count, colors, thresholds } = buildPaletteUniformData(this._palette)
+    u.uPaletteCount.value = count
+    // Copy into the existing Vector3 slots so Three.js does not reallocate
+    // the uniform array on the GPU — identical pattern to `_syncTypeUniforms`.
+    const curColors = u.uPaletteColors.value as THREE.Vector3[]
+    for (let i = 0; i < BODY_SHADER_PALETTE_MAX; i++) curColors[i].copy(colors[i])
+    u.uPaletteThresholds.value = thresholds
   }
 
   /** Pushes current params into existing uniforms (no reallocation). */

@@ -1,6 +1,5 @@
 import type { BodyConfig } from '../types/body.types'
 import type { BiomeType } from '../types/surface.types'
-import { averageBodyTemperature, canHaveSurfaceWaterBody, hasLiquidSurface } from '../physics/bodyWater'
 import { LOW_FRAC, MID_FRAC, FOREST_VEGETATION_THRESH, DEFAULT_TERRAIN_LEVEL_COUNT } from '../config/defaults'
 
 /**
@@ -27,12 +26,14 @@ export function classifyBiome(
   if (type === 'metallic') return undefined
 
   // Rocky planet
-  const avg      = averageBodyTemperature(config)
-  const atmo     = atmosphereThickness ?? 0
+  const avg       = (config.temperatureMin + config.temperatureMax) / 2
+  const atmo      = atmosphereThickness ?? 0
   const isFrozen  = temperatureMax <= 0
   const isVolcanic = avg > 200
-  const hasSurface = canHaveSurfaceWaterBody(config)
-  const surfaceLiquid = hasLiquidSurface(config)
+  // Caller-decided: does this body expose any surface liquid body at all?
+  const hasSurface = config.liquidType !== undefined && config.liquidState !== 'none'
+  // Caller-decided: is that body in a flowing liquid state (vs frozen)?
+  const surfaceLiquid = config.liquidState === 'liquid'
 
   // ── Below sea level → ocean / ocean_deep / ice_sheet ──────────
   // The ocean elevation range [-1, seaLevel] is split into N/2 bands matching

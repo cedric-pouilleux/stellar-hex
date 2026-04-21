@@ -45,16 +45,16 @@ function seedFromName(name: string): number {
 
 function rockyShaderParams(config: BodyConfig, variation?: BodyVariation): ParamMap {
   const atmo    = config.atmosphereThickness ?? 0
-  const water   = config.waterCoverage       ?? 0
+  const liquid  = config.liquidCoverage      ?? 0
   const T_avg   = (config.temperatureMin + config.temperatureMax) / 2
   const T_range = config.temperatureMax - config.temperatureMin
   const isWeathered = T_avg >= CRATER_EROSION_T_MIN && T_avg <= CRATER_EROSION_T_MAX
   const mass    = config.mass ?? 1.0
 
   // Physics baselines
-  const physRoughness    = clamp(0.85 - water * 0.35 - atmo * 0.15, 0.30, 0.90)
+  const physRoughness    = clamp(0.85 - liquid * 0.35 - atmo * 0.15, 0.30, 0.90)
   const physHeight       = clamp(0.75 - mass * 0.08 - atmo * 0.35,  0.15, 0.75)
-  const craterErosion    = clamp(atmo * 0.85 + water * 0.40, 0, 1)
+  const craterErosion    = clamp(atmo * 0.85 + liquid * 0.40, 0, 1)
 
   // Apply variation multipliers on top of physics baselines
   const roughness    = clamp(physRoughness    * (variation?.roughnessMod     ?? 1), 0.10, 1.00)
@@ -75,26 +75,22 @@ function rockyShaderParams(config: BodyConfig, variation?: BodyVariation): Param
   const colorB   = shiftColor(base.colorB, colorMix, lum)
   const { lavaColor } = base
 
-  const dryness     = 1 - clamp(water * 1.5 + atmo * 0.5, 0, 1)
-  const crackMax    = clamp((T_range / 180) * dryness * 0.7, 0, 1.00)
-  const crackAmount = isWeathered || config.hasCracks === false ? 0
-    : config.hasCracks === true  ? lerp(RR.crackAmount.min, RR.crackAmount.max, variation?.crackIntensity ?? 0.5)
-    : crackMax
+  const crackAmount = isWeathered || !config.hasCracks ? 0
+    : lerp(RR.crackAmount.min, RR.crackAmount.max, variation?.crackIntensity ?? 0.5)
 
   const crackColor  = rockyCrackColor(colorA, colorB)
   const crackWidth  = clamp(variation?.crackWidth ?? 0.20, RR.crackWidth.min, RR.crackWidth.max)
   const crackScale  = clamp(variation?.crackScale ?? 2.00, RR.crackScale.min, RR.crackScale.max)
   const crackDepth  = clamp(variation?.crackDepth ?? 0.70, RR.crackDepth.min, RR.crackDepth.max)
 
-  // Lava — disabled in weathered zone, otherwise physics max × variation
+  // Lava — physics max derived from temperature, gated by explicit hasLava flag
   const lavaMax = T_avg > 200
     ? clamp((T_avg - 200) / 300, 0, 0.80)
-    : T_avg > 100 && water < 0.1 && atmo < 0.2
+    : T_avg > 100 && liquid < 0.1 && atmo < 0.2
       ? clamp((T_avg - 100) / 200 * 0.35, 0, 0.30)
       : 0
-  const lavaAmount  = isWeathered || config.hasLava === false ? 0
-    : config.hasLava === true  ? lavaMax * (variation?.lavaIntensity ?? 1)
-    : lavaMax
+  const lavaAmount = isWeathered || !config.hasLava ? 0
+    : lavaMax * (variation?.lavaIntensity ?? 1)
   const lavaEmissive = variation?.lavaEmissive ?? 1.5
 
   return {
@@ -194,8 +190,7 @@ function metallicShaderParams(config: BodyConfig, variation?: BodyVariation): Pa
   const physRoughness = clamp(0.55 + T_range / 280 * 0.40, MR.roughness.min, MR.roughness.max)
   const roughness     = clamp(physRoughness * (variation?.roughnessMod ?? 1), MR.roughness.min, MR.roughness.max)
 
-  // Cracks — only when explicitly set (hasCracks === true)
-  const crackAmount = config.hasCracks === true
+  const crackAmount = config.hasCracks
     ? lerp(MR.crackAmount.min, MR.crackAmount.max, variation?.crackIntensity ?? 0.5)
     : 0
   const crackColor  = variation?.crackColor ?? baseB
@@ -203,9 +198,8 @@ function metallicShaderParams(config: BodyConfig, variation?: BodyVariation): Pa
   const crackScale  = clamp(variation?.crackScale ?? 2.0,  MR.crackScale.min, MR.crackScale.max)
   const crackDepth  = clamp((variation?.crackDepth ?? 0.70) * (0.50 + T_range / 350), MR.crackDepth.min, MR.crackDepth.max)
 
-  // Lava — only when explicitly set (hasLava === true), independent from cracks
   const lavaPhysMax = T_avg > 150 ? clamp((T_avg - 150) / 350, MR.lavaAmount.min, MR.lavaAmount.max) : MR.lavaAmount.min
-  const lavaAmount  = config.hasLava === true
+  const lavaAmount  = config.hasLava
     ? clamp(lavaPhysMax * (variation?.lavaIntensity ?? 1), MR.lavaAmount.min, MR.lavaAmount.max)
     : 0
   const lavaEmissive = clamp(variation?.lavaEmissive ?? 1.5, MR.lavaEmissive.min, MR.lavaEmissive.max)

@@ -11,6 +11,16 @@ uniform float uCraterDepth;
 uniform float uHeightScale;
 uniform vec3  uColorA;
 uniform vec3  uColorB;
+
+// Optional palette lookup — when uPaletteCount > 0, the shader samples colours
+// from an externally-provided palette (same source as the hex tile palette) so
+// the sphere beneath the hexes stays visually aligned with the tile bands.
+// When uPaletteCount == 0 the shader falls back to the legacy uColorA/uColorB
+// gradient.
+#define PALETTE_MAX 32
+uniform int   uPaletteCount;
+uniform vec3  uPaletteColors[PALETTE_MAX];
+uniform float uPaletteThresholds[PALETTE_MAX];
 uniform float uCrackAmount;
 uniform float uCrackScale;
 uniform float uCrackWidth;
@@ -104,25 +114,36 @@ void main() {
   // Final height
   float height = clamp(terrain + craters * uCraterDensity, 0.0, 1.0);
 
-  // Base color interpolated by height
-  vec3 baseColor = mix(uColorA, uColorB, smoothstep(0.2, 0.8, height));
-
-
-  // Crater floor (darker)
-  float craterMask = clamp(-craters * uCraterDensity, 0.0, 1.0);
-  baseColor = mix(baseColor, uColorA * 0.5, craterMask * uCraterDepth);
-
-  // ── Crack / lava placement mask ──────────────────────────────
-  // On planets with surface water, `oceanLandMask` (when USE_OCEAN_MASK is
-  // defined) replicates the CPU simplex3D elevation field exactly, so cracks
-  // and lava are suppressed precisely where the CPU classified tiles as
-  // ocean — matching the blue tile colours at their own boundary.
-  // Otherwise the mask is 1.0 and the effects apply uniformly.
+  // ── Ocean/land mask ───────────────────────────────────────────
+  // `oceanLandMask` replicates the CPU simplex3D elevation field exactly —
+  // used both for base-colour band selection AND for crack/lava placement,
+  // so the shader sphere matches the CPU hex classification on the ocean
+  // boundary. When USE_OCEAN_MASK is not defined (dry body) the mask is 1.0
+  // everywhere and the shader falls through to the default palette sampling.
   #ifdef USE_OCEAN_MASK
     float landMask = oceanLandMask(vPosition);
   #else
     float landMask = 1.0;
   #endif
+
+  // Base color — vertex colours are now the single source of truth for both
+  // ocean and land (flat sea colour below sea level, per-tile tone above), so
+  // the shader just reads `vVertexColor` directly. GL barycentric
+  // interpolation smooths the ocean/land transition. The legacy
+  // `samplePalette` fallback covers bodies without a palette (non-rocky or
+  // unconfigured).
+  vec3 baseColor;
+  if (uPaletteCount > 0) {
+    baseColor = vVertexColor;
+  } else {
+    baseColor = mix(uColorA, uColorB, smoothstep(0.2, 0.8, height)) * vVertexColor;
+  }
+
+  // Crater floor (darker). Uses the base palette's darkest entry as crater
+  // shadow tint when the palette is active, otherwise uColorA * 0.5.
+  float craterMask = clamp(-craters * uCraterDensity, 0.0, 1.0);
+  vec3  craterTint = uPaletteCount > 0 ? uPaletteColors[0] * 0.5 : uColorA * 0.5;
+  baseColor = mix(baseColor, craterTint, craterMask * uCraterDepth);
 
   // ── Lava ─────────────────────────────────────────────────────
   // Applied BEFORE cracks so fissures stay visible when both effects are
@@ -157,9 +178,6 @@ void main() {
 
     baseColor = applyBlend(baseColor, uWaveColor, cloudMask * uWaveAmount, 0.0);
   }
-
-  // Vertex color tint
-  baseColor *= vVertexColor;
 
   // Lighting — in top-down mode (uFlatLighting=1) the diffuse term is forced to 1.0
   // so every visible fragment receives equal illumination regardless of planet rotation.

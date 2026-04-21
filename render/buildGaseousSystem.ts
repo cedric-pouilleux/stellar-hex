@@ -66,7 +66,7 @@ export function buildGasCoreConfig(
     rotationSpeed:       gasConfig.rotationSpeed,
     axialTilt:           gasConfig.axialTilt,
     atmosphereThickness: 0,
-    waterCoverage:       0,
+    liquidCoverage:      0,
     noiseScale:          (gasConfig.noiseScale ?? 1.4) * 1.5,
     resourceDensity:     gasConfig.resourceDensity,
     allowedResources:    coreAllowedResources,

@@ -63,8 +63,11 @@ export function choosePalette(config: BodyConfig, seaLevel: number): TerrainLeve
       config.temperatureMax,
       config.atmosphereThickness ?? 0,
       seaLevel,
+      config.liquidType,
+      config.liquidState ?? 'none',
       count,
       config.radius,
+      config.liquidColor,
     )
   }
 
@@ -114,6 +117,34 @@ export function resolveTileHeight(config: BodyConfig, seaLevel: number, elevatio
     if (typeof level?.height === 'number' && isFinite(level.height)) return level.height
   } catch { /* use fallback */ }
   return DEFAULT_TILE_HEIGHT
+}
+
+/**
+ * Resolves the discrete signed terrain level of a tile.
+ *
+ * Returns an integer that is more game-friendly than the raw simplex elevation:
+ *   - `0`  = first band above sea level (the shoreline) on a wet rocky body.
+ *   - `-1` = shallowest submerged band; deeper bands go `-2, -3, ...`.
+ *   - `1`  = one band above the shoreline; peaks climb `2, 3, ...`.
+ * Dry or frozen bodies have no sea, so every band sits at level `0..N-1`.
+ *
+ * @param config    - Planet body config (needed to choose the palette).
+ * @param seaLevel  - Sea level elevation from the simulation.
+ * @param elevation - Tile elevation to look up.
+ * @returns Signed integer level; `0` on palette-lookup failure.
+ */
+export function resolveTileLevel(config: BodyConfig, seaLevel: number, elevation: number): number {
+  try {
+    const palette = choosePalette(config, seaLevel)
+    // Pivot counts submerged bands. The palette pins the last ocean threshold
+    // to exactly `seaLevel` so this comparison is robust across float rounding.
+    let pivot = 0
+    for (const l of palette) if (l.threshold <= seaLevel) pivot++
+    const found     = palette.findIndex(l => elevation < l.threshold)
+    const bandIndex = found === -1 ? palette.length - 1 : found
+    return bandIndex - pivot
+  } catch { /* use fallback */ }
+  return 0
 }
 
 // ── Interactive controller factory ────────────────────────────────
@@ -239,7 +270,7 @@ export function useBody(
     }
 
     return {
-      group, sim, tileCount: data.tiles.length, variation,
+      group, config, sim, tileCount: data.tiles.length, variation,
       ...ctrl,
       setHover:           interactive.setHover,
       setPinnedTile:      interactive.setPinnedTile,
@@ -276,7 +307,7 @@ export function useBody(
     const bodyHover      = buildBodyHoverOverlay(group, config.radius)
     const gaseousDispose = gaseous.dispose
     gaseous.dispose      = () => { bodyHover.dispose(); gaseousDispose() }
-    return { group, shadowUniforms, occluderUniforms, setBodyHover: bodyHover.setVisible, variation, ...gaseous }
+    return { group, config, shadowUniforms, occluderUniforms, setBodyHover: bodyHover.setVisible, variation, ...gaseous }
   }
 
   // ── Rocky / Metallic ──────────────────────────────────────────────
@@ -308,6 +339,7 @@ export function useBody(
 
   return {
     group,
+    config,
     sim,
     tileCount: data.tiles.length,
     shadowUniforms,

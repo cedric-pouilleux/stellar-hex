@@ -18,7 +18,9 @@ export const bodyConfig = reactive<BodyConfig>({
   rotationSpeed:        0.02,
   axialTilt:            0.41,
   atmosphereThickness:  0.6,
-  waterCoverage:        0.55,
+  liquidType:           'water',
+  liquidState:          'liquid',
+  liquidCoverage:       0.55,
   terrainLevelCount:    20,
   hasCracks:            false,
   hasLava:              false,
@@ -56,7 +58,13 @@ export interface HoverInfo {
   biome:     string | undefined
   elevation: number
   height:    number
+  /** Signed terrain level — `0` is the first band above sea level (shoreline). */
+  level:     number
   resources: Array<{ id: string; label: string; amount: number; color: number }>
+  /** Build generation of the source `useBody` — bumped on each rebuild so the
+   *  hover loop can detect stale tooltips when the body rebuilds under a
+   *  stationary cursor. */
+  bodyVersion: number
 }
 export const hoverInfo = ref<HoverInfo | null>(null)
 

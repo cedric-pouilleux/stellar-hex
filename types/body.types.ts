@@ -30,7 +30,29 @@ export interface BodyConfig {
   axialTilt:      number         // radians
   mass?:                number   // M_earth
   atmosphereThickness?: number   // 0..1; 0 = no atmosphere
-  waterCoverage?:       number   // 0..1
+  /**
+   * Ratio of surface covered by a liquid/ice body [0..1].
+   * Caller-decided — the lib no longer infers from temperature.
+   */
+  liquidCoverage?:      number
+  /**
+   * Dominant surface liquid substance (free-form identifier chosen by the caller,
+   * e.g. `'water'`, `'ammonia'`, `'methane'`, `'nitrogen'`, or any custom tag).
+   * The lib treats it as an opaque string; only the caller's palette/render config
+   * assigns semantics to specific values.
+   */
+  liquidType?:          string
+  /**
+   * Physical state of the surface liquid body. Drives animation
+   * (flowing vs static) and biome classification. Defaults to `'none'`.
+   */
+  liquidState?:         'liquid' | 'frozen' | 'none'
+  /**
+   * Optional manual override for the sea colour. When set, the palette uses
+   * this colour instead of the type-keyed canonical colour for the liquid
+   * surface band. Shore colour is still resolved from `liquidType`.
+   */
+  liquidColor?:         THREE.ColorRepresentation
   noiseScale?:          number   // default 1.4
   /**
    * Total number of terrain levels. Split evenly: N/2 ocean bands + N/2 land

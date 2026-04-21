@@ -7,7 +7,11 @@ import type { BiomeType } from '../types/surface.types'
 import type { TileResources } from '../sim/TileState'
 import { getResourceVisual } from './resourceVisualRegistry'
 import { getBodyResourceBridge } from '../sim/resourceDistributionRegistry'
-import { isSurfaceWaterBiome, hasLiquidSurface } from '../physics/bodyWater'
+
+/** True when a biome tag represents a surface-liquid body (shallow or deep ocean). */
+function isOceanBiome(biome: BiomeType | undefined): boolean {
+  return biome === 'ocean' || biome === 'ocean_deep'
+}
 
 /**
  * Returns the resource ID with the highest concentration on a tile, or
@@ -91,16 +95,14 @@ function applyResourceBlend(
   const bridge   = getBodyResourceBridge()
   const dominantIsLiquid = !!dominant && !!bridge?.isSurfaceLiquidResource(dominant)
 
-  // A surface-liquid deposit on a non-ocean biome is purely underground — no
-  // visual change. On ocean biomes, only the surface liquid may influence the
-  // visual; any other dominant resource on an ocean tile sits underwater and
-  // must not override ocean color. No dominant resource: base colors pass
-  // through unchanged. Without a bridge, non-liquid rules apply by default.
-  if (
-    !dominant ||
-    (dominantIsLiquid && !isSurfaceWaterBiome(biome)) ||
-    (isSurfaceWaterBiome(biome) && !dominantIsLiquid)
-  ) {
+  // Ocean biomes are fully caller-owned visually: the palette's sea bands
+  // already carry `liquidColor`/`liquidType`, so resource blending must not
+  // override them (otherwise a canonical "water" resource color leaks back
+  // in and hides the user-chosen liquid colour). Surface-liquid deposits on
+  // non-ocean biomes are underground — no visual change. No dominant
+  // resource: base colors pass through unchanged. Without a bridge,
+  // non-liquid rules apply by default.
+  if (!dominant || isOceanBiome(biome) || dominantIsLiquid) {
     return {
       r:         addEmissive(baseColor.r, baseEmissive?.r, baseEmissiveI),
       g:         addEmissive(baseColor.g, baseEmissive?.g, baseEmissiveI),
@@ -164,14 +166,15 @@ function pushVec(arr: number[], vec: THREE.Vector3) { arr.push(vec.x, vec.y, vec
 
 // ── Hex tile shader (interactive view) ───────────────────────────
 // Minimal shader for the focused hex mesh: per-vertex roughness/metalness
-// + optional fill light. NO procedural effects (ice, lava, etc.).
-// Tile colors are the single source of truth in hex mode.
+// + optional fill light. Water rendering is handled exclusively by the
+// separate smooth ocean sphere (`buildOceanLayer`) — the hex mesh only
+// draws the seafloor caps and land prisms.
 
 /**
- * Applies per-vertex roughness/metalness + optional water animation to the
- * interactive hex mesh material. Ocean tiles (aOcean = 1) receive animated
- * caustics, Fresnel-based specular highlights and gentle color ripples
- * driven by the uTime uniform.
+ * Applies per-vertex roughness/metalness, terrain bump-mapping, edge
+ * blending and metallic sheen to the interactive hex mesh material.
+ * Ocean tiles are excluded upstream (see {@link buildMergedGeometry}),
+ * so nothing water-related is needed here.
  */
 function applyHexShader(
   m:            THREE.MeshStandardMaterial,
@@ -179,22 +182,20 @@ function applyHexShader(
   timeUniform:  { value: number },
   metallicSheen: number,
 ): void {
-  m.customProgramCacheKey = () => 'hex_fill_water_terrain'
+  m.customProgramCacheKey = () => 'hex_fill_terrain'
 
   m.onBeforeCompile = (shader) => {
     // ── Vertex shader: forward per-vertex attributes ──────────────
     shader.vertexShader =
       'attribute float aRoughness;\nattribute float aMetalness;\n' +
-      'attribute float aOcean;\n' +
       'attribute float aBiome;\n' +
       'attribute vec3  aTileCenter;\nattribute float aTileRadius;\n' +
       'varying float vRoughness;\nvarying float vMetalness;\n' +
-      'varying float vOcean;\n' +
       'varying float vBiome;\n' +
       'varying vec3  vTileCenter;\nvarying float vTileRadius;\n' +
       'varying vec3 vWorldNormal;\nvarying vec3 vWorldPos;\n' +
       // Object-space position for noise sampling — stays fixed on the surface
-      // regardless of group rotation so wave/terrain patterns follow the planet.
+      // regardless of group rotation so terrain patterns follow the planet.
       'varying vec3 vObjectPos;\n' +
       shader.vertexShader
 
@@ -202,7 +203,6 @@ function applyHexShader(
       '#include <begin_vertex>',
       'vRoughness   = aRoughness;',
       'vMetalness   = aMetalness;',
-      'vOcean       = aOcean;',
       'vBiome       = aBiome;',
       'vTileCenter  = (modelMatrix * vec4(aTileCenter, 1.0)).xyz;',
       'vTileRadius  = aTileRadius;',
@@ -211,10 +211,9 @@ function applyHexShader(
       'vObjectPos   = transformed;',
     ].join('\n'))
 
-    // ── Fragment shader: water + terrain effects + metallic sheen ──
+    // ── Fragment shader: terrain bump + edge blend + metallic sheen ──
     shader.fragmentShader =
       'varying float vRoughness;\nvarying float vMetalness;\n' +
-      'varying float vOcean;\n' +
       'varying float vBiome;\n' +
       'varying vec3  vTileCenter;\nvarying float vTileRadius;\n' +
       'varying vec3 vWorldNormal;\nvarying vec3 vWorldPos;\n' +
@@ -222,74 +221,49 @@ function applyHexShader(
       'uniform float uFillIntensity;\n' +
       'uniform float uMetallicSheen;\n' +
       'uniform float uTime;\n' +
-      'uniform float uWaterEnabled;\n' +
       'uniform float uTerrainBumpEnabled;\n' +
       'uniform float uEdgeBlendEnabled;\n' +
-      'uniform float uWaveStrength;\n' +
-      'uniform float uWaveSpeed;\n' +
-      'uniform float uSpecularIntensity;\n' +
       'uniform float uBumpStrength;\n' +
       'uniform float uEdgeBlendStrength;\n' +
-      /* Inline noise helpers (shared by water + terrain shaders). */
+      /* Gradient noise — used by both terrain bump and edge-blend passes. */
       WATER_NOISE_GLSL +
-      /* Cached results from bump pass → reused in specular + color without recomputing. */
-      'vec3  _cachedWaveNormal = vec3(0.0);\n' +
-      'float _cachedWaveH     = 0.0;\n' +
       shader.fragmentShader
 
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <roughnessmap_fragment>',
-      // Ocean tiles are slightly smoother than terrain but stay matte
-      'float _oceanMix = vOcean * uWaterEnabled;\n' +
-      'float roughnessFactor = mix(vRoughness, 0.38, _oceanMix);',
+      'float roughnessFactor = vRoughness;',
     )
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <metalnessmap_fragment>',
-      'float metalnessFactor = mix(vMetalness, 0.12, _oceanMix);',
+      'float metalnessFactor = vMetalness;',
     )
 
-    // Bump-mapping: wave normals for ocean + terrain normals for land biomes.
-    // Both injected after normal_fragment_maps so Three.js uses perturbed
-    // normals for all lighting calculations (diffuse + specular).
+    // Terrain bump-mapping on land biomes — injected after
+    // normal_fragment_maps so Three.js uses perturbed normals for lighting.
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <normal_fragment_maps>',
-      '#include <normal_fragment_maps>\n' + WATER_NORMAL_GLSL + TERRAIN_NORMAL_GLSL,
+      '#include <normal_fragment_maps>\n' + TERRAIN_NORMAL_GLSL,
     )
 
-    // Color modulation: water depth + edge blend
+    // Inter-tile color dissolve — softens hard hex seams on land.
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <color_fragment>',
-      '#include <color_fragment>\n' + WATER_COLOR_GLSL + EDGE_BLEND_GLSL,
+      '#include <color_fragment>\n' + EDGE_BLEND_GLSL,
     )
 
-    // Metallic sheen + fill light + water specular highlights
+    // Metallic sheen + fill light
     const extra = `
 {
   vec3  _toSun = normalize(-vWorldPos);
   float _ndl   = dot(vWorldNormal, _toSun);
   float _lit   = smoothstep(-0.10, 0.28, _ndl);
 
-  // ── Metallic sheen (unchanged) ────────────────────────────────
   float _mMask = uMetallicSheen * vMetalness;
   reflectedLight.indirectDiffuse  *= mix(1.0, 0.18 + 0.82 * _lit, _mMask);
   reflectedLight.indirectSpecular *= mix(1.0, 0.15 + 0.85 * _lit, _mMask);
   float _rim = pow(1.0 - max(0.0, dot(vWorldNormal, normalize(cameraPosition - vWorldPos))), 3.8)
              * smoothstep(-0.08, 0.45, _ndl);
   reflectedLight.directSpecular += diffuseColor.rgb * _rim * _mMask * 0.55;
-
-  // ── Water: wave-based specular glint ────────────────────────────
-  // Reuses the bump-perturbed normal cached in the normal pass — no recomputation.
-  if (vOcean > 0.5 && uWaterEnabled > 0.5) {
-    vec3  _viewDir = normalize(cameraPosition - vWorldPos);
-    vec3  _wN      = _cachedWaveNormal;
-    float _fresnel = pow(1.0 - max(0.0, dot(_wN, _viewDir)), 5.0);
-    // Sun glint scattered by wave facets
-    float _sunSpec = pow(max(0.0, dot(reflect(-_toSun, _wN), _viewDir)), 80.0);
-    // Soft caustic undertone
-    float _caustic = _waterCaustic(vObjectPos * 6.0, uTime * uWaveSpeed);
-    vec3  _waterHL = vec3(0.75, 0.88, 1.0) * (_fresnel * 0.08 + _sunSpec * 0.25 * _lit + _caustic * 0.03 * _lit) * uSpecularIntensity;
-    reflectedLight.directSpecular += _waterHL;
-  }
 }
 reflectedLight.indirectDiffuse += diffuseColor.rgb * uFillIntensity;
 `
@@ -298,15 +272,11 @@ reflectedLight.indirectDiffuse += diffuseColor.rgb * uFillIntensity;
       '#include <lights_fragment_end>' + extra,
     )
 
-    shader.uniforms.uFillIntensity    = fillUniform
-    shader.uniforms.uMetallicSheen    = { value: metallicSheen }
-    shader.uniforms.uTime             = timeUniform
-    shader.uniforms.uWaterEnabled        = hexGraphicsUniforms.uWaterEnabled
+    shader.uniforms.uFillIntensity       = fillUniform
+    shader.uniforms.uMetallicSheen       = { value: metallicSheen }
+    shader.uniforms.uTime                = timeUniform
     shader.uniforms.uTerrainBumpEnabled  = hexGraphicsUniforms.uTerrainBumpEnabled
     shader.uniforms.uEdgeBlendEnabled    = hexGraphicsUniforms.uEdgeBlendEnabled
-    shader.uniforms.uWaveStrength        = hexGraphicsUniforms.uWaveStrength
-    shader.uniforms.uWaveSpeed           = hexGraphicsUniforms.uWaveSpeed
-    shader.uniforms.uSpecularIntensity   = hexGraphicsUniforms.uSpecularIntensity
     shader.uniforms.uBumpStrength        = hexGraphicsUniforms.uBumpStrength
     shader.uniforms.uEdgeBlendStrength   = hexGraphicsUniforms.uEdgeBlendStrength
   }
@@ -378,47 +348,6 @@ float _waterCaustic(vec3 p, float t) {
 }
 `
 
-/**
- * Wave bump-mapping — perturbs the geometric normal on ocean tiles so that
- * Three.js standard lighting reveals small wave shapes via diffuse shading
- * and specular highlights. Injected after #include <normal_fragment_maps>.
- *
- * Default strength 1.0 gives pronounced, clearly visible wave deformation.
- * Adjustable at runtime via the uWaveStrength uniform.
- */
-const WATER_NORMAL_GLSL = /* glsl */`
-if (vOcean > 0.5 && uWaterEnabled > 0.5) {
-  // Use object-space position so wave patterns stay fixed on the surface
-  // and follow the planet's rotation instead of sliding in world space.
-  normal = _waveNormal(vObjectPos, normal, uTime * uWaveSpeed, uWaveStrength);
-  // Cache for reuse in specular + color passes (avoids 8+ redundant _wNoise calls)
-  _cachedWaveNormal = normal;
-  _cachedWaveH      = _waveHeight(vObjectPos * 5.0, uTime * uWaveSpeed);
-}
-`
-
-/**
- * Ocean color modulation — animated color drift and depth darkening that
- * give the water surface a living, dynamic feel. Uses two noise layers
- * for hue/luminance variation. Injected after #include <color_fragment>.
- */
-const WATER_COLOR_GLSL = /* glsl */`
-if (vOcean > 0.5 && uWaterEnabled > 0.5) {
-  // Animated luminance drift — reuse cached wave height from bump pass
-  float _wH = _cachedWaveH;
-  diffuseColor.rgb *= 1.0 + (_wH - 0.5) * 0.12;
-
-  // Subtle animated hue shift — shallow crests pull toward teal,
-  // deep troughs toward darker blue. Object-space sampling so the
-  // pattern follows rotation.
-  float _t = uTime * uWaveSpeed;
-  float _hueNoise = _wNoise(vObjectPos * 3.0 + vec3(_t * 0.015, -_t * 0.010, _t * 0.008));
-  vec3 _tealShift = vec3(-0.02, 0.03, 0.04);   // teal cast on crests
-  vec3 _deepShift = vec3(-0.01, -0.02, 0.01);   // deep blue in troughs
-  diffuseColor.rgb += mix(_deepShift, _tealShift, _hueNoise) * 0.35;
-}
-`
-
 // ── Inline GLSL for terrain bump-mapping + intra-tile color variation ─
 
 /**
@@ -440,7 +369,7 @@ const BIOME_ENCODE: Record<string, number> = {
  * Injected after normal_fragment_maps (alongside water bump).
  */
 const TERRAIN_NORMAL_GLSL = /* glsl */`
-if (vOcean < 0.5 && vBiome > 1.5 && uTerrainBumpEnabled > 0.5) {
+if (vBiome > 1.5 && uTerrainBumpEnabled > 0.5) {
   float _tEps = 0.025;
 
   // Per-biome frequency / strength / style
@@ -618,25 +547,17 @@ interface TileVertexRange { start: number; count: number }
 function buildMergedGeometry(
   sim:    BodySimulation,
   levels: TerrainLevel[],
-  opts?:  { excludeOceanVisual?: boolean },
 ): { geometry: THREE.BufferGeometry; faceToTileId: number[]; tileVertexRange: Map<number, TileVertexRange> } {
   const geometries:     THREE.BufferGeometry[]         = []
   const faceToTileId:   number[]                       = []
   const tileVertexRange = new Map<number, TileVertexRange>()
 
-  // Only animate ocean tiles (waves, fresnel, caustics) when the planet's
-  // surface body is actually in liquid state. Frozen oceans stay static.
-  const surfaceIsLiquid = hasLiquidSurface(sim.config)
-  // When a separate smooth ocean layer handles the water surface, the hex
-  // ocean tiles still emit their sunken caps (sea floor, visible through
-  // transparent water) but stop driving the water shader — no wave animation
-  // or per-tile hex seam artefacts on the water surface.
-  const excludeOcean    = opts?.excludeOceanVisual === true
-
-  // Walls extend down to the deepest palette level so the grid seals along
-  // the shoreline — otherwise land tiles would expose a gap where their
-  // bottom meets the (lower) neighbouring ocean-floor tile's top.
-  const basementHeight = surfaceIsLiquid ? levels[0].height : 0
+  // Liquid surfaces seal the shoreline by extending every prism's walls
+  // down to the deepest palette level — otherwise land tiles would expose
+  // a gap where their bottom meets the (lower) neighbouring ocean-floor
+  // tile's top. Frozen and dry bodies don't need the basement extension.
+  const surfaceIsLiquid = (sim.config.liquidState === 'liquid')
+  const basementHeight  = surfaceIsLiquid ? levels[0].height : 0
 
   let vertexOffset = 0
 
@@ -672,18 +593,12 @@ function buildMergedGeometry(
       roughArr[i]   = rough
       metalArr[i]   = metal
     }
-    // Ocean flag for the water shader. Frozen surfaces set this to 0 so ice
-    // sheets render as static terrain rather than flowing water. When a
-    // separate smooth ocean layer owns the water surface, the hex ocean
-    // tiles also set this to 0 — their sunken caps serve as the static sea
-    // floor visible through the transparent overlay.
-    const isSurfaceOcean = state.biome === 'ocean' || state.biome === 'ocean_deep'
-    const isOcean        = !excludeOcean && surfaceIsLiquid && isSurfaceOcean ? 1.0 : 0.0
-    const biomeCode      = state.biome ? (BIOME_ENCODE[state.biome] ?? 0.0) : 0.0
-    const oceanArr = new Float32Array(vertCount)
-    const biomeArr = new Float32Array(vertCount)
+    // Biome code forwarded to the terrain bump shader (ocean biomes are
+    // implicitly skipped via the `vBiome > 1.5` guard in TERRAIN_NORMAL_GLSL,
+    // since `ocean` encodes to 1).
+    const biomeCode = state.biome ? (BIOME_ENCODE[state.biome] ?? 0.0) : 0.0
+    const biomeArr  = new Float32Array(vertCount)
     for (let i = 0; i < vertCount; i++) {
-      oceanArr[i] = isOcean
       biomeArr[i] = biomeCode
     }
 
@@ -719,7 +634,6 @@ function buildMergedGeometry(
     geo.setAttribute('color',        new THREE.Float32BufferAttribute(colors,        3))
     geo.setAttribute('aRoughness',   new THREE.Float32BufferAttribute(roughArr,      1))
     geo.setAttribute('aMetalness',   new THREE.Float32BufferAttribute(metalArr,      1))
-    geo.setAttribute('aOcean',       new THREE.Float32BufferAttribute(oceanArr,      1))
     geo.setAttribute('aBiome',       new THREE.Float32BufferAttribute(biomeArr,      1))
     geo.setAttribute('aTileCenter',  new THREE.Float32BufferAttribute(tileCenterArr, 3))
     geo.setAttribute('aTileRadius',  new THREE.Float32BufferAttribute(tileRadiusArr, 1))
@@ -744,10 +658,7 @@ export function buildPlanetMesh(
   sim:    BodySimulation,
   levels: TerrainLevel[],
 ): { mesh: THREE.Mesh; faceToTileId: number[] } {
-  const surfaceLiquid = hasLiquidSurface(sim.config)
-  const { geometry, faceToTileId } = buildMergedGeometry(
-    sim, levels, { excludeOceanVisual: surfaceLiquid },
-  )
+  const { geometry, faceToTileId } = buildMergedGeometry(sim, levels)
   const mesh = new THREE.Mesh(
     geometry,
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.0, side: THREE.FrontSide }),
@@ -1073,10 +984,23 @@ export function buildSmoothSphereMesh(
   const col         = new Float32Array(pos.count * 3)
   const nearestTile = buildNearestTileFn(sim)
 
+  // The shore band is designed as a vivid accent for the hex tile view
+  // (turquoise on wet worlds) — on the smooth sphere it reads as a distracting
+  // blue/green ring around every coast. Substitute the next inland band's
+  // colour for any vertex that would otherwise land on the shore, so the
+  // shader view shows a continuous terrain gradient. Only applied when the
+  // palette actually has an ocean side (mixed-height palette).
+  const hasOcean  = levels.some(l => l.height < 0)
+  const shoreIdx  = hasOcean ? levels.findIndex(l => l.height >= 0) : -1
+  const inlandIdx = shoreIdx >= 0 ? Math.min(shoreIdx + 1, levels.length - 1) : -1
+
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i)
-    const n     = elevationAt(x, y, z)
-    const level = getTileLevel(n, levels)
+    const n          = elevationAt(x, y, z)
+    const rawLevel   = getTileLevel(n, levels)
+    const level      = (shoreIdx >= 0 && rawLevel === levels[shoreIdx])
+      ? levels[inlandIdx]
+      : rawLevel
     const state = nearestTile(x, y, z)
     const ei  = level.emissiveIntensity ?? 0
     const vis = state
@@ -1110,7 +1034,11 @@ export function buildSmoothSphereMesh(
       }
     : undefined
 
-  const planetMat = new BodyMaterial(libType, params, { vertexColors: true, ocean })
+  const planetMat = new BodyMaterial(libType, params, {
+    vertexColors: true,
+    ocean,
+    palette: levels,
+  })
   return { mesh: new THREE.Mesh(geo, planetMat.material), planetMaterial: planetMat }
 }
 
@@ -1502,13 +1430,11 @@ export function buildInteractiveMesh(
 ): InteractiveMesh {
   const cfg = hoverCfg ?? DEFAULT_HOVER
 
-  // Ocean tiles are rendered as a separate smooth sphere (see buildOceanLayer
-  // below) — the hex mesh omits their prisms so the shore has no vertical
-  // gap and adjacent ocean tiles don't z-fight via coplanar side walls.
-  const surfaceLiquid = hasLiquidSurface(sim.config)
-  const { geometry, faceToTileId, tileVertexRange } = buildMergedGeometry(
-    sim, levels, { excludeOceanVisual: surfaceLiquid },
-  )
+  // When the body has a liquid surface, a separate smooth ocean sphere
+  // (see `buildOceanLayer` below) is mounted on top; the hex mesh contributes
+  // only the sunken seafloor caps + land prisms.
+  const surfaceLiquid = (sim.config.liquidState === 'liquid')
+  const { geometry, faceToTileId, tileVertexRange } = buildMergedGeometry(sim, levels)
 
   const selfLit     = levels.some(l => (l.emissiveIntensity ?? 0) > 0)
   const fillUniform = { value: 0.0 }

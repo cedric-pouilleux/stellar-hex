@@ -307,7 +307,7 @@ export function buildBodyEffectLayer(opts: BodyEffectLayerConfig): BodyEffectLay
   const mode: BodyEffectMode = cfg.type === 'gaseous' ? 'storms' : 'lava'
   const warmth   = mode === 'storms' ? Math.max(0, Math.min(1, (avg + 200) / 400)) : 0
   const tempNorm = Math.max(0, Math.min(1, (avg - 60) / 1440))
-  const waterCov = cfg.waterCoverage ?? 0
+  const liquidCov = cfg.liquidCoverage ?? 0
 
   const timeUniform    = { value: 0.0 }
   const cameraPosValue = new THREE.Vector3()
@@ -327,7 +327,7 @@ export function buildBodyEffectLayer(opts: BodyEffectLayerConfig): BodyEffectLay
     uniforms.uWarmth = uWarmth
   } else {
     uTempNorm = { value: tempNorm }
-    uWaterCov = { value: waterCov }
+    uWaterCov = { value: liquidCov }
     uniforms.uTempNorm       = uTempNorm
     uniforms.uWaterCov       = uWaterCov
     uniforms.uCameraWorldPos = { value: cameraPosValue }

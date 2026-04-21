@@ -1,13 +1,4 @@
 import type { BodyConfig, SpectralType } from '../types/body.types'
-import {
-  averageBodyTemperature,
-  canHaveAtmosphericWater,
-  canHaveLiquidSurfaceWater,
-  canHaveLiquidAmmonia,
-  canHaveLiquidMethane,
-  canHaveLiquidNitrogen,
-  getSurfaceLiquidType,
-} from '../physics/bodyWater'
 
 // ── Display labels & colors ──────────────────────────────────────
 
@@ -26,7 +17,7 @@ export const BODY_TYPE_COLOR: Record<string, string> = {
   star:     'rgba(255, 205, 80, 0.9)',
 }
 
-// ── Atmosphere radius ─────────────────────────────────────────────
+// ── Body outer radius ─────────────────────────────────────────────
 
 /**
  * Safe upper bound for terrain extrusion height when no palette is available.
@@ -34,6 +25,23 @@ export const BODY_TYPE_COLOR: Record<string, string> = {
  * so this constant covers every generated palette regardless of planet size.
  */
 const MAX_TERRAIN_HEIGHT_FALLBACK = 0.06
+
+/**
+ * Returns the outermost terrain radius of a body — the base radius plus the
+ * tallest extrusion height declared in its palette (or a safe fallback when no
+ * palette is attached, matching the tallest generated biome).
+ *
+ * Any spherical shell that must visually clear the hexa terrain (atmosphere,
+ * clouds, ice) should be anchored to this value.
+ */
+export function bodyOuterRadius(config: BodyConfig): number {
+  const maxTerrainH = config.palette?.length
+    ? Math.max(...config.palette.map(l => l.height))
+    : MAX_TERRAIN_HEIGHT_FALLBACK
+  return config.radius + maxTerrainH
+}
+
+// ── Atmosphere radius ─────────────────────────────────────────────
 
 /**
  * Returns the radius of the atmosphere shell for a given body config.
@@ -45,56 +53,22 @@ const MAX_TERRAIN_HEIGHT_FALLBACK = 0.06
  *  2. There is a clearly visible gap of ≥ 20 % of baseRadius above the terrain top.
  */
 export function atmosphereRadius(config: BodyConfig): number {
-  const maxTerrainH = config.palette?.length
-    ? Math.max(...config.palette.map(l => l.height))
-    : MAX_TERRAIN_HEIGHT_FALLBACK
-  return config.radius + maxTerrainH + config.radius * 0.20
+  return bodyOuterRadius(config) + config.radius * 0.20
 }
 
-// ── Cloud coverage ────────────────────────────────────────────────
+// ── Cloud shell radius ────────────────────────────────────────────
 
 /**
- * Computes the cloud coverage ratio [0..1] for a rocky planet config.
- * Returns null if the body should not render clouds.
+ * Returns the radius of the cloud (or ice) shell for a given body config.
  *
- * Any liquid surface (water, ammonia, methane, nitrogen) produces a
- * decorative cloud layer representing vapour of the dominant substance.
- * Atmospheric water (no surface body) uses a formula-driven coverage.
- * Frozen worlds → locked in tiles → no clouds.
+ * Mirrors {@link atmosphereRadius} — the shell is anchored to
+ * {@link bodyOuterRadius} so tall hex tiles never poke through the layer. The
+ * gap above the terrain is tighter than the atmosphere's (clouds hug the
+ * surface), smaller for the frozen ice sheet than for animated clouds.
  */
-export function cloudCoverageFor(config: BodyConfig): number | null {
-  if (config.type !== 'rocky') return null
-  const atmo  = config.atmosphereThickness ?? 0
-  const water = config.waterCoverage       ?? 0
-  if (atmo  < 0.15) return null
-  if (water < 0.10) return null
-
-  // Any liquid-state surface (water, ammonia, methane, nitrogen): decorative cloud layer.
-  // Frozen surfaces don't produce vapour, so check per-liquid eligibility.
-  const hasLiquid = canHaveLiquidSurfaceWater(config)
-    || canHaveLiquidAmmonia(config)
-    || canHaveLiquidMethane(config)
-    || canHaveLiquidNitrogen(config)
-  if (hasLiquid) return 0.35
-
-  // Atmospheric water (vapour but no liquid on the surface):
-  // scale clouds by atmospheric composition — the denser, the more vapour.
-  if (canHaveAtmosphericWater(config)) {
-    const coverage = Math.min(0.75, water * 0.55 + atmo * 0.20)
-    return coverage > 0.05 ? coverage : null
-  }
-
-  return null
-}
-
-// ── Atmosphere presence ───────────────────────────────────────────
-
-/**
- * Returns true if the body should render an atmosphere shell.
- */
-export function hasAtmosphere(config: BodyConfig): boolean {
-  if (config.type === 'star') return true
-  return (config.atmosphereThickness ?? 0) >= 0.05
+export function cloudShellRadius(config: BodyConfig, frozen: boolean): number {
+  const offset = frozen ? config.radius * 0.08 : config.radius * 0.14
+  return bodyOuterRadius(config) + offset
 }
 
 // ── Aura params ───────────────────────────────────────────────────
@@ -129,44 +103,52 @@ const SPECTRAL_AURA_COLOR: Record<SpectralType, string> = {
 }
 
 /**
+ * Known surface-liquid aura palette. Callers using one of these liquid tags
+ * get a canonical atmospheric glow; any other (or missing) tag falls back to
+ * the generic water-ish blue. Consumers with custom liquid vocabularies can
+ * drive a stronger override by supplying an explicit `palette` / shader input.
+ */
+const LIQUID_AURA_COLOR: Record<string, string> = {
+  water:    '#2255ff',  // blue
+  ammonia:  '#88aa33',  // olive-green
+  methane:  '#aa7730',  // amber
+  nitrogen: '#cc99aa',  // pale rose
+}
+
+/**
  * Derives atmosphere glow color and intensity from body config.
  *
  * Stars: colour is derived from spectralType when available (same source as
  * the surface shader), guaranteeing that the atmosphere always matches the
- * star's visual colour. Falls back to averageBodyTemperature only when
+ * star's visual colour. Falls back to a temperature-based ramp only when
  * spectralType is absent.
  *
- * Planets: water/temperature heuristics.
+ * Planets: liquid-state + temperature heuristics — the caller declares the
+ * surface liquid via `BodyConfig.liquidType` / `liquidState` / `liquidCoverage`,
+ * and the aura follows.
  */
 export function auraParamsFor(config: BodyConfig): AuraParams {
   // ── Stars: colour from spectral type (consistent with surface shader) ──
   if (config.type === 'star') {
+    const avg = (config.temperatureMin + config.temperatureMax) / 2
     const color = config.spectralType
       ? SPECTRAL_AURA_COLOR[config.spectralType]
-      : starColorFromTemp(averageBodyTemperature(config))
+      : starColorFromTemp(avg)
     return { color, intensity: 1.2, power: 2.5 }
   }
 
-  const avgTemp = averageBodyTemperature(config)
-  const water   = config.waterCoverage ?? 0
-  const atmo    = config.atmosphereThickness ?? 0
+  const avgTemp  = (config.temperatureMin + config.temperatureMax) / 2
+  const coverage = config.liquidCoverage ?? 0
+  const atmo     = config.atmosphereThickness ?? 0
 
-  // ── Liquid-state surface (water, ammonia, methane, nitrogen) ──────
-  const hasLiquid = canHaveLiquidSurfaceWater(config)
-    || canHaveLiquidAmmonia(config)
-    || canHaveLiquidMethane(config)
-    || canHaveLiquidNitrogen(config)
-  if (water > 0.1 && hasLiquid) {
-    const liquid = getSurfaceLiquidType(config)
-    const auraColor = liquid === 'ammonia'  ? '#88aa33'   // olive-green
-      : liquid === 'methane'                ? '#aa7730'   // amber
-      : liquid === 'nitrogen'               ? '#cc99aa'   // pale rose
-      :                                       '#2255ff'   // blue (water)
-    return { color: auraColor, intensity: 0.5 + atmo * 0.3, power: 3.5 }
+  // ── Liquid-state surface (caller-declared) ───────────────────────
+  if (coverage > 0.1 && config.liquidState === 'liquid') {
+    const color = (config.liquidType && LIQUID_AURA_COLOR[config.liquidType]) ?? '#2255ff'
+    return { color, intensity: 0.5 + atmo * 0.3, power: 3.5 }
   }
 
-  // ── Frozen world (cold with some water/ice) ──────────────────────
-  if (avgTemp <= -10 && water > 0.05)
+  // ── Frozen world (cold with some ice coverage) ───────────────────
+  if (avgTemp <= -10 && coverage > 0.05)
     return { color: '#99ddff', intensity: 0.4 + atmo * 0.2, power: 3.5 }
 
   // ── Hot / arid (Venus-like, runaway greenhouse) ──────────────────
