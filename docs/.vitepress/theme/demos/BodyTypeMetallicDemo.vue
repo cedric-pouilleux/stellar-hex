@@ -1,100 +1,78 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
+import { setBodyCoreVisible } from './bodyCoreVisibility'
 
 /**
- * Three.js demo — metallic planet with live shader parameter controls.
- * PBR metalness/roughness, crack network and lava veins are all uniform-driven
- * and update without rebuilding the material.
+ * Three.js demo â€” metallic planet with PBR surface, thermal cracks and
+ * active lava veins. View toggle: Shader / Sol / AtmosphÃ¨re.
  */
 
 const container = ref<HTMLDivElement>()
-const mounted   = ref(false)
-let cleanup: (() => void) | null = null
+const mode      = ref<ViewMode>('shader')
+let applyMode: ((m: ViewMode) => void) | null = null
+let cleanup:   (() => void) | null = null
 
-// Surface
-const metalness = ref(0.90)
-const roughness = ref(0.65)
-// Fissures
-const crackAmount = ref(0.50)
-// Lave
-const lavaAmount   = ref(0.20)
-const lavaEmissive = ref(1.5)
-const lavaColor    = ref('#ff6600')
-
-let planetMaterial: any = null
-
-watch(metalness,    v => planetMaterial?.setParams({ metalness: v }))
-watch(roughness,    v => planetMaterial?.setParams({ roughness: v }))
-watch(crackAmount,  v => planetMaterial?.setParams({ crackAmount: v }))
-watch(lavaAmount,   v => planetMaterial?.setParams({ lavaAmount: v }))
-watch(lavaEmissive, v => planetMaterial?.setParams({ lavaEmissive: v }))
-watch(lavaColor,    v => planetMaterial?.setParams({ lavaColor: v }))
+watch(mode, m => applyMode?.(m))
 
 onMounted(async () => {
-  const [THREE, { useBody, DEFAULT_TILE_SIZE }] = await Promise.all([
+  const [THREE, { OrbitControls }, { useBody, DEFAULT_TILE_SIZE }] = await Promise.all([
     import('three'),
+    import('three/examples/jsm/controls/OrbitControls.js'),
     import('@cedric-pouilleux/stellar-hex/core'),
   ])
 
-  const el     = container.value!
-  const width  = el.clientWidth
-  const height = 400
-
+  const el = container.value!
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-  renderer.setSize(width, height)
+  renderer.setSize(el.clientWidth, 400)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   el.appendChild(renderer.domElement)
 
   const scene  = new THREE.Scene()
-  const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100)
-  camera.position.set(0, 0, 3.5)
+  const camera = new THREE.PerspectiveCamera(50, el.clientWidth / 400, 0.1, 100)
+  camera.position.set(0, 0.4, 3.5)
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.1))
   const sun = new THREE.DirectionalLight(0xffffff, 3.0)
   sun.position.set(5, 3, 3)
   scene.add(sun)
 
-  const config = {
-    type:           'metallic' as const,
+  const orbit = new OrbitControls(camera, renderer.domElement)
+  orbit.enableDamping = true
+  orbit.autoRotate = true
+  orbit.autoRotateSpeed = 0.6
+  orbit.minDistance = 1.6
+  orbit.maxDistance = 8
+
+  const body = useBody({
+    type:           'metallic',
     name:           'metallic-body-demo',
-    radius:         1,
-    temperatureMin: 100,
-    temperatureMax: 400,
-    rotationSpeed:  0.003,
-    axialTilt:      0.15,
-    hasCracks:      true,
-    hasLava:        true,
-  }
-
-  const body = useBody(config, DEFAULT_TILE_SIZE)
-  body.group.rotation.z = config.axialTilt
+    radius:          1,
+    rotationSpeed:   0,
+    axialTilt:       0.15,
+    hasCracks:       true,
+    hasLava:         true,
+  }, DEFAULT_TILE_SIZE)
   scene.add(body.group)
+  setBodyCoreVisible(body, false)
 
-  planetMaterial = (body as any).planetMaterial
-
-  // Sync initial slider values from computed physics params
-  const p = planetMaterial?.params
-  if (p) {
-    if (typeof p.metalness    === 'number') metalness.value    = +p.metalness.toFixed(2)
-    if (typeof p.roughness    === 'number') roughness.value    = +p.roughness.toFixed(2)
-    if (typeof p.crackAmount  === 'number') crackAmount.value  = +p.crackAmount.toFixed(2)
-    if (typeof p.lavaAmount   === 'number') lavaAmount.value   = +p.lavaAmount.toFixed(2)
-    if (typeof p.lavaEmissive === 'number') lavaEmissive.value = +p.lavaEmissive.toFixed(2)
-    if (typeof p.lavaColor    === 'string') lavaColor.value    = p.lavaColor
+  applyMode = (m) => {
+    if (m === 'shader') { body.view.set('shader'); body.interactive.deactivate(); setBodyCoreVisible(body, false) }
+    else {
+      body.interactive.activate()
+      body.view.set(m === 'atmo' ? 'atmosphere' : 'surface')
+      setBodyCoreVisible(body, true)
+    }
   }
-
-  mounted.value = true
 
   let animId: number
   let last = performance.now()
-
   const loop = () => {
-    animId    = requestAnimationFrame(loop)
+    animId = requestAnimationFrame(loop)
     const now = performance.now()
-    const dt  = (now - last) / 1000
-    last      = now
-
-    body.group.rotation.y += dt * 0.2
+    const dt = (now - last) / 1000
+    last = now
+    orbit.update()
     body.tick(dt)
     renderer.render(scene, camera)
   }
@@ -102,6 +80,8 @@ onMounted(async () => {
 
   cleanup = () => {
     cancelAnimationFrame(animId)
+    orbit.dispose()
+    body.dispose()
     renderer.dispose()
     el.removeChild(renderer.domElement)
   }
@@ -111,95 +91,13 @@ onBeforeUnmount(() => cleanup?.())
 </script>
 
 <template>
-  <div ref="container" class="three-demo" />
-
-  <Teleport v-if="mounted" to="#demo-controls-portal">
-    <div class="ctrl-panel">
-      <p class="ctrl-panel__title">Surface</p>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Métalicité</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="0" max="1" step="0.01"
-            :value="metalness"
-            @input="metalness = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ metalness.toFixed(2) }}</span>
-        </div>
-      </label>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Rugosité</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="0.50" max="1.00" step="0.01"
-            :value="roughness"
-            @input="roughness = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ roughness.toFixed(2) }}</span>
-        </div>
-      </label>
-    </div>
-
-    <div class="ctrl-panel">
-      <p class="ctrl-panel__title">Fissures</p>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Intensité</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="0.50" max="1.00" step="0.01"
-            :value="crackAmount"
-            @input="crackAmount = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ crackAmount.toFixed(2) }}</span>
-        </div>
-      </label>
-    </div>
-
-    <div class="ctrl-panel">
-      <p class="ctrl-panel__title">Lave</p>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Quantité</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="0.10" max="0.50" step="0.01"
-            :value="lavaAmount"
-            @input="lavaAmount = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ lavaAmount.toFixed(2) }}</span>
-        </div>
-      </label>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Émission</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="0.80" max="2.80" step="0.05"
-            :value="lavaEmissive"
-            @input="lavaEmissive = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ lavaEmissive.toFixed(2) }}</span>
-        </div>
-      </label>
-
-      <label class="ctrl ctrl--color">
-        <span class="ctrl__name">Couleur</span>
-        <input
-          type="color"
-          :value="lavaColor"
-          @input="lavaColor = ($event.target as HTMLInputElement).value"
-        />
-      </label>
-    </div>
-  </Teleport>
+  <div class="demo-wrap">
+    <div ref="container" class="demo-canvas" />
+    <BodyViewBar :body-type="'metallic'" v-model:mode="mode" />
+  </div>
 </template>
 
 <style scoped>
-.three-demo {
-  width: 100%;
-  height: 400px;
-}
+.demo-wrap   { width: 100%; }
+.demo-canvas { width: 100%; height: 400px; }
 </style>

@@ -13,11 +13,13 @@
 import { SHADER_RANGES } from './shaderRanges'
 
 /**
- * Shader-side body-type identifier. Distinct from `BodyConfig['type']`
- * ('gaseous' vs 'gas') — this is the discriminator exposed by the shader
- * presets and consumed by {@link BodyMaterial}.
+ * Shader-side body-type identifier. Same string set as
+ * `BodyConfig['type']` — the two types are kept structurally distinct so
+ * the shader catalogue can evolve independently from the public config
+ * surface (e.g. add a render-only `'preview'` type without touching
+ * `BodyConfig`).
  */
-export type LibBodyType = 'rocky' | 'gas' | 'metallic' | 'star'
+export type LibBodyType = 'rocky' | 'gaseous' | 'metallic' | 'star'
 
 /**
  * Definition of a single shader parameter — a slider (numeric + bounds),
@@ -52,7 +54,7 @@ const R = SHADER_RANGES
  */
 export const BODY_TYPES: Array<{ id: LibBodyType; label: string; icon: string }> = [
   { id: 'rocky',    label: 'Rocheuse',   icon: '🪨' },
-  { id: 'gas',      label: 'Gazeuse',    icon: '🟠' },
+  { id: 'gaseous',  label: 'Gazeuse',    icon: '🟠' },
   { id: 'metallic', label: 'Métallique', icon: '🔮' },
   { id: 'star',     label: 'Étoile',     icon: '⭐' },
 ]
@@ -92,27 +94,30 @@ export const BODY_PARAMS: BodyParamsMap = {
   },
 
   // Gas giant: latitudinal bands, turbulence, deep spots, clouds
-  gas: {
-    seed:              { label: 'Seed',               ...R.gas.seed,          default: 123 },
+  gaseous: {
+    seed:              { label: 'Seed',               ...R.gaseous.seed,          default: 123 },
     noiseSeed:         { label: 'Noise seed',         default: [0, 0, 0] },
-    noiseFreq:         { label: 'Noise freq',         ...R.gas.noiseFreq,     default: 1.0 },
+    noiseFreq:         { label: 'Noise freq',         ...R.gaseous.noiseFreq,     default: 1.0 },
     // Bands
-    bandCount:         { label: 'Nb bandes',          ...R.gas.bandCount,     default: 8 },
-    bandSharpness:     { label: 'Netteté bandes',     ...R.gas.bandSharpness, default: 0.3 },
-    bandWarp:          { label: 'Ondulation bandes',  ...R.gas.bandWarp,      default: 0.3 },
-    turbulence:        { label: 'Turbulence',         ...R.gas.turbulence,    default: 0.5 },
-    cloudDetail:       { label: 'Détail nuages',      ...R.gas.cloudDetail,   default: 0.4 },
-    jetStream:         { label: 'Courants-jets',      ...R.gas.jetStream,     default: 0.4 },
+    bandCount:         { label: 'Nb bandes',          ...R.gaseous.bandCount,     default: 8 },
+    bandSharpness:     { label: 'Netteté bandes',     ...R.gaseous.bandSharpness, default: 0.3 },
+    bandWarp:          { label: 'Ondulation bandes',  ...R.gaseous.bandWarp,      default: 0.3 },
+    turbulence:        { label: 'Turbulence',         ...R.gaseous.turbulence,    default: 0.5 },
+    cloudDetail:       { label: 'Détail nuages',      ...R.gaseous.cloudDetail,   default: 0.4 },
+    jetStream:         { label: 'Courants-jets',      ...R.gaseous.jetStream,     default: 0.4 },
     // Palette
-    colorA:            { label: 'Bande claire',       type: 'color',          default: '#e8c090' },
-    colorB:            { label: 'Bande foncée',       type: 'color',          default: '#a05030' },
-    colorC:            { label: 'Accent / tempête',   type: 'color',          default: '#d4844a' },
-    colorD:            { label: 'Bande interméd.',    type: 'color',          default: '#c8784a' },
-    animSpeed:         { label: 'Vitesse rotation',   ...R.gas.animSpeed,     default: 0.3 },
+    colorA:            { label: 'Bande claire',       type: 'color',              default: '#e8c090' },
+    colorB:            { label: 'Bande foncée',       type: 'color',              default: '#a05030' },
+    colorC:            { label: 'Accent / tempête',   type: 'color',              default: '#d4844a' },
+    colorD:            { label: 'Bande interméd.',    type: 'color',              default: '#c8784a' },
+    animSpeed:         { label: 'Vitesse rotation',   ...R.gaseous.animSpeed,     default: 0.3 },
     // High-altitude clouds
-    cloudAmount:       { label: 'Nuages',             ...R.gas.cloudAmount,   default: 0.0 },
-    cloudColor:        { label: 'Couleur nuages',     type: 'color',          default: '#e8eaf0' },
+    cloudAmount:       { label: 'Nuages',             ...R.gaseous.cloudAmount,   default: 0.0 },
+    cloudColor:        { label: 'Couleur nuages',     type: 'color',              default: '#e8eaf0' },
     cloudBlend:        { label: 'Mode fusion nuages', type: 'select', options: ['Mix', 'Screen', 'Overlay', 'Add', 'Soft Light'], default: 0 },
+    // Inner corona — additive fresnel glow at the silhouette.
+    coronaStrength:    { label: 'Intensité couronne', min: 0, max: 2, step: 0.05, default: 0.6 },
+    coronaColor:       { label: 'Couleur couronne',   type: 'color',              default: '#ffd9a8' },
   },
 
   // Metallic planet: procedural patterns, PBR reflections, cracks
@@ -166,13 +171,14 @@ export const BODY_GROUPS: Record<LibBodyType, Array<{ label: string; keys: strin
     { label: 'Couleurs', keys: ['colorA', 'colorB'] },
     { label: 'Fissures', keys: ['crackAmount', 'crackScale', 'crackWidth', 'crackDepth', 'crackColor', 'crackBlend'] },
     { label: 'Lave',     keys: ['lavaAmount', 'lavaColor', 'lavaEmissive'] },
-    { label: 'Vagues',   keys: ['waveAmount', 'waveColor', 'waveScale'] },
+    { label: 'Turbulence', keys: ['waveAmount', 'waveColor', 'waveScale'] },
   ],
-  gas: [
+  gaseous: [
     { label: 'Base',     keys: ['seed', 'noiseFreq'] },
     { label: 'Bandes',   keys: ['bandCount', 'bandSharpness', 'bandWarp', 'turbulence', 'cloudDetail', 'jetStream'] },
     { label: 'Couleurs', keys: ['colorA', 'colorB', 'colorC', 'colorD'] },
     { label: 'Nuages',   keys: ['cloudAmount', 'cloudColor', 'cloudBlend'] },
+    { label: 'Couronne', keys: ['coronaStrength', 'coronaColor'] },
   ],
   metallic: [
     { label: 'Surface',  keys: ['seed', 'noiseFreq', 'metalness', 'roughness'] },

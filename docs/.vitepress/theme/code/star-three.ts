@@ -18,8 +18,6 @@ const body = useBody(
     type:           'star',
     name:           'Sol',
     radius:         1,
-    temperatureMin: 5000,
-    temperatureMax: 5778,
     spectralType:   'G',
     rotationSpeed:  0.002,
     axialTilt:      0,

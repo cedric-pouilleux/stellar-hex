@@ -1,23 +1,22 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { TresCanvas } from '@tresjs/core'
 import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
 import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
+import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
- * Vue / TresJS equivalent of ThreePlanetDemo.
- * <Body> automatically mounts AtmosphereShell and CloudShell based on the
- * config — no manual shell setup needed.
+ * Vue / TresJS equivalent of ThreePlanetDemo. The body's atmosphere renders
+ * as a band of the layered hex mesh (no separate shell).
  */
 
 const config: BodyConfig = {
   type:                'rocky',
   name:                'demo-earth',
   radius:              1,
-  temperatureMin:      -20,
-  temperatureMax:      35,
-  liquidCoverage:      0.6,
+  liquidState:         'liquid',
   rotationSpeed:       0.004,
   axialTilt:           0.41,
+    reliefFlatness:       0.55,
   atmosphereThickness: 0.7,
 }
 
@@ -29,10 +28,9 @@ const body = useBody(config, DEFAULT_TILE_SIZE)
     <TresPerspectiveCamera :position="[0, 0, 3.5]" />
     <TresAmbientLight :intensity="0.25" />
     <TresDirectionalLight :position="[5, 3, 3]" :intensity="2.5" />
+    <OrbitControlsBridge :auto-rotate="true" />
     <Body
       :body="body"
-      :paused="false"
-      :speed-multiplier="1"
       :preview-mode="true" 
     />
   </TresCanvas>

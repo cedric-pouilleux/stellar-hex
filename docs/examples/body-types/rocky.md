@@ -11,28 +11,37 @@ const tabs = [
 
 # Planète rocheuse
 
-Corps tellurique à terrain procédural FBM. La densité des cratères, les fissures et la lave sont dérivées automatiquement de la plage de température, de la couverture d'eau et de l'épaisseur atmosphérique.
+Corps tellurique à terrain procédural FBM. Le relief est quantifié en bandes entières par `initBodySimulation` ; les cratères, les fissures et la lave sont des couches visuelles indépendantes pilotées par les flags `hasCracks` / `hasLava` et les paramètres shader.
 
-## Info métier
+## Comportement
 
-Les planètes rocheuses sont les corps telluriques — composées principalement de silicates et de métaux ferreux. Le moteur de simulation dérive les biomes (désert, toundra, forêt, glace) depuis `temperatureMin`/`temperatureMax` et `liquidCoverage`. L'atmosphère érode les cratères et les fissures : un monde habitable (−20 °C → 50 °C) aura une surface lissée, tandis qu'un monde aride et volcanique (T > 200 °C) présentera de la lave active.
+La lib est **agnostique du climat** : elle ne lit aucun champ de température et ne dérive ni couleur ni phase à partir d'un modèle thermique. Tout ce qui dépend du climat (couleur de surface, présence d'un océan, lave) est résolu côté caller et poussé dans `BodyConfig` :
 
-**Exemples réels** : Terre, Mars, Vénus, Mercure.
+- présence d'un océan → `liquidState !== 'none'`
+- couleur du liquide → `liquidColor` (votre catalogue substance → couleur)
+- couleur de surface → `terrainColorLow` / `terrainColorHigh` (ancres de la rampe)
+- effets visuels → flags `hasLava` / `hasCracks` + intensités passées via `BodyVariation`
+
+`atmosphereThickness` règle l'épaisseur radiale du shell atmo, `atmosphereOpacity` son opacité en mode shader.
 
 ## BodyConfig
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `type` | `'rocky'` | Discriminant obligatoire |
-| `temperatureMin` | `number` | Température min de surface (°C) |
-| `temperatureMax` | `number` | Température max de surface (°C) |
-| `liquidCoverage` | `number` 0–1 | Fraction de la surface couverte de liquide |
-| `atmosphereThickness` | `number` 0–1 | Épaisseur de l'atmosphère — érode cratères et fissures |
-| `mass` | `number` | Masse en M⊕ — influence le relief |
-| `hasCracks` | `boolean` | Force l'activation du réseau de fissures |
-| `hasLava` | `boolean` | Force l'activation de la lave dans les fissures |
+| `name` | `string` | Seed déterministe — même nom = même planète |
+| `radius` | `number` | Rayon visuel (unités monde) |
+| `liquidState` | `'liquid' \| 'frozen' \| 'none'` | État physique du liquide de surface (défaut `'none'`) |
+| `liquidCoverage` | `number` 0–1 | Fraction initiale de tuiles immergées (défaut `0.5`) |
+| `liquidColor` | `ColorInput` | Couleur opaque du liquide — requise si `liquidState !== 'none'` |
+| `atmosphereThickness` | `number` 0–1 | Épaisseur radiale de l'atmo (fraction du rayon) |
+| `atmosphereOpacity` | `number` 0–1 | Opacité de l'atmo en vue shader |
+| `coreRadiusRatio` | `number` 0–1 | Rayon du noyau interne (override) |
+| `mass` | `number` | Masse en M⊕ — métadonnée |
+| `hasCracks` | `boolean` | Active le réseau de fissures |
+| `hasLava` | `boolean` | Active la lave dans les bandes basses |
 | `hasRings` | `boolean` | Ajoute un anneau visuel |
-| `palette` | `TerrainLevel[]` | Palette terrain personnalisée (override procédural) |
+| `terrainColorLow` / `terrainColorHigh` | `ColorInput` | Ancres de la rampe terrain par défaut |
 
 <ClientOnly>
   <DemoBlock :tabs="tabs">

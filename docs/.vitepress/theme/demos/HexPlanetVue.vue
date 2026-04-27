@@ -1,8 +1,9 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref } from 'vue'
 import { TresCanvas } from '@tresjs/core'
 import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
 import type { BodyConfig, RenderableBody } from '@cedric-pouilleux/stellar-hex/sim'
+import OrbitControlsBridge from './OrbitControlsBridge.vue'
 import HexRaycaster from './HexRaycaster.vue'
 
 /**
@@ -15,11 +16,10 @@ const config: BodyConfig = {
   type:                'rocky',
   name:                'hex-demo',
   radius:              1,
-  temperatureMin:      -20,
-  temperatureMax:      35,
-  liquidCoverage:      0.6,
+  liquidState:         'liquid',
   rotationSpeed:       0,
   axialTilt:           0,
+    reliefFlatness:       0.55,
   atmosphereThickness: 0.7,
 }
 
@@ -32,10 +32,9 @@ const hoveredTileId = ref<number | null>(null)
     <TresPerspectiveCamera :position="[0, 0, 3.5]" />
     <TresAmbientLight :intensity="0.6" />
     <TresDirectionalLight :position="[6, 4, 5]" :intensity="2.5" />
+    <OrbitControlsBridge :auto-rotate="true" />
     <Body
       :body="(body as unknown as RenderableBody)"
-      :paused="false"
-      :speed-multiplier="1"
       :interactive="true"
       :hovered-tile-id="hoveredTileId"
     />

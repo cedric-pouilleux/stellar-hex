@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { BodyConfig } from '@lib'
 import { liquidAccent, liquidLabel, resolveLiquidState } from './liquidDiagnostics'
+import type { SurfaceLiquidType } from './liquidCatalog'
 
 function rocky(overrides: Partial<BodyConfig> = {}): BodyConfig {
   return {
@@ -11,53 +12,51 @@ function rocky(overrides: Partial<BodyConfig> = {}): BodyConfig {
     axialTilt:      0,
     temperatureMin: -10,
     temperatureMax: 30,
-    liquidType:     'water',
     liquidState:    'liquid',
-    liquidCoverage: 0.5,
     ...overrides,
   }
 }
 
 describe('resolveLiquidState', () => {
-  it('reflects the caller-picked liquid type and state', () => {
-    const s = resolveLiquidState(rocky())
+  it('reflects the caller-picked substance and state', () => {
+    const s = resolveLiquidState(rocky(), 'water')
     expect(s.liquidType).toBe('water')
     expect(s.hasLiquid).toBe(true)
     expect(s.hasSurfaceBody).toBe(true)
   })
 
-  it('passes through any recognised liquid type regardless of temperature', () => {
-    const s = resolveLiquidState(rocky({
-      temperatureMin: 80, temperatureMax: 120,
-      liquidType: 'methane', liquidState: 'liquid',
-    }))
+  it('passes through any recognised substance regardless of temperature', () => {
+    const s = resolveLiquidState(
+      rocky({ temperatureMin: 80, temperatureMax: 120, liquidState: 'liquid' }),
+      'methane',
+    )
     expect(s.liquidType).toBe('methane')
     expect(s.hasLiquid).toBe(true)
   })
 
   it('reports a frozen surface when the caller sets liquidState = frozen', () => {
-    const s = resolveLiquidState(rocky({ liquidType: 'water', liquidState: 'frozen' }))
+    const s = resolveLiquidState(rocky({ liquidState: 'frozen' }), 'water')
     expect(s.hasLiquid).toBe(false)
     expect(s.hasSurfaceBody).toBe(true)
     expect(s.liquidType).toBe('water')
   })
 
   it('returns a dry profile when liquidState is none', () => {
-    const s = resolveLiquidState(rocky({ liquidType: undefined, liquidState: 'none' }))
+    const s = resolveLiquidState(rocky({ liquidState: 'none' }), undefined)
     expect(s.liquidType).toBeUndefined()
     expect(s.hasLiquid).toBe(false)
     expect(s.hasSurfaceBody).toBe(false)
   })
 
   it('returns a dry profile for non-rocky bodies', () => {
-    const s = resolveLiquidState(rocky({ type: 'gaseous' }))
+    const s = resolveLiquidState(rocky({ type: 'gaseous' }), 'water')
     expect(s.liquidType).toBeUndefined()
     expect(s.hasLiquid).toBe(false)
     expect(s.hasSurfaceBody).toBe(false)
   })
 
-  it('ignores unknown liquid tags', () => {
-    const s = resolveLiquidState(rocky({ liquidType: 'plasma' }))
+  it('propagates undefined liquid type without synthesising a default', () => {
+    const s = resolveLiquidState(rocky(), undefined)
     expect(s.liquidType).toBeUndefined()
     expect(s.hasSurfaceBody).toBe(true)
   })
@@ -80,8 +79,8 @@ describe('liquidLabel', () => {
 
 describe('liquidAccent', () => {
   it('returns distinct colours per liquid kind', () => {
-    const state = (t: any) => ({ liquidType: t, hasLiquid: true, hasSurfaceBody: true })
-    const colours = ['water', 'ammonia', 'methane', 'nitrogen'].map(t => liquidAccent(state(t)))
+    const state = (t: SurfaceLiquidType) => ({ liquidType: t, hasLiquid: true, hasSurfaceBody: true })
+    const colours = (['water', 'ammonia', 'methane', 'nitrogen'] as SurfaceLiquidType[]).map(t => liquidAccent(state(t)))
     expect(new Set(colours).size).toBe(4)
   })
   it('returns a neutral grey for dry worlds', () => {

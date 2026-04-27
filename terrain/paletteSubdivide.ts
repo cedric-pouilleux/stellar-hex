@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { TerrainLevel } from '../types/body.types'
+import type { TerrainLevel } from '../types/terrain.types'
 
 /**
  * Densify a terrain palette to `targetCount` levels by linearly interpolating
@@ -11,8 +11,8 @@ import type { TerrainLevel } from '../types/body.types'
  * is smaller than or equal to the source length, or when the source has
  * fewer than two anchors.
  *
- * @param palette     - Source palette (>=2 anchors, sorted ascending by threshold).
- * @param targetCount - Desired total level count (>= palette.length).
+ * @param palette     - Source palette (≥ 2 anchors, sorted ascending by threshold).
+ * @param targetCount - Desired total level count (≥ palette.length).
  * @returns Expanded palette with exactly `targetCount` levels.
  */
 export function subdividePalette(

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { BodyMaterial, BODY_SHADER_PALETTE_MAX } from './BodyMaterial'
-import type { TerrainLevel } from '../types/body.types'
+import type { TerrainLevel } from '../types/terrain.types'
 
 function makePalette(n: number): TerrainLevel[] {
   const palette: TerrainLevel[] = []
@@ -69,6 +69,33 @@ describe('BodyMaterial palette uniforms', () => {
     const oversized = makePalette(BODY_SHADER_PALETTE_MAX + 8)
     const mat       = new BodyMaterial('rocky', {}, { palette: oversized })
     expect(mat.material.uniforms.uPaletteCount.value).toBe(BODY_SHADER_PALETTE_MAX)
+    mat.dispose()
+  })
+})
+
+describe('BodyMaterial setSeaLevel', () => {
+  const liquid = {
+    permTexture: new THREE.DataTexture(new Uint8Array(512), 256, 1),
+    seaLevel:    0.0,
+    noiseScale:  1.4,
+    radius:      3.0,
+  }
+
+  it('updates the uSeaLevel uniform when the material carries a liquid mask', () => {
+    const mat = new BodyMaterial('rocky', {}, { liquid })
+    expect(mat.material.uniforms.uSeaLevel.value).toBeCloseTo(0.0)
+    mat.setSeaLevel(0.42)
+    expect(mat.material.uniforms.uSeaLevel.value).toBeCloseTo(0.42)
+    mat.setSeaLevel(-0.3)
+    expect(mat.material.uniforms.uSeaLevel.value).toBeCloseTo(-0.3)
+    mat.dispose()
+  })
+
+  it('is a no-op when the material was built without a liquid mask', () => {
+    const mat = new BodyMaterial('rocky')
+    expect(mat.material.uniforms.uSeaLevel).toBeUndefined()
+    expect(() => mat.setSeaLevel(0.5)).not.toThrow()
+    expect(mat.material.uniforms.uSeaLevel).toBeUndefined()
     mat.dispose()
   })
 })

@@ -14,12 +14,8 @@ export * from './core'
 
 // ── Scene controllers ────────────────────────────────────────────
 export { default as Body } from './scene/Body.vue'
-export { default as AtmosphereShell } from './scene/AtmosphereShell.vue'
-export { default as CloudShell } from './scene/CloudShell.vue'
-export { default as OrbitTrail } from './scene/OrbitTrail.vue'
 export { default as PinnedTileProjector } from './scene/PinnedTileProjector.vue'
 export { default as BodyController } from './scene/BodyController.vue'
 export { default as BodyRings } from './scene/BodyRings.vue'
-export { default as BodyEffectLayer } from './scene/BodyEffectLayer.vue'
 export { default as ShadowUpdater } from './scene/ShadowUpdater.vue'
 export { default as TileCenterProjector } from './scene/TileCenterProjector.vue'

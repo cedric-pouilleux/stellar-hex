@@ -11,26 +11,7 @@ const tabs = [
 
 # Géante gazeuse
 
-Corps entièrement gazeux à bandes latitudinales procédurales. Le nombre de bandes, la turbulence et les courants-jets sont calculés depuis la vitesse de rotation et la composition atmosphérique.
-
-## Info métier
-
-Les géantes gazeuses sont composées principalement d'hydrogène (H₂/He) avec des traces de méthane (CH₄), d'ammoniac (NH₃) et d'eau (H₂O). La composition `gasComposition` détermine la palette de couleur : CH₄ élevé → teintes bleues (géante de glace type Neptune), NH₃ → bandes pâles jaunâtres (Jupiter). La vitesse de rotation (`rotationSpeed`) influe directement sur le nombre de bandes et la vitesse d'animation. Un noyau rocheux interne (`coreRadiusRatio`) est modélisé en simulation.
-
-**Exemples réels** : Jupiter, Saturne, Uranus, Neptune.
-
-## BodyConfig
-
-| Prop | Type | Description |
-|------|------|-------------|
-| `type` | `'gaseous'` | Discriminant obligatoire |
-| `temperatureMin` | `number` | Température min (°C) — influence la turbulence |
-| `temperatureMax` | `number` | Température max (°C) |
-| `rotationSpeed` | `number` | Vitesse de rotation (rad/s) — dérive le nombre de bandes |
-| `gasComposition` | `object` | Fractions molaires H₂He / CH₄ / NH₃ / H₂O / sulfure |
-| `coreRadiusRatio` | `number` 0–1 | Ratio noyau / rayon total (défaut 0.55) |
-| `hasRings` | `boolean` | Ajoute un système d'anneaux visuel |
-| `mass` | `number` | Masse en M⊕ — influence la structure des bandes |
+Corps entièrement gazeux à bandes latitudinales procédurales. Pas de relief sol — la surface visible est la coquille atmosphérique.
 
 <ClientOnly>
   <DemoBlock :tabs="tabs">
@@ -38,23 +19,32 @@ Les géantes gazeuses sont composées principalement d'hydrogène (H₂/He) avec
   </DemoBlock>
 </ClientOnly>
 
+## BodyConfig
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `type` | `'gaseous'` | Discriminant obligatoire |
+| `name` / `radius` | `string` / `number` | Identité + rayon visuel |
+| `rotationSpeed` | `number` | Vitesse de rotation (rad/s) |
+| `axialTilt` | `number` | Inclinaison de l'axe (rad) |
+| `atmosphereThickness` | `number` 0–1 | Fraction radiale de l'enveloppe atmo (défaut typique géante : `0.6`) |
+| `coreRadiusRatio` | `number` 0–1 | Rayon noyau / rayon visuel (défaut `0.55`) |
+| `gasMassFraction` | `number` 0–1 | Fraction massique de l'enveloppe — alternative à `coreRadiusRatio` (cf. [Noyau & coquilles](/examples/core/core-and-shells)) |
+| `bandColors` | `{ colorA, colorB, colorC, colorD }` | Quatre stops de la palette de bandes (clair → foncé → accent → secondaire) |
+| `hasRings` | `boolean` | Active un système d'anneaux (déterministe depuis le seed) |
+
 ## Paramètres shader
 
-### Base
-
-| Paramètre | Plage | Défaut | Description |
-|-----------|-------|--------|-------------|
-| `seed` | 0 – 1000 | 123 | Graine du bruit procédural |
-| `noiseFreq` | 0.5 – 2.0 | 1.0 | Fréquence du bruit de base |
+Tous mutables en runtime via `body.planetMaterial.setParams({ … })`.
 
 ### Bandes
 
 | Paramètre | Plage | Défaut | Description |
 |-----------|-------|--------|-------------|
 | `bandCount` | 2 – 24 | 8 | Nombre de bandes latitudinales |
-| `bandSharpness` | 0 – 1 | 0.3 | Netteté des transitions entre bandes |
-| `bandWarp` | 0 – 1 | 0.3 | Déformation sinusoïdale des bandes |
-| `turbulence` | 0 – 1 | 0.5 | Turbulence générale de l'atmosphère |
+| `bandSharpness` | 0 – 1 | 0.3 | Netteté des transitions |
+| `bandWarp` | 0 – 1 | 0.3 | Déformation sinusoïdale |
+| `turbulence` | 0 – 1 | 0.5 | Turbulence générale |
 | `cloudDetail` | 0 – 1 | 0.4 | Détail des masses nuageuses intra-bandes |
 | `jetStream` | 0 – 1 | 0.4 | Intensité des courants-jets équatoriaux |
 
@@ -64,19 +54,13 @@ Les géantes gazeuses sont composées principalement d'hydrogène (H₂/He) avec
 |-----------|------|--------|
 | `colorA` | couleur | `#e8c090` — bande claire |
 | `colorB` | couleur | `#a05030` — bande foncée |
-| `colorC` | couleur | `#d4844a` — accent/tempête |
-| `colorD` | couleur | `#c8784a` — bande intermédiaire |
+| `colorC` | couleur | `#d4844a` — accent |
+| `colorD` | couleur | `#c8784a` — secondaire |
 
-### Animation
+### Couche supérieure & animation
 
 | Paramètre | Plage | Défaut | Description |
 |-----------|-------|--------|-------------|
-| `animSpeed` | 0 – 2 | 0.3 | Vitesse d'animation des bandes |
-
-### Nuages haute altitude
-
-| Paramètre | Plage / Type | Défaut | Description |
-|-----------|--------------|--------|-------------|
 | `cloudAmount` | 0 – 1 | 0.0 | Opacité de la couche nuageuse haute |
 | `cloudColor` | couleur | `#e8eaf0` | Teinte des nuages |
-| `cloudBlend` | select | Mix | Mode de fusion nuages/bandes |
+| `animSpeed` | 0 – 2 | 0.3 | Vitesse d'animation des bandes |

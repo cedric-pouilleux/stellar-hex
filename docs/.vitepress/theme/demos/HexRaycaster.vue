@@ -4,7 +4,7 @@ import * as THREE from 'three'
 
 /**
  * Inner component — must live inside <TresCanvas> to access useTresContext.
- * Drives body.queryHover / setHover each frame and emits the hovered tile id.
+ * Drives body.interactive.queryHover each frame and emits the hovered tile id.
  */
 
 const props = defineProps<{ body: any }>()
@@ -26,7 +26,7 @@ const { onBeforeRender } = useRenderLoop()
 onBeforeRender(() => {
   if (!camera.value) return
   raycaster.setFromCamera(pointer, camera.value as THREE.Camera)
-  const id = props.body.queryHover?.(raycaster) ?? null
+  const id = props.body.interactive?.queryHover(raycaster) ?? null
   if (id !== lastId) { lastId = id; emit('hover', id) }
 })
 </script>

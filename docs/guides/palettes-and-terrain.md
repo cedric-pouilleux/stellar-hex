@@ -1,0 +1,106 @@
+# Palettes & terrain
+
+La couleur de chaque tuile vient d'une **palette terrain** — une liste de [`TerrainLevel`](/api/core/interfaces/TerrainLevel) ordonnés du plus bas au plus haut. La lib choisit automatiquement la palette en fonction du `BodyConfig.type`, mais vous pouvez la **remplacer entièrement** ou n'en ajuster que les ancres.
+
+## Génération automatique
+
+`choosePalette(config)` route vers le bon générateur selon `type` :
+
+| Type | Générateur |
+| ---- | ---------- |
+| `'rocky'`    | `generateTerrainPalette` (rampe basse → haute) |
+| `'metallic'` | `buildMetallicPalette` (4 stops : creux → plaines → hauteurs → pics) |
+| `'gaseous'`  | `buildGasPalette` (4 bandes A/B/C/D) |
+| `'star'`     | `buildStarPalette` (surface → couronne) |
+
+Chaque générateur produit une palette de **N bandes** où `N = resolveTerrainLevelCount(radius, coreRadiusRatio)`. C'est la même valeur que celle utilisée par la sim pour quantifier les élévations — donc `palette[elevation]` résout sans interpolation.
+
+## Ancres simples (planète rocheuse)
+
+Pour ajuster une rocheuse sans remplacer la palette, utilisez les deux ancres exposées sur `BodyConfig` :
+
+```ts
+const body = useBody({
+  name: 'rocky-warm',
+  type: 'rocky',
+  // ...
+  terrainColorLow:  '#5c2a1a',   // bande la plus basse
+  terrainColorHigh: '#d6a07c',   // bande la plus haute
+}, DEFAULT_TILE_SIZE)
+```
+
+Les bandes intermédiaires sont interpolées en linéaire entre les deux ancres. C'est le moyen le plus simple de basculer un look « martien » ou « lunaire ».
+
+## Palette gaz personnalisée
+
+Les géantes gazeuses consomment quatre couleurs de bande :
+
+```ts
+const body = useBody({
+  name: 'gas-giant',
+  type: 'gaseous',
+  // ...
+  bandColors: {
+    colorA: '#d8c39e',  // teinte claire dominante
+    colorB: '#7a4926',  // teinte sombre
+    colorC: '#c9774a',  // accent
+    colorD: '#5a3d2c',  // secondaire
+  },
+}, DEFAULT_TILE_SIZE)
+```
+
+`buildGasPalette` se charge de répartir les bandes en respectant les zones et fuseaux, avec une variation déterministe pilotée par le seed.
+
+## Palette métallique avancée
+
+Pour un monde métallique, `metallicBands` accepte un tuple de 4 [`MetallicBand`](/api/sim/interfaces/MetallicBand) (creux → plaines → hauteurs → pics). Chaque bande peut spécifier `metalness`, `roughness`, `height`, `emissive`, `emissiveIntensity` :
+
+```ts
+const body = useBody({
+  name: 'Forge-α',
+  type: 'metallic',
+  metallicBands: [
+    { color: '#1a1118', metalness: 0.95, roughness: 0.45 },                 // creux
+    { color: '#3d2a2a', metalness: 0.75, roughness: 0.55 },                 // plaines
+    { color: '#a47352', metalness: 0.65, roughness: 0.40 },                 // hauteurs
+    { color: '#ffaa55', metalness: 0.30, roughness: 0.20,                   // pics
+      emissive: '#ff5500', emissiveIntensity: 0.6 },
+  ],
+}, DEFAULT_TILE_SIZE)
+```
+
+Les champs absents tombent sur l'échelle par défaut (cf. `buildMetallicPalette`).
+
+## Override total
+
+Si vous voulez piloter chaque bande explicitement, passez `palette` à `useBody` (le 3e argument est `BodyRenderOptions`) :
+
+```ts
+import { useBody, type TerrainLevel } from '@cedric-pouilleux/stellar-hex/core'
+import * as THREE from 'three'
+
+const palette: TerrainLevel[] = [
+  { color: new THREE.Color('#0a0a14'), height: 0.0  },
+  { color: new THREE.Color('#1f1f30'), height: 0.06 },
+  { color: new THREE.Color('#3a3a55'), height: 0.12 },
+  { color: new THREE.Color('#7e7e98'), height: 0.20 },
+  { color: new THREE.Color('#e8e8ee'), height: 0.30 },
+]
+
+const body = useBody(config, DEFAULT_TILE_SIZE, { palette })
+```
+
+**Attention** : la longueur du tableau doit correspondre à `resolveTerrainLevelCount(radius, coreRadiusRatio)`. Sinon `getTileLevel` clampe et certaines tuiles partagent une bande.
+
+## Anatomie d'un `TerrainLevel`
+
+```ts
+interface TerrainLevel {
+  color:   THREE.Color   // couleur affichée
+  height:  number        // hauteur visuelle (au-dessus du noyau)
+  liquid?: boolean       // true = la sphère liquide passe au-dessus de cette bande
+  // …d'autres champs métallique-spécifiques
+}
+```
+
+L'attribut `liquid` est ce qui fait la différence entre fond marin et continent. La sim le pose automatiquement sur les bandes ≤ `seaLevelElevation`, mais vous pouvez l'overrider dans une palette custom (par exemple : océan multi-paliers).

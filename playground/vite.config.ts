@@ -8,7 +8,6 @@ export default defineConfig({
     alias: {
       '@lib': fileURLToPath(new URL('../core.ts', import.meta.url)),
       '@sim': fileURLToPath(new URL('../sim.ts', import.meta.url)),
-      '@render/configToLibParams': fileURLToPath(new URL('../render/configToLibParams.ts', import.meta.url)),
     },
     dedupe: ['three', 'vue', 'simplex-noise'],
   },

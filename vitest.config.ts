@@ -1,7 +1,7 @@
 /**
  * Vitest config for the monorepo root.
  *
- * Mirrors the `@lib` / `@sim` / `@render/*` aliases declared in
+ * Mirrors the `@lib` / `@sim` aliases declared in
  * `playground/vite.config.ts` so specs that live alongside playground
  * source (e.g. `playground/src/lib/*.spec.ts`) resolve their runtime
  * imports correctly when vitest is invoked from the repo root.
@@ -19,9 +19,8 @@ import { fileURLToPath } from 'node:url'
 export default defineConfig({
   resolve: {
     alias: {
-      '@lib':                      fileURLToPath(new URL('./core.ts', import.meta.url)),
-      '@sim':                      fileURLToPath(new URL('./sim.ts',  import.meta.url)),
-      '@render/configToLibParams': fileURLToPath(new URL('./render/configToLibParams.ts', import.meta.url)),
+      '@lib': fileURLToPath(new URL('./core.ts', import.meta.url)),
+      '@sim': fileURLToPath(new URL('./sim.ts',  import.meta.url)),
     },
   },
   // @ts-expect-error Vitest augments Vite's config but we depend on vitest only at runtime.

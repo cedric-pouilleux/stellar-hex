@@ -1,7 +1,11 @@
 import type * as THREE from 'three'
-import type { BodyConfig, OrbitConfig } from './body.types'
-import type { BodyVariation } from '../render/bodyVariation'
-import type { ShadowUniforms } from '../render/useHexasphereMesh'
+import type { BodyConfig } from './body.types'
+import type { TerrainLevel } from './terrain.types'
+import type { BodyVariation } from '../render/body/bodyVariation'
+import type { ShadowUniforms } from '../render/hex/hexMeshShared'
+import type { HoverChannel } from '../render/state/hoverState'
+import type { GraphicsUniforms } from '../render/hex/hexGraphicsUniforms'
+import type { BodyInteractive, BodyHover, BodyLiquid, BodyView } from './bodyHandle.types'
 
 /**
  * Minimal rendering contract consumed by the scene-level `<Body>` component.
@@ -10,18 +14,26 @@ import type { ShadowUniforms } from '../render/useHexasphereMesh'
  * deterministic variation handle can be rendered, independently of how it was
  * produced (solar-system pipeline, standalone `useBody()` call, an editor,
  * a unit test scene, …). This interface deliberately excludes every
- * consumer-specific concern (overlays, application-level callbacks) so that `<Body>`
- * remains reusable in any runtime that speaks the same rendering contract.
+ * consumer-specific concern (overlays, application-level callbacks) so that
+ * `<Body>` remains reusable in any runtime that speaks the same rendering
+ * contract.
+ *
+ * A full handle returned by `useBody()` (see {@link Body}) satisfies this
+ * contract structurally — the scene components read the subset they need.
  */
 export interface RenderableBody {
   /** Root THREE group — meshes and shells attach under it. */
   group:     THREE.Group
   /** Physical + display parameters (radius, temperatures, atmosphere, …). */
   config:    BodyConfig
-  /** Optional orbit definition. Omit for a fixed body (star at the origin, or a standalone preview). */
-  orbit?:    OrbitConfig
   /** Deterministic visual variation (ring config, shader params). */
   variation: BodyVariation
+  /**
+   * Effective terrain palette used by this body — forwarded by `useBody` so
+   * consumers of the rendering contract (shell anchors, overlay shaders) can
+   * read the same palette the internal meshes use.
+   */
+  palette?:  TerrainLevel[]
   /** Per-frame tick driven by the scene's render loop. */
   tick:      (dt: number) => void
   /**
@@ -30,30 +42,36 @@ export interface RenderableBody {
    */
   shadowUniforms?: ShadowUniforms
   /**
-   * Pure raycast → tile id resolution. Returns null when the body is not in
-   * interactive mode or when the ray misses. Side-effect-free: scene
-   * controllers may call this to detect hover/click without mutating any
-   * visual state. Optional so that lightweight consumers (editors, tests) can
-   * satisfy the interface without mounting a tile-picking mesh.
+   * Optional per-body hover/pin channel. Forwarded by `useBody`; surfaced
+   * here so `<Body>` can wire the projectors without leaking the underlying
+   * handle.
    */
-  queryHover?: (raycaster: THREE.Raycaster) => number | null
+  hoverChannel?:    HoverChannel
   /**
-   * Apply a tile-hover highlight. Driven by `Body.vue` from a controlled
-   * `hoveredTileId` prop — external consumers should not call this directly.
+   * Optional per-body graphics uniform bag. Forwarded by `useBody`; surfaced
+   * here so `<Body>` can pass it down to the cloud shell.
    */
-  setHover?: (tileId: number | null) => void
+  graphicsUniforms?: GraphicsUniforms
   /**
-   * Apply a pinned-tile marker. Driven by `Body.vue` from a controlled
-   * `pinnedTileId` prop — external consumers should not call this directly.
+   * Interactive mode + raycast queries. Optional so lightweight consumers
+   * (editors, tests) can satisfy the interface without mounting a
+   * tile-picking mesh.
    */
-  setPinnedTile?: (tileId: number | null) => void
+  interactive?: BodyInteractive
+  /** Controlled tile hover / pin / body-hover setters (scene-controller driven). */
+  hover?:       BodyHover
+  /** Surface liquid controls. Absent on dry bodies and stars. */
+  liquid?:      BodyLiquid
+  /** View toggle (`'surface'` vs `'atmosphere'`). Absent on stars. */
+  view?:        BodyView
   /**
-   * Apply a body-level hover ring. Driven by `Body.vue` from a controlled
-   * `bodyHover` prop — external consumers should not call this directly.
+   * Returns the world radius of the opaque inner core sphere. Present on
+   * all non-stellar bodies.
    */
-  setBodyHover?: (visible: boolean) => void
-  /** Activate tile-level interactive rendering (hex mesh + fills). */
-  activateInteractive?:   () => void
-  /** Deactivate tile-level interactive rendering (back to smooth display). */
-  deactivateInteractive?: () => void
+  getCoreRadius?:    () => number
+  /**
+   * Returns the world radius of the outer surface (= `config.radius`).
+   * Present on all non-stellar bodies; kept symmetric with `getCoreRadius`.
+   */
+  getSurfaceRadius?: () => number
 }

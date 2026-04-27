@@ -1,7 +1,8 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { TresCanvas } from '@tresjs/core'
 import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
 import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
+import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
  * Vue / TresJS metallic planet demo.
@@ -13,8 +14,6 @@ const config: BodyConfig = {
   type:           'metallic',
   name:           'metallic-body-demo',
   radius:         1,
-  temperatureMin: 100,
-  temperatureMax: 400,
   rotationSpeed:  0.003,
   axialTilt:      0.15,
   hasCracks:      true,
@@ -29,7 +28,8 @@ const body = useBody(config, DEFAULT_TILE_SIZE)
     <TresPerspectiveCamera :position="[0, 0, 3.5]" />
     <TresAmbientLight :intensity="0.1" />
     <TresDirectionalLight :position="[5, 3, 3]" :intensity="3" />
-    <Body :body="body" :paused="false" :speed-multiplier="1" :preview-mode="true" />
+    <OrbitControlsBridge :auto-rotate="true" />
+    <Body :body="body" :preview-mode="true" />
   </TresCanvas>
 </template>
 

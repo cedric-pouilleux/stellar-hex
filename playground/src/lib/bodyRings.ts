@@ -43,15 +43,25 @@ export function attachBodyRings(
   variation:     RingVariation | null | undefined,
 ): BodyRingsHandle | null {
   if (!variation) return null
-  const wp = new THREE.Vector3()
-  const rings = buildBodyRings({
-    radius,
-    rotationSpeed,
-    variation,
-    getPlanetWorldPos: () => group.getWorldPosition(wp),
-  })
-  group.add(rings.carrier)
-  return rings
+
+  // Mutable Vector3 wired into the lib's shadow uniform by reference. The
+  // wrapped `tick` refreshes it from the body's world matrix before
+  // delegating, so callers stay on the original `tick(dt)` ergonomics.
+  const planetWorldPos = new THREE.Vector3()
+  const inner = buildBodyRings({ radius, rotationSpeed, variation, planetWorldPos })
+  group.add(inner.carrier)
+
+  const wrapped: BodyRingsHandle = {
+    carrier: inner.carrier,
+    mesh:    inner.mesh,
+    tick(dt: number): void {
+      group.getWorldPosition(planetWorldPos)
+      inner.tick(dt)
+    },
+    updateVariation: inner.updateVariation,
+    dispose:         inner.dispose,
+  }
+  return wrapped
 }
 
 /**

@@ -1,0 +1,40 @@
+﻿<script setup lang="ts">
+import { TresCanvas } from '@tresjs/core'
+import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
+import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
+import OrbitControlsBridge from './OrbitControlsBridge.vue'
+
+/**
+ * Vue / TresJS ocean demo. liquidCoverage seeds the initial sea level;
+ * call body.liquid.setSeaLevel(band) at runtime to move it.
+ */
+
+const config: BodyConfig = {
+  type:                'rocky',
+  name:                'ocean-demo',
+  radius:               1,
+  rotationSpeed:        0.008,
+  axialTilt:            0.3,
+    reliefFlatness:       0.55,
+  atmosphereThickness:  0.45,
+  liquidState:         'liquid',
+  liquidCoverage:       0.55,
+  liquidColor:         '#175da1',
+}
+
+const body = useBody(config, DEFAULT_TILE_SIZE)
+</script>
+
+<template>
+  <TresCanvas class="vue-demo" :clear-color="'#08080f'">
+    <TresPerspectiveCamera :position="[0, 0, 3.5]" />
+    <TresAmbientLight :intensity="0.25" />
+    <TresDirectionalLight :position="[5, 3, 4]" :intensity="2.5" />
+    <OrbitControlsBridge :auto-rotate="true" />
+    <Body :body="body" :preview-mode="true" />
+  </TresCanvas>
+</template>
+
+<style scoped>
+.vue-demo { width: 100%; height: 400px; }
+</style>

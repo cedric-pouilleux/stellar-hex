@@ -54,17 +54,17 @@ describe('resolveStarData', () => {
   })
 
   it('G-type reference (radius=REF_STAR_RADIUS, tempK≈REF_STAR_TEMP) → luminosity ≈ 1', () => {
-    // G has radius=3=REF_STAR_RADIUS, tempK=5500=REF_STAR_TEMP
+    // G has radius=3=REF_STAR_RADIUS, tempK=5778=REF_STAR_TEMP
     const { luminosity } = resolveStarData(G_STAR)
     expect(luminosity).toBeCloseTo(1, 1)
   })
 })
 
 describe('toStarParams', () => {
-  it('returns radius and tempAvg from resolved star data', () => {
+  it('returns radius and tempK from resolved star data', () => {
     const params = toStarParams(G_STAR)
     expect(params.radius).toBe(SPECTRAL_TABLE.G.radius)
-    expect(params.tempAvg).toBe(SPECTRAL_TABLE.G.tempK)
+    expect(params.tempK).toBe(SPECTRAL_TABLE.G.tempK)
   })
 })
 

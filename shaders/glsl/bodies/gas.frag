@@ -32,14 +32,18 @@ uniform vec3  uLightColor;
 uniform vec3  uLightDir;
 uniform float uLightIntensity;
 uniform vec3  uAmbientColor;
-/** 1.0 in top-down overview mode — flattens diffuse to uniform 1.0, eliminates shadow artifacts. */
+/** 1.0 → flat diffuse for top-down / backdrop modes; 0.0 → directional shading. */
 uniform float uFlatLighting;
+/** Backdrop attenuation in [0, 1] — final-colour multiplier + bandLuma flatten. Sol view drops below 1. */
+uniform float uViewDim;
+/** Inner luminous corona — additive fresnel glow at the silhouette. `uCoronaColor` is the tint. */
+uniform float uCoronaStrength;
+uniform vec3  uCoronaColor;
 
 varying vec3  vPosition;
 varying vec3  vNormal;
 varying vec3  vWorldNormal;
 varying vec3  vViewDir;
-varying vec2  vUv;
 varying vec3  vVertexColor;
 
 #include ../lib/noise.glsl
@@ -89,50 +93,68 @@ void main() {
   float detail   = mix(gnoise(p * 7.0  + vec3(tJet * 3.0, 0.0, 0.0)),
                        gnoise(p * 14.0 + vec3(tJet * 5.0, 0.0, 0.0)), 0.4) * uCloudDetail * 0.14;
 
-  vec3 bandColor = bandPalette(band + detail);
-  bandColor      = mix(bandColor, mix(uColorA * 1.15, uColorC * 0.9, 0.4), jetMask * 0.45);
+  vec3 procColor = bandPalette(band);
+  float bandLuma = mix(0.78, 1.18, band);
+  // Flatten the contrast envelope when the disc is dimmed — bands soften
+  // alongside the final-colour reduction so the haze reads as distant.
+  bandLuma       = mix(1.0, bandLuma, uViewDim);
+  procColor     *= bandLuma;
+  procColor      = mix(procColor, procColor * 1.22, jetMask * 0.35);
 
-  // ── Nuages haute altitude ────────────────────────────────────
-  if (uCloudAmount > 0.0) {
+  // Per-tile vertex overlay — gated by `vertexEnergy` so the procedural
+  // pattern reads cleanly until the playground paints tiles via
+  // `paintSmoothSphere` (which leaves vertices at 0 on the default pass).
+  float vertexEnergy = max(max(vVertexColor.r, vVertexColor.g), vVertexColor.b);
+  float overlayMask  = smoothstep(0.005, 0.05, vertexEnergy);
+  vec3  bandColor    = mix(procColor, vVertexColor * bandLuma, overlayMask * 0.55);
+
+  // ── High-altitude clouds ────────────────────────────────────
+  // Gate skips ~4 fbm samples/fragment when clouds are off.
+  if (uCloudAmount > 0.01) {
     float tCloud = uTime * uAnimSpeed * 0.06;
-
     vec3 cq = vec3(
       fbm3(p * 1.4 + vec3(tCloud * 1.1,  3.7,  8.5), 2.0, 0.5),
       fbm3(p * 1.4 + vec3( 4.8, tCloud * 0.9,  2.3), 2.0, 0.5),
       fbm3(p * 1.4 + vec3( 7.6,  1.4, tCloud * 1.3), 2.0, 0.5)
     ) * 2.0 - 1.0;
-
-    vec3 cr = vec3(
-      fbm3(p * 1.3 + cq * 2.0 + vec3(tCloud * 0.8, 0.0, 0.0), 2.0, 0.5),
-      fbm3(p * 1.3 + cq * 2.0 + vec3(0.0, tCloud * 0.7, 0.0), 2.0, 0.5),
-      fbm3(p * 1.3 + cq * 2.0 + vec3(3.1, 0.0, tCloud * 0.5), 2.0, 0.5)
-    ) * 2.0 - 1.0;
-
-    float cloud     = fbm4(p * 1.8 + cr * 2.2 + vec3(tCloud * 0.5, 0.0, 0.0), 2.0, 0.5);
+    float cloud     = fbm4(p * 1.8 + cq * 2.2 + vec3(tCloud * 0.5, 0.0, 0.0), 2.0, 0.5);
     float cloudMask = pow(smoothstep(0.44, 0.62, cloud), 1.2);
-
     bandColor = applyBlend(bandColor, uCloudColor, cloudMask * uCloudAmount, uCloudBlend);
   }
 
-  // Hex tile visibility: contrast-boost vertex colors so tile boundaries are clearly visible.
-  // Stretches deviations from midpoint by 4× before blending at 80% weight.
-  vec3 cellTint = clamp((vVertexColor - 0.5) * 1.8 + 0.5, 0.0, 1.5);
-  bandColor = mix(bandColor, bandColor * cellTint, 0.45);
-
   // ── Lighting ────────────────────────────────────────────────
-  // In top-down mode (uFlatLighting=1): diff forced to 1.0 → uniform brightness,
-  // specular and rim suppressed to avoid false highlights, twilight forced to 1.0.
-  float diff = mix(diffuse(vWorldNormal, uLightDir), 1.0, uFlatLighting);
-  float spec = specular(vWorldNormal, uLightDir, vViewDir, 12.0) * 0.1 * (1.0 - uFlatLighting);
-  float NdotV= max(0.0, dot(normalize(vWorldNormal), normalize(vViewDir)));
-  float rim  = pow(1.0 - NdotV, 4.0) * 0.4 * (1.0 - uFlatLighting);
+  // `gl_FrontFacing` is the unambiguous flip signal — a `dot(N, V)`
+  // test would mis-fire near silhouette fragments where interpolation
+  // produces marginally negative dot values on FrontSide.
+  vec3 N = normalize(vWorldNormal);
+  vec3 V = normalize(vViewDir);
+  if (!gl_FrontFacing) N = -N;
+
+  float diff = mix(diffuse(N, uLightDir), 1.0, uFlatLighting);
+  float spec = specular(N, uLightDir, vViewDir, 12.0) * 0.1 * (1.0 - uFlatLighting);
+  float NdotV= max(0.0, dot(N, V));
+  // `diff` gate keeps the warm tint off the dark-side silhouette.
+  float rim  = pow(1.0 - NdotV, 4.0) * 0.4 * (1.0 - uFlatLighting) * diff;
 
   vec3 lit = bandColor * (uLightColor * diff * uLightIntensity);
   lit      += uLightColor * spec * uLightIntensity;
   lit       = mix(lit, mix(uColorB, uColorC, 0.4) * uLightColor * 0.4, rim);
 
-  float twilight = smoothstep(-0.05, 0.18, diff);
-  lit *= mix(0.03, 1.0, twilight);
+  float twilight = smoothstep(0.0, 0.18, diff);
+  lit           *= twilight;
+
+  // Inner corona — added before the backdrop attenuation so it fades
+  // with the rest of the disc in Sol view. `diff` gates the night-side
+  // limb; in Sol view `uFlatLighting=1` lifts `diff` to 1.0 so the
+  // corona wraps the whole silhouette.
+  if (uCoronaStrength > 0.001) {
+    float coronaMask = pow(1.0 - NdotV, 2.5);
+    lit += uCoronaColor * 1.6 * coronaMask * diff * uCoronaStrength;
+  }
+
+  // Backdrop attenuation — Sol view uses this to push the gas disc
+  // into the background; Shader view leaves it at 1.0.
+  lit *= uViewDim;
 
   gl_FragColor = vec4(lit, 1.0);
 }

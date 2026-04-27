@@ -17,22 +17,33 @@ const body = useBody(
     type:           'gaseous',
     name:           'Jovian',
     radius:         2,
-    temperatureMin: 90,
-    temperatureMax: 130,
     rotationSpeed:  0.003,
     axialTilt:      0.05,
+    hasRings:       true,
   },
   DEFAULT_TILE_SIZE,
 )
 scene.add(body.group)
 
-// body.variation.rings is auto-generated from the seed
+// body.variation.rings is auto-generated from the seed when hasRings is true.
+let rings: ReturnType<typeof buildBodyRings> | null = null
+const planetWorldPos = new THREE.Vector3()
+
 if (body.variation.rings) {
-  buildBodyRings({
-    group:         body.group,
-    radius:        body.config.radius,
-    rotationSpeed: body.config.rotationSpeed,
-    variation:     body.variation.rings,
+  rings = buildBodyRings({
+    radius:         body.config.radius,
+    rotationSpeed:  body.config.rotationSpeed,
+    variation:      body.variation.rings,
+    planetWorldPos,
   })
+  // Attach the carrier (not the mesh) so the rings inherit tilt + spin.
+  body.group.add(rings.carrier)
+}
+
+// Animation loop:
+function tick(dt: number) {
+  body.tick(dt)
+  body.group.getWorldPosition(planetWorldPos)
+  rings?.tick(dt)
 }
 `

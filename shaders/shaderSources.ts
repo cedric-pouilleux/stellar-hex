@@ -9,7 +9,7 @@ import noiseGlsl     from './glsl/lib/noise.glsl?raw'
 import lightingGlsl  from './glsl/lib/lighting.glsl?raw'
 import cracksGlsl    from './glsl/lib/cracks.glsl?raw'
 import lavaGlsl      from './glsl/lib/lava.glsl?raw'
-import oceanMaskGlsl from './glsl/lib/oceanMask.glsl?raw'
+import liquidMaskGlsl from './glsl/lib/liquidMask.glsl?raw'
 
 import bodyVert from './glsl/body.vert?raw'
 import rockyFrag  from './glsl/bodies/rocky.frag?raw'
@@ -25,12 +25,12 @@ function resolve(src: string): string {
     .replace(/#include\s+\.\.\/lib\/lighting\.glsl/g,   lightingGlsl)
     .replace(/#include\s+\.\.\/lib\/cracks\.glsl/g,     cracksGlsl)
     .replace(/#include\s+\.\.\/lib\/lava\.glsl/g,       lavaGlsl)
-    .replace(/#include\s+\.\.\/lib\/oceanMask\.glsl/g,  oceanMaskGlsl)
+    .replace(/#include\s+\.\.\/lib\/liquidMask\.glsl/g, liquidMaskGlsl)
     .replace(/#include\s+\.\/lib\/noise\.glsl/g,        noiseGlsl)
     .replace(/#include\s+\.\/lib\/lighting\.glsl/g,     lightingGlsl)
     .replace(/#include\s+\.\/lib\/cracks\.glsl/g,       cracksGlsl)
     .replace(/#include\s+\.\/lib\/lava\.glsl/g,         lavaGlsl)
-    .replace(/#include\s+\.\/lib\/oceanMask\.glsl/g,    oceanMaskGlsl)
+    .replace(/#include\s+\.\/lib\/liquidMask\.glsl/g,   liquidMaskGlsl)
 }
 
 /** Vertex shader resolved (shared by all planet types). */
@@ -39,7 +39,7 @@ export const VERTEX_SHADER: string = resolve(bodyVert)
 /** Fragment shaders resolved, ready for `THREE.ShaderMaterial`. */
 export const FRAG_SHADERS: Record<LibBodyType, string> = {
   rocky:    resolve(rockyFrag),
-  gas:      resolve(gasFrag),
+  gaseous:  resolve(gasFrag),
   metallic: resolve(metalFrag),
   star:     resolve(starFrag),
 }

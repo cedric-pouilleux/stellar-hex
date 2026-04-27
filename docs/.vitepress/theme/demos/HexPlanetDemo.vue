@@ -1,15 +1,14 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
- * Interactive hexagonal tile demo — activates the hex mesh and wires up
- * tile hover (biome + elevation tooltip) via queryHover / setHover.
+ * Interactive hexagonal tile demo â€” activates the hex mesh and wires up
+ * tile hover (elevation + height tooltip) via queryHover / setHover.
  * All WebGL code runs client-side only (wrapped by <ClientOnly> in Markdown).
  */
 
 interface TileInfo {
   tileId:    number
-  biome:     string
   elevation: string
   height:    string
 }
@@ -24,7 +23,7 @@ onMounted(async () => {
   const [
     THREE,
     { OrbitControls },
-    { useBody, DEFAULT_TILE_SIZE, resolveTileHeight, buildAtmosphereShell, auraParamsFor },
+    { useBody, DEFAULT_TILE_SIZE, resolveTileHeight },
   ] = await Promise.all([
     import('three'),
     import('three/examples/jsm/controls/OrbitControls.js'),
@@ -59,26 +58,15 @@ onMounted(async () => {
     type:                'rocky' as const,
     name:                'demo-hex',
     radius:              1,
-    temperatureMin:      -20,
-    temperatureMax:      35,
     rotationSpeed:       0,
     axialTilt:           0,
+    reliefFlatness:       0.55,
     atmosphereThickness: 0.7,
   }
 
   const body = useBody(config, DEFAULT_TILE_SIZE)
-  body.activateInteractive?.()
+  body.interactive.activate()
   scene.add(body.group)
-
-  const auraParams = auraParamsFor(config)
-  const atmo = buildAtmosphereShell({
-    radius:   1 + config.atmosphereThickness * 0.12,
-    litBySun: true,
-    color:    auraParams.color,
-    intensity: auraParams.intensity,
-    power:    auraParams.power,
-  })
-  body.group.add(atmo.mesh)
 
   const sim         = (body as any).sim
   const raycaster   = new THREE.Raycaster()
@@ -95,7 +83,7 @@ onMounted(async () => {
   function onPointerLeave() {
     pointerIn       = false
     tooltip.value   = null
-    body.setHover?.(null)
+    body.hover.setTile(null)
   }
 
   renderer.domElement.addEventListener('pointermove',  onPointerMove)
@@ -107,21 +95,19 @@ onMounted(async () => {
   const tick = (dt: number) => {
     elapsed += dt
     body.tick(dt)
-    atmo.tick(elapsed)
     controls.update()
 
     if (pointerIn) {
       raycaster.setFromCamera(pointer, camera)
-      const id = body.queryHover?.(raycaster) ?? null
-      body.setHover?.(id)
+      const id = body.interactive.queryHover(raycaster)
+      body.hover.setTile(id)
 
       if (id != null && sim) {
         const state = sim.tileStates.get(id)
         if (state) {
-          const h = resolveTileHeight(config, sim.seaLevelElevation, state.elevation)
+          const h = resolveTileHeight(config, state.elevation)
           tooltip.value = {
             tileId:    id,
-            biome:     state.biome ?? '—',
             elevation: state.elevation.toFixed(3),
             height:    h.toFixed(3),
           }
@@ -175,10 +161,6 @@ onBeforeUnmount(() => cleanup?.())
       <div class="hex-tooltip__row">
         <span class="hex-tooltip__k">Tile</span>
         <span class="hex-tooltip__v">#{{ tooltip.tileId }}</span>
-      </div>
-      <div class="hex-tooltip__row">
-        <span class="hex-tooltip__k">Biome</span>
-        <span class="hex-tooltip__v">{{ tooltip.biome }}</span>
       </div>
       <div class="hex-tooltip__row">
         <span class="hex-tooltip__k">Elev.</span>

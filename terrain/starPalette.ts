@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { SpectralType } from '../types/body.types'
-import type { TerrainLevel } from '../types/body.types'
+import type { TerrainLevel } from '../types/terrain.types'
 
 // ── Per-type granulation colors ───────────────────────────────────────────────
 // Four hex values: dark sunspot → mid granule → bright granule → hot plage.

@@ -1,17 +1,18 @@
 /**
- * Tiny helpers that read the caller-owned surface-liquid fields from
- * `BodyConfig` (`liquidType`, `liquidState`) and turn them into a
- * human-readable label + accent colour. No temperature derivation — the
- * fields are now edited manually through `LiquidControls`.
+ * Tiny helpers that turn the playground-owned surface-liquid selection into
+ * a human-readable label + accent colour for the shader panel. The lib no
+ * longer carries any `liquidType` field — identity is stored alongside the
+ * lib config in `playgroundState` and cross-referenced here against the
+ * catalogue in `liquidCatalog.ts`.
  *
  * Pure module — no Vue dependency so the logic stays trivially testable.
  */
 
 import type { BodyConfig } from '@lib'
+import type { SurfaceLiquidType } from './liquidCatalog'
 
-/** Playground-known surface liquid identifiers. The lib treats `liquidType`
- *  as an opaque string — consumers are free to extend this union. */
-export type SurfaceLiquidType = 'water' | 'ammonia' | 'methane' | 'nitrogen'
+/** Re-export for UI files that previously pulled this type from here. */
+export type { SurfaceLiquidType } from './liquidCatalog'
 
 /** Snapshot of the liquid state visible to the shader panel. */
 export interface LiquidState {
@@ -23,21 +24,20 @@ export interface LiquidState {
   hasSurfaceBody: boolean
 }
 
-const KNOWN_LIQUIDS: readonly SurfaceLiquidType[] = ['water', 'ammonia', 'methane', 'nitrogen']
-
-function normaliseLiquidType(raw: string | undefined): SurfaceLiquidType | undefined {
-  return raw && (KNOWN_LIQUIDS as readonly string[]).includes(raw)
-    ? (raw as SurfaceLiquidType)
-    : undefined
-}
-
-/** Resolve the liquid state straight from the caller-owned config fields. */
-export function resolveLiquidState(config: BodyConfig): LiquidState {
+/**
+ * Resolve the liquid state from the lib config (`liquidState`) plus the
+ * playground-owned substance selection. `liquidType` is now caller-owned
+ * state — the lib does not know water from methane.
+ */
+export function resolveLiquidState(
+  config:     Pick<BodyConfig, 'type' | 'liquidState'>,
+  liquidType: SurfaceLiquidType | undefined,
+): LiquidState {
   if (config.type !== 'rocky' || !config.liquidState || config.liquidState === 'none') {
     return { liquidType: undefined, hasLiquid: false, hasSurfaceBody: false }
   }
   return {
-    liquidType:     normaliseLiquidType(config.liquidType),
+    liquidType,
     hasLiquid:      config.liquidState === 'liquid',
     hasSurfaceBody: true,
   }

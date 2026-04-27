@@ -9,13 +9,16 @@
  * a RingGeometry rebuild inside the builder).
  *
  * The ring shader auto-discovers the scene's dominant light source for its
- * backlight / shadow math — no sun prop.
+ * backlight / shadow math — no sun prop. Time scrubbing (pause / speed
+ * multiplier) is a caller concern: pass a scaled `dt` upstream of `tick()`
+ * (or omit the call entirely to freeze) — this component does not own that
+ * concept.
  */
 import { onMounted, onBeforeUnmount, watch } from 'vue'
 import * as THREE from 'three'
 import { useLoop } from '@tresjs/core'
-import { buildBodyRings } from '../render/buildBodyRings'
-import type { RingVariation } from '../render/ringVariation'
+import { buildBodyRings } from '../render/shells/buildBodyRings'
+import type { RingVariation } from '../render/shells/ringVariation'
 
 const props = defineProps<{
   /** Planet group — carrier becomes a direct child so it inherits position, tilt, spin and drag. */
@@ -26,29 +29,28 @@ const props = defineProps<{
   rotationSpeed:    number
   /** Deterministic ring variation produced by planetVariation. */
   variation:        RingVariation
-  /** When true, the ring's self-spin stops (carrier still tracks the group). */
-  paused?:          boolean
-  /** Scales ring-spin accumulation (default 1). */
-  speedMultiplier?: number
 }>()
 
-const _planetWP = new THREE.Vector3()
+// Mutable Vector3 the builder reads by reference — refreshed on every
+// render before `tick()` so the shader sees the up-to-date world pos.
+const planetWorldPos = new THREE.Vector3()
 
 const rings = buildBodyRings({
-  radius:            props.radius,
-  rotationSpeed:     props.rotationSpeed,
-  variation:         props.variation,
-  paused:            props.paused,
-  speedMultiplier:   props.speedMultiplier,
-  getPlanetWorldPos: () => props.group.getWorldPosition(_planetWP),
+  radius:         props.radius,
+  rotationSpeed:  props.rotationSpeed,
+  variation:      props.variation,
+  planetWorldPos,
 })
 
-watch(() => props.paused,          v => rings.setPaused(v ?? false))
-watch(() => props.speedMultiplier, v => rings.setSpeedMultiplier(v ?? 1))
 watch(() => props.variation, v => rings.updateVariation(v), { deep: true })
 
 const { onBeforeRender }  = useLoop()
-const { off: stopLoop }   = onBeforeRender(({ delta }) => rings.tick(delta))
+const { off: stopLoop }   = onBeforeRender(({ delta }) => {
+  // Refresh the planet's world position before tick — `rings.tick` and the
+  // shader read `planetWorldPos` by reference.
+  props.group.getWorldPosition(planetWorldPos)
+  rings.tick(delta)
+})
 
 onMounted(() => props.group.add(rings.carrier))
 onBeforeUnmount(() => {

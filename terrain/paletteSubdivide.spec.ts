@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { subdividePalette } from './paletteSubdivide'
-import type { TerrainLevel } from '../types/body.types'
+import type { TerrainLevel } from '../types/terrain.types'
 
 function make(level: Partial<TerrainLevel> & Pick<TerrainLevel, 'threshold' | 'height' | 'color'>): TerrainLevel {
   return level as TerrainLevel

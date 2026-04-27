@@ -8,9 +8,9 @@
 
 import { watch } from 'vue'
 import type { LibBodyType } from '@lib'
-import { bodyConfig, bodyType, rebuildKey, toBodyType } from './state'
+import { bodyConfig, bodyType, rebuildKey } from './state'
 
-const VALID_TYPES: readonly LibBodyType[] = ['rocky', 'gas', 'metallic', 'star']
+const VALID_TYPES: readonly LibBodyType[] = ['rocky', 'gaseous', 'metallic', 'star']
 
 /** Decodes the current hash into a `{ seed?, type? }` tuple — tolerant of missing keys. */
 function readHash(): { seed?: string; type?: LibBodyType } {
@@ -46,7 +46,7 @@ export function installUrlStateSync(): () => void {
   if (initial.seed) bodyConfig.name = initial.seed
   if (initial.type) {
     bodyType.value = initial.type
-    bodyConfig.type = toBodyType(initial.type)
+    bodyConfig.type = initial.type
   }
   if (initial.seed || initial.type) rebuildKey.value++
 
@@ -67,7 +67,7 @@ export function installUrlStateSync(): () => void {
     if (h.seed && h.seed !== bodyConfig.name) bodyConfig.name = h.seed
     if (h.type && h.type !== bodyType.value) {
       bodyType.value = h.type
-      bodyConfig.type = toBodyType(h.type)
+      bodyConfig.type = h.type
       rebuildKey.value++
     }
   }

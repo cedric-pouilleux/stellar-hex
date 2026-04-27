@@ -20,7 +20,6 @@ varying vec3  vPosition;
 varying vec3  vNormal;
 varying vec3  vWorldNormal;
 varying vec3  vViewDir;
-varying vec2  vUv;
 varying vec3  vVertexColor;
 
 #include ../lib/noise.glsl
@@ -43,10 +42,10 @@ void main() {
   vec3  p   = vPosition * 2.8 + uSeed * 0.01;
   float spd = uAnimSpeed;
 
-  // ── Couleurs automatiques depuis la température ───────────────
-  // dark   : rouge vif visible (pas noir) — zones froides/taches
-  // mid    : orange franc et lumineux
-  // bright : jaune-orange éclatant, légèrement surexposé
+  // ── Auto colours derived from surface temperature ─────────────
+  // dark   : visible bright red (not black) — cool zones / spots
+  // mid    : saturated luminous orange
+  // bright : intense yellow-orange, slightly overexposed
   vec3 colorDark   = blackbodyColor(uTemperature * 0.55) * 0.35;
   vec3 colorMid    = blackbodyColor(uTemperature * 0.82) * 1.10;
   vec3 colorBright = blackbodyColor(uTemperature * 1.08) * 1.55;

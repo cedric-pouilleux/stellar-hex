@@ -11,17 +11,22 @@
   },
   "homepage": "https://github.com/cedric-pouilleux/stellar-hex#readme",
   "bugs": "https://github.com/cedric-pouilleux/stellar-hex/issues",
-  "workspaces": ["docs"],
+  "workspaces": [
+    "docs"
+  ],
   "scripts": {
     "build": "vite build -c vite.build.config.ts && vue-tsc -p tsconfig.build.json && node scripts/prepare-dist.mjs",
     "build:js": "vite build -c vite.build.config.ts",
     "build:types": "vue-tsc -p tsconfig.build.json",
     "build:pkg": "node scripts/prepare-dist.mjs",
     "typecheck": "vue-tsc --noEmit -p tsconfig.build.json",
+    "test": "npx vitest run",
+    "api:update": "npm run build:types && api-extractor run --local --config api/sim.json && api-extractor run --local --config api/core.json && api-extractor run --local --config api/index.json",
+    "api:check": "npm run build:types && api-extractor run --config api/sim.json && api-extractor run --config api/core.json && api-extractor run --config api/index.json",
     "publish:dist": "npm publish ./dist",
-    "docs:api":     "npm run api     -w @cedric-pouilleux/stellar-hex-docs",
-    "docs:dev":     "npm run dev     -w @cedric-pouilleux/stellar-hex-docs",
-    "docs:build":   "npm run build   -w @cedric-pouilleux/stellar-hex-docs",
+    "docs:api": "npm run api     -w @cedric-pouilleux/stellar-hex-docs",
+    "docs:dev": "npm run dev     -w @cedric-pouilleux/stellar-hex-docs",
+    "docs:build": "npm run build   -w @cedric-pouilleux/stellar-hex-docs",
     "docs:preview": "npm run preview -w @cedric-pouilleux/stellar-hex-docs"
   },
   "peerDependencies": {
@@ -39,6 +44,7 @@
     }
   },
   "devDependencies": {
+    "@microsoft/api-extractor": "^7.58.7",
     "@tresjs/core": "^5.8.0",
     "@types/three": "^0.184.0",
     "@vitejs/plugin-vue": "^6.0.0",
@@ -49,5 +55,8 @@
     "vite": "^8.0.0",
     "vue": "^3.5.0",
     "vue-tsc": "^3.0.0"
+  },
+  "dependencies": {
+    "three-mesh-bvh": "^0.9.9"
   }
 }

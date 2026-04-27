@@ -1,7 +1,7 @@
 /**
  * `BodyMaterial` — wrapper around a `THREE.ShaderMaterial` for procedural planets.
  *
- * Available types: `'rocky' | 'gas' | 'metallic' | 'star'`.
+ * Available types: `'rocky' | 'gaseous' | 'metallic' | 'star'`.
  * Zero Vue dependency — usable in any Three.js project.
  */
 
@@ -9,15 +9,16 @@ import * as THREE from 'three'
 import { VERTEX_SHADER, FRAG_SHADERS } from './shaderSources'
 import { kelvinToThreeColor } from './kelvin'
 import { getDefaultParams, type LibBodyType } from './params'
-import type { TerrainLevel } from '../types/body.types'
+import type { TerrainLevel } from '../types/terrain.types'
 
 /**
  * Maximum number of palette entries passed to the rocky shader. Matches
  * `PALETTE_MAX` in `shaders/glsl/bodies/rocky.frag` — entries beyond this are
- * silently dropped (a 32-level palette already covers the default
- * `DEFAULT_TERRAIN_LEVEL_COUNT = 20` with headroom).
+ * silently dropped. Sized generously so the derived band count
+ * (`resolveTerrainLevelCount` — ≈ `shell / DEFAULT_TERRAIN_STEP`) always fits
+ * for any playable body radius / core ratio combination.
  */
-export const BODY_SHADER_PALETTE_MAX = 32
+export const BODY_SHADER_PALETTE_MAX = 128
 
 /**
  * Finite stand-in value pushed into `uPaletteThresholds` when a palette entry
@@ -27,14 +28,16 @@ export const BODY_SHADER_PALETTE_MAX = 32
 const PALETTE_INFINITY_SENTINEL = 10.0
 
 /**
- * Ocean-mask configuration (rocky bodies with surface water).
+ * Liquid-mask configuration (rocky bodies with a surface liquid shell).
  *
- * When provided, the fragment shader excludes ocean regions from per-fragment
- * effects (cracks, lava) by replicating the CPU simplex3D elevation field
- * through `uOceanPerm` and comparing against `seaLevel`.
+ * When provided, the fragment shader excludes submerged regions from
+ * per-fragment effects (cracks, lava) by replicating the CPU simplex3D
+ * elevation field through `uLiquidPerm` and comparing against
+ * `seaLevel`. Substance-agnostic — the same mask drives water, methane,
+ * nitrogen or any other caller-defined liquid.
  */
-export interface OceanMaskOptions {
-  /** 512×1 `UNSIGNED_BYTE` permutation texture (see `core/oceanMask.ts`). */
+export interface LiquidMaskOptions {
+  /** 512×1 `UNSIGNED_BYTE` permutation texture (see `shaders/simplexPerm.ts`). */
   permTexture: THREE.DataTexture
   /** Elevation threshold from `BodySimulation.seaLevelElevation`. */
   seaLevel:    number
@@ -47,7 +50,7 @@ export interface OceanMaskOptions {
 /**
  * Constructor options for {@link BodyMaterial}. Configures the primary
  * light (kelvin + intensity + direction), ambient tint, vertex-color
- * support and an optional ocean mask texture bundle.
+ * support and an optional liquid-mask texture bundle.
  */
 export interface BodyMaterialOptions {
   lightKelvin?:    number
@@ -55,7 +58,7 @@ export interface BodyMaterialOptions {
   lightDir?:       number[] | THREE.Vector3
   ambientColor?:   string   | THREE.Color
   vertexColors?:   boolean
-  ocean?:          OceanMaskOptions
+  liquid?:         LiquidMaskOptions
   /**
    * Optional terrain palette — when set, the rocky fragment shader samples its
    * base colour from the palette (same thresholds & colours as the hex tile
@@ -94,7 +97,7 @@ interface LightState {
 }
 
 // Types whose geometry stays a smooth sphere (no vertex displacement)
-const FLAT_TYPES: ReadonlySet<LibBodyType> = new Set<LibBodyType>(['gas', 'star'])
+const FLAT_TYPES: ReadonlySet<LibBodyType> = new Set<LibBodyType>(['gaseous', 'star'])
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -184,6 +187,7 @@ function paramsToUniforms(type: LibBodyType, params: ParamMap): Record<string, T
 
 /**
  * @example
+ * ```ts
  * const planet = new BodyMaterial('rocky', { roughness: 0.8, colorA: '#c87941' })
  * sphere.material = planet.material
  *
@@ -194,58 +198,59 @@ function paramsToUniforms(type: LibBodyType, params: ParamMap): Record<string, T
  * planet.setParams({ lavaAmount: 0.5 })
  *
  * // Switch type (rebuilds the material, keeps common params)
- * planet.setType('gas')
+ * planet.setType('gaseous')
  *
  * // Light configuration
  * planet.setLight({ kelvin: 3500, intensity: 1.8, direction: [0, 1, 0.5] })
  *
  * planet.dispose()
+ * ```
  */
 export class BodyMaterial {
-  private _type:         LibBodyType
-  private _params:       ParamMap
-  private _vertexColors: boolean
-  private _light:        LightState
-  private _ocean?:       OceanMaskOptions
-  private _palette?:     TerrainLevel[]
-  private _material:     THREE.ShaderMaterial
+  #type:         LibBodyType
+  #params:       ParamMap
+  #vertexColors: boolean
+  #light:        LightState
+  #liquid?:      LiquidMaskOptions
+  #palette?:     TerrainLevel[]
+  #material:     THREE.ShaderMaterial
 
   constructor(type: LibBodyType, params: ParamMap = {}, options: BodyMaterialOptions = {}) {
-    this._type         = type
-    this._params       = { ...getDefaultParams(type), ...params }
-    this._vertexColors = options.vertexColors ?? false
-    this._ocean        = options.ocean
-    this._palette      = options.palette
-    this._light = {
+    this.#type         = type
+    this.#params       = { ...getDefaultParams(type), ...params }
+    this.#vertexColors = options.vertexColors ?? false
+    this.#liquid       = options.liquid
+    this.#palette      = options.palette
+    this.#light = {
       kelvin:    options.lightKelvin    ?? 5778,
       intensity: options.lightIntensity ?? 2.0,
       dir:       resolveDir(options.lightDir ?? [1, 0.5, 1]),
       ambient:   resolveColor(options.ambientColor ?? '#0d0d1a'),
     }
-    this._material = this._build()
+    this.#material = this.#build()
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
 
   /** `THREE.ShaderMaterial` ready to assign to a `THREE.Mesh`. */
   get material(): THREE.ShaderMaterial {
-    return this._material
+    return this.#material
   }
 
   /** Snapshot of the current scalar/string params (excludes light config). */
   get params(): ParamMap {
-    return { ...this._params }
+    return { ...this.#params }
   }
 
   /** Updates time (call every frame in the render loop). */
   tick(elapsed: number): void {
-    this._material.uniforms.uTime.value = elapsed
+    this.#material.uniforms.uTime.value = elapsed
   }
 
   /** Updates one or more params **without rebuilding** the material. */
   setParams(partial: ParamMap): void {
-    Object.assign(this._params, partial)
-    this._syncTypeUniforms()
+    Object.assign(this.#params, partial)
+    this.#syncTypeUniforms()
   }
 
   /**
@@ -253,32 +258,32 @@ export class BodyMaterial {
    * Params that exist in the new type are preserved; the others are reset to defaults.
    */
   setType(type: LibBodyType): void {
-    const savedTime = this._material.uniforms.uTime.value
-    this._type = type
+    const savedTime = this.#material.uniforms.uTime.value
+    this.#type = type
     const defaults = getDefaultParams(type)
-    this._params = {
+    this.#params = {
       ...defaults,
-      ...Object.fromEntries(Object.entries(this._params).filter(([k]) => k in defaults)),
+      ...Object.fromEntries(Object.entries(this.#params).filter(([k]) => k in defaults)),
     }
-    this._material = this._build()
-    this._material.uniforms.uTime.value = savedTime
+    this.#material = this.#build()
+    this.#material.uniforms.uTime.value = savedTime
   }
 
   /** Toggles vertex-colour support. **The material is rebuilt.** */
   setVertexColors(enabled: boolean): void {
-    const savedTime = this._material.uniforms.uTime.value
-    this._vertexColors = enabled
-    this._material = this._build()
-    this._material.uniforms.uTime.value = savedTime
+    const savedTime = this.#material.uniforms.uTime.value
+    this.#vertexColors = enabled
+    this.#material = this.#build()
+    this.#material.uniforms.uTime.value = savedTime
   }
 
   /** Updates the light config. Only provided fields are changed. */
   setLight({ kelvin, intensity, direction, ambientColor }: BodyLightUpdate = {}): void {
-    if (kelvin       !== undefined) this._light.kelvin    = kelvin
-    if (intensity    !== undefined) this._light.intensity = intensity
-    if (direction    !== undefined) this._light.dir       = resolveDir(direction)
-    if (ambientColor !== undefined) this._light.ambient   = resolveColor(ambientColor)
-    this._syncLightUniforms()
+    if (kelvin       !== undefined) this.#light.kelvin    = kelvin
+    if (intensity    !== undefined) this.#light.intensity = intensity
+    if (direction    !== undefined) this.#light.dir       = resolveDir(direction)
+    if (ambientColor !== undefined) this.#light.ambient   = resolveColor(ambientColor)
+    this.#syncLightUniforms()
   }
 
   /**
@@ -287,9 +292,34 @@ export class BodyMaterial {
    * and dark areas caused by the surface normal when seen from above.
    */
   setFlatLighting(enabled: boolean): void {
-    if (this._material.uniforms.uFlatLighting) {
-      this._material.uniforms.uFlatLighting.value = enabled ? 1.0 : 0.0
+    if (this.#material.uniforms.uFlatLighting) {
+      this.#material.uniforms.uFlatLighting.value = enabled ? 1.0 : 0.0
     }
+  }
+
+  /**
+   * Moves the liquid-mask waterline in simplex-noise space. Silently
+   * ignored when the material was built without a liquid mask (non-rocky
+   * or no surface liquid). Drives the `uSeaLevel` uniform consumed by
+   * `liquidMask.glsl` — cracks/lava/craters flip their submerged gating
+   * as the threshold slides.
+   */
+  setSeaLevel(simplexThreshold: number): void {
+    const u = this.#material.uniforms.uSeaLevel
+    if (!u) return
+    u.value = simplexThreshold
+  }
+
+  /**
+   * Backdrop attenuation in `[0, 1]` driving `uViewDim` on `gas.frag`.
+   * `1.0` = full-intensity (Shader view); lower values fade the disc
+   * into the background (Sol view). No-op on shaders that don't consume
+   * the uniform.
+   */
+  setViewDim(value: number): void {
+    const u = this.#material.uniforms.uViewDim
+    if (!u) return
+    u.value = Math.max(0, Math.min(1, value))
   }
 
   /**
@@ -298,32 +328,32 @@ export class BodyMaterial {
    * two-tone gradient.
    */
   setPalette(palette: TerrainLevel[] | null | undefined): void {
-    this._palette = palette ?? undefined
-    this._syncPaletteUniforms()
+    this.#palette = palette ?? undefined
+    this.#syncPaletteUniforms()
   }
 
   /** Releases the material's GPU memory. */
   dispose(): void {
-    this._material.dispose()
+    this.#material.dispose()
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
 
-  private _build(): THREE.ShaderMaterial {
+  #build(): THREE.ShaderMaterial {
     const defines: Record<string, string | number | boolean> = {}
-    if (this._ocean) defines.USE_OCEAN_MASK = ''
+    if (this.#liquid) defines.USE_LIQUID_MASK = ''
     return new THREE.ShaderMaterial({
       vertexShader:   VERTEX_SHADER,
-      fragmentShader: FRAG_SHADERS[this._type],
-      uniforms:       this._buildUniforms(),
+      fragmentShader: FRAG_SHADERS[this.#type],
+      uniforms:       this.#buildUniforms(),
       defines,
-      vertexColors:   this._vertexColors,
+      vertexColors:   this.#vertexColors,
       side:           THREE.FrontSide,
     })
   }
 
-  private _buildUniforms(): Record<string, THREE.IUniform> {
-    const { kelvin, intensity, dir, ambient } = this._light
+  #buildUniforms(): Record<string, THREE.IUniform> {
+    const { kelvin, intensity, dir, ambient } = this.#light
     const { r, g, b } = kelvinToThreeColor(kelvin)
     const uniforms: Record<string, THREE.IUniform> = {
       uTime:           { value: 0 },
@@ -332,18 +362,21 @@ export class BodyMaterial {
       uLightIntensity: { value: intensity },
       uAmbientColor:   { value: ambient.clone() },
       uFlatLighting:   { value: 0.0 },
-      ...paramsToUniforms(this._type, this._params),
+      // Read by `gas.frag` only; declared on every type for a uniform
+      // bag layout. Other shaders silently ignore it.
+      uViewDim:        { value: 1.0 },
+      ...paramsToUniforms(this.#type, this.#params),
     }
-    if (this._ocean) {
-      uniforms.uOceanPerm       = { value: this._ocean.permTexture }
-      uniforms.uSeaLevel        = { value: this._ocean.seaLevel }
-      uniforms.uOceanNoiseScale = { value: this._ocean.noiseScale }
-      uniforms.uOceanRadius     = { value: this._ocean.radius }
+    if (this.#liquid) {
+      uniforms.uLiquidPerm       = { value: this.#liquid.permTexture }
+      uniforms.uSeaLevel         = { value: this.#liquid.seaLevel }
+      uniforms.uLiquidNoiseScale = { value: this.#liquid.noiseScale }
+      uniforms.uLiquidRadius     = { value: this.#liquid.radius }
     }
     // Palette uniforms — always allocated (fixed-size arrays are required by
     // GLSL) and zero-filled when no palette is provided. `uPaletteCount` at 0
     // tells the shader to fall back to the legacy gradient.
-    const { count, colors, thresholds } = buildPaletteUniformData(this._palette)
+    const { count, colors, thresholds } = buildPaletteUniformData(this.#palette)
     uniforms.uPaletteCount      = { value: count }
     uniforms.uPaletteColors     = { value: colors }
     uniforms.uPaletteThresholds = { value: thresholds }
@@ -351,22 +384,22 @@ export class BodyMaterial {
   }
 
   /** Pushes the current palette into existing uniforms (no reallocation). */
-  private _syncPaletteUniforms(): void {
-    const u = this._material.uniforms
+  #syncPaletteUniforms(): void {
+    const u = this.#material.uniforms
     if (!u.uPaletteCount) return
-    const { count, colors, thresholds } = buildPaletteUniformData(this._palette)
+    const { count, colors, thresholds } = buildPaletteUniformData(this.#palette)
     u.uPaletteCount.value = count
     // Copy into the existing Vector3 slots so Three.js does not reallocate
-    // the uniform array on the GPU — identical pattern to `_syncTypeUniforms`.
+    // the uniform array on the GPU — identical pattern to `#syncTypeUniforms`.
     const curColors = u.uPaletteColors.value as THREE.Vector3[]
     for (let i = 0; i < BODY_SHADER_PALETTE_MAX; i++) curColors[i].copy(colors[i])
     u.uPaletteThresholds.value = thresholds
   }
 
   /** Pushes current params into existing uniforms (no reallocation). */
-  private _syncTypeUniforms(): void {
-    const u    = this._material.uniforms
-    const unis = paramsToUniforms(this._type, this._params)
+  #syncTypeUniforms(): void {
+    const u    = this.#material.uniforms
+    const unis = paramsToUniforms(this.#type, this.#params)
     for (const [key, uni] of Object.entries(unis)) {
       if (!u[key]) continue
       const cur = u[key].value
@@ -380,9 +413,9 @@ export class BodyMaterial {
   }
 
   /** Pushes the current light config into existing uniforms. */
-  private _syncLightUniforms(): void {
-    const u = this._material.uniforms
-    const { kelvin, intensity, dir, ambient } = this._light
+  #syncLightUniforms(): void {
+    const u = this.#material.uniforms
+    const { kelvin, intensity, dir, ambient } = this.#light
     const { r, g, b } = kelvinToThreeColor(kelvin)
     u.uLightColor.value.setRGB(r, g, b)
     u.uLightIntensity.value = intensity

@@ -5,7 +5,7 @@
  * through the shared range helpers so the gap between handles is preserved.
  */
 import { computed } from 'vue'
-import type { BodyConfig } from '@lib'
+import type { PlaygroundBodyConfig } from '../lib/state'
 import {
   commitMin,
   commitMax,
@@ -14,7 +14,7 @@ import {
 } from '../lib/temperatureRange'
 
 interface Props {
-  config: BodyConfig
+  config: PlaygroundBodyConfig
   /** Absolute lower bound for the slider domain (°C). */
   absoluteMin?: number
   /** Absolute upper bound for the slider domain (°C). */

@@ -22,7 +22,7 @@ type RangeMap = Record<string, ParamRange>
  */
 export const SHADER_RANGES: {
   rocky:    RangeMap
-  gas:      RangeMap
+  gaseous:  RangeMap
   metallic: RangeMap
   star:     RangeMap
 } = {
@@ -44,7 +44,7 @@ export const SHADER_RANGES: {
     waveScale:     { min: 0.5,   max: 2.5,  step: 0.1  },
   },
 
-  gas: {
+  gaseous: {
     seed:          { min: 0,   max: 1000, step: 1    },
     noiseFreq:     { min: 0.5, max: 2.0,  step: 0.05 },
     bandCount:     { min: 2,   max: 24,   step: 1    },

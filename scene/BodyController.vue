@@ -1,87 +1,102 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+/**
+ * Drives a body's orientation (and optionally its position) every frame.
+ *
+ * The lib has no opinion on **where** the body sits in the world — that's
+ * a caller concern (server snapshot, orbital simulation, scripted path).
+ * This component only cares about the body's orientation, which it
+ * computes from `config.rotationSpeed` × `config.axialTilt` when no
+ * authoritative pose is provided.
+ *
+ * Two operating modes, decided per render:
+ *
+ *   - **Driven**: `pose` prop is non-null. The component applies the
+ *     caller's quaternion / position verbatim — no internal accumulator
+ *     runs. Used by server-authoritative scenes.
+ *
+ *   - **Auto**: `pose` is omitted/`null`. A local {@link createBodyMotion}
+ *     accumulator advances `spinAngle` from the render-loop `delta` and
+ *     writes the resulting quaternion onto the group. The group's
+ *     `position` is left untouched — the caller is responsible for placing
+ *     the body in the scene.
+ *
+ * Both modes optionally premultiply a `dragQuat` so user-orbit gestures
+ * remain visible regardless of the active mode. Time scrubbing (pause,
+ * speed multiplier) is expressed by the caller either freezing its own
+ * clock (auto mode) or pinning the pose to the last received snapshot
+ * (driven mode).
+ */
+import { onMounted, watch } from 'vue'
 import * as THREE from 'three'
 import { useLoop } from '@tresjs/core'
-import type { BodyConfig, OrbitConfig } from '../types/body.types'
+import type { BodyConfig } from '../types/body.types'
+import { createBodyMotion, type BodyMotionHandle } from '../render/body/bodyMotion'
 
 const props = defineProps<{
-  group:            THREE.Group
-  config:           BodyConfig
-  orbit?:           OrbitConfig
-  parentGroup?:     THREE.Group | null
-  paused?:          boolean
-  speedMultiplier?: number   // default 1 — scales all motion (orbit + rotation)
-  onTick?:          (delta: number) => void  // always called, even when paused (e.g. shader uniforms)
-  /** When true, skips orbit updates and removes axial tilt (preview mode takes over). */
-  previewMode?:     boolean
+  group:        THREE.Group
+  config:       BodyConfig
   /**
-   * Accumulated user-drag quaternion applied on top of auto-spin (hexa mode).
-   * Premultiplied onto the group quaternion each frame so world-space drag
-   * rotates the planet surface without disturbing the auto-spin axis.
+   * Caller-driven pose. When set, the component bypasses its internal
+   * accumulator and applies these values directly.
+   *
+   * Pass either field independently — `quaternion` alone keeps the
+   * group position untouched; `position` alone keeps the orientation
+   * untouched. Setting `pose` to `null`/`undefined` re-enables the
+   * auto-anime mode (orientation only).
    */
-  userDragQuat?:    THREE.Quaternion | null
+  pose?:        { quaternion?: THREE.Quaternion, position?: THREE.Vector3 } | null
+  /**
+   * Optional drag quaternion premultiplied onto the resolved orientation
+   * each frame. Used by hand-orbit gestures so the planet rotates under
+   * the user's cursor without disturbing the auto-spin axis or the
+   * authoritative pose.
+   */
+  dragQuat?:    THREE.Quaternion | null
+  /** When true, axial tilt is zeroed (preview pane — body sits upright). */
+  previewMode?: boolean
 }>()
 
 const { onBeforeRender } = useLoop()
 
-// ── Motion accumulators ───────────────────────────────────────────
-let orbitAngle = 0
-let spinAngle  = 0
+// ── Local accumulator (auto mode) ─────────────────────────────────
+// Built once per BodyController mount. Re-instanced when the underlying
+// physics changes (config swap, preview toggle) so spin rates stay accurate.
+let motion: BodyMotionHandle | null = null
 
-// ── Reusable quaternion temporaries ──────────────────────────────
-const _tiltQuat = new THREE.Quaternion()
-const _spinQuat = new THREE.Quaternion()
-const _yAxis    = new THREE.Vector3(0, 1, 0)
-const _zAxis    = new THREE.Vector3(0, 0, 1)
+function buildMotion(): BodyMotionHandle {
+  return createBodyMotion({
+    rotationSpeed: props.config.rotationSpeed,
+    axialTilt:     props.previewMode ? 0 : props.config.axialTilt,
+  })
+}
 
-onMounted(() => {
-  // Seed orbit at the configured starting angle so planets spread across their orbits.
-  orbitAngle = props.orbit?.initialAngle ?? 0
-  spinAngle  = 0
-  // Quaternion-based rotation: no Euler setup needed (tilt is computed each frame).
-})
+onMounted(() => { motion = buildMotion() })
+
+watch(
+  () => [props.config.rotationSpeed, props.config.axialTilt, props.previewMode] as const,
+  () => { motion = buildMotion() },
+)
 
 onBeforeRender(({ delta }) => {
-  const dt = delta * (props.speedMultiplier ?? 1)
-  // shader uniforms etc — not gated by paused
-  props.onTick?.(dt)
-
-  if (!props.paused) {
-    if (props.previewMode) {
-      // In preview: self-rotation only, no axial tilt
-      spinAngle += props.config.rotationSpeed * dt
-    } else {
-      // ── Orbit around parent (or origin) ──────────────────────────
-      if (props.orbit) {
-        orbitAngle += props.orbit.speed * dt
-        const ox  = props.parentGroup?.position.x ?? 0
-        const oy  = props.parentGroup?.position.y ?? 0
-        const oz  = props.parentGroup?.position.z ?? 0
-        const r   = props.orbit.radius
-        const inc = props.orbit.inclination
-
-        props.group.position.set(
-          ox + Math.cos(orbitAngle) * r,
-          oy - Math.sin(orbitAngle) * Math.sin(inc) * r,
-          oz + Math.sin(orbitAngle) * Math.cos(inc) * r,
-        )
-      }
-
-      spinAngle += props.config.rotationSpeed * dt
-    }
+  // Driven mode — caller owns the pose. We just apply.
+  if (props.pose) {
+    if (props.pose.quaternion) props.group.quaternion.copy(props.pose.quaternion)
+    if (props.pose.position)   props.group.position.copy(props.pose.position)
+  } else {
+    // Auto mode — local accumulator advances + writes the quaternion.
+    // Position is intentionally left alone: caller decides where the
+    // body lives in world space.
+    if (!motion) return
+    motion.tick(delta)
+    motion.applyTo(props.group)
   }
 
-  // ── Apply rotation every frame (even when paused) so userDragQuat is always visible ──
-  // Formula: Q = userDragQuat * Q_tilt(Z) * Q_spin(Y)
-  // Order matters: spin must be applied BEFORE tilt so the planet rotates around
-  // its own (tilted) pole. The reverse order tilts the pole first, then rotates
-  // around world-Y — which makes the pole trace a cone and the planet tumble.
-  const tilt = props.previewMode ? 0 : props.config.axialTilt
-  _tiltQuat.setFromAxisAngle(_zAxis, tilt)
-  _spinQuat.setFromAxisAngle(_yAxis, spinAngle)
-  props.group.quaternion.copy(_tiltQuat).multiply(_spinQuat)
-  if (props.userDragQuat) {
-    props.group.quaternion.premultiply(props.userDragQuat)
+  // Drag quaternion is applied on top of either path so user gestures
+  // remain visible whether the pose comes from the caller or the local
+  // accumulator. Premultiply so the drag rotates in world space, leaving
+  // the underlying orientation axis untouched.
+  if (props.dragQuat) {
+    props.group.quaternion.premultiply(props.dragQuat)
   }
 })
 </script>

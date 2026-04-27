@@ -17,13 +17,56 @@ button, input, select {
   color: inherit;
 }
 
-/* ── Layout ────────────────────────────────────────────── */
+/* ── Layout ──────────────────────────────────────────────
+   Hexa mode (default): resources | viewport | body params.
+   Shader mode: resources | shader params | viewport | body params.
+   The shader column is removed entirely in Hexa mode so the planet
+   recentres in the wider 1fr cell — no empty sidebar leaving the
+   viewport off-axis. */
 .layout {
   display: grid;
-  grid-template-columns: 280px 1fr 1fr 320px;
+  grid-template-columns: 260px 1fr 320px;
   grid-template-rows: 40px 1fr;
   width: 100vw;
   height: 100vh;
+}
+.layout.has-shader-pane {
+  grid-template-columns: 260px 280px 1fr 320px;
+}
+/* Stack container that hosts both render panes in the single centre
+   cell. Each pane sits at `inset: 0` and is swapped via `v-show` so the
+   inactive one keeps its WebGL context + interactive state (dig, sim…)
+   rather than being destroyed on every toggle. */
+.view-stack {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+.view-stack > .view { position: absolute; inset: 0; }
+
+/* Segmented toggle — used by the floating PaneToggles overlay
+   (Shader/Hexa + Sol/Atmosphère). */
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.view-toggle__btn {
+  padding: 4px 12px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.view-toggle__btn + .view-toggle__btn {
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+}
+.view-toggle__btn.is-active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
 }
 .topbar {
   grid-column: 1 / -1;
@@ -51,10 +94,13 @@ button, input, select {
   height: 100%;
   overflow-y: auto;
   background: #0f1218;
-  border-right: 1px solid #1d2028;
   padding: 12px;
 }
-.panel:last-of-type { border-right: none; border-left: 1px solid #1d2028; }
+/* Border between every column except the viewport. The viewport sits in
+   the 1fr cell (no `.panel` class) and doesn't need its own border. */
+.panel-resources { border-right: 1px solid #1d2028; }
+.panel-shader    { border-right: 1px solid #1d2028; }
+.panel-body      { border-left:  1px solid #1d2028; }
 
 .panel h2 {
   margin: 0 0 8px;

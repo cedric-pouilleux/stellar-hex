@@ -2,8 +2,8 @@
  * Body render configuration — visual constants and FX configs scoped to
  * a single body's rendering pipeline.
  *
- * App-level scene constants (camera FOV, main orbit speed, god-rays mask
- * layer) live in `src/config/render.ts`.
+ * Scene-level constants (camera FOV, main orbit speed, god-rays mask
+ * layer, etc.) are caller-owned and intentionally live outside this lib.
  */
 
 // ── Camera / interaction ──────────────────────────────────────────────────────

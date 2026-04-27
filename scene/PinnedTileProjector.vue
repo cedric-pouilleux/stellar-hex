@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import * as THREE from 'three'
 import { useLoop, useTresContext } from '@tresjs/core'
-import { pinLocalPos, pinParentGroup } from '../core/hoverState'
+import type { HoverChannel } from '../render/state/hoverState'
+
+const props = defineProps<{
+  /**
+   * Per-body hover channel produced by `useBody` (`body.hoverChannel`).
+   * The projector reads `pinLocalPos` / `pinParentGroup` on each frame.
+   */
+  channel: HoverChannel
+}>()
 
 const emit = defineEmits<{
   /**
@@ -24,8 +32,8 @@ const _ndc   = new THREE.Vector3()
  */
 onBeforeRender(() => {
   const cam = camera.activeCamera.value
-  const lp  = pinLocalPos.value
-  const pg  = pinParentGroup.value
+  const lp  = props.channel.pinLocalPos.value
+  const pg  = props.channel.pinParentGroup.value
 
   if (!cam || !lp || !pg) {
     emit('update-position', null)

@@ -17,7 +17,7 @@ uniform vec3  uColorB;
 // the sphere beneath the hexes stays visually aligned with the tile bands.
 // When uPaletteCount == 0 the shader falls back to the legacy uColorA/uColorB
 // gradient.
-#define PALETTE_MAX 32
+#define PALETTE_MAX 128
 uniform int   uPaletteCount;
 uniform vec3  uPaletteColors[PALETTE_MAX];
 uniform float uPaletteThresholds[PALETTE_MAX];
@@ -48,15 +48,14 @@ varying vec3  vPosition;
 varying vec3  vNormal;
 varying vec3  vWorldNormal;
 varying vec3  vViewDir;
-varying vec2  vUv;
 varying vec3  vVertexColor;
 
 #include ../lib/noise.glsl
 #include ../lib/lighting.glsl
 #include ../lib/cracks.glsl
 #include ../lib/lava.glsl
-#ifdef USE_OCEAN_MASK
-#include ../lib/oceanMask.glsl
+#ifdef USE_LIQUID_MASK
+#include ../lib/liquidMask.glsl
 #endif
 
 // Crater shape function (inverted quartic profile)
@@ -114,22 +113,22 @@ void main() {
   // Final height
   float height = clamp(terrain + craters * uCraterDensity, 0.0, 1.0);
 
-  // ── Ocean/land mask ───────────────────────────────────────────
-  // `oceanLandMask` replicates the CPU simplex3D elevation field exactly —
+  // ── Liquid / land mask ────────────────────────────────────────
+  // `liquidLandMask` replicates the CPU simplex3D elevation field exactly —
   // used both for base-colour band selection AND for crack/lava placement,
-  // so the shader sphere matches the CPU hex classification on the ocean
-  // boundary. When USE_OCEAN_MASK is not defined (dry body) the mask is 1.0
+  // so the shader sphere matches the CPU hex classification on the liquid
+  // boundary. When USE_LIQUID_MASK is not defined (dry body) the mask is 1.0
   // everywhere and the shader falls through to the default palette sampling.
-  #ifdef USE_OCEAN_MASK
-    float landMask = oceanLandMask(vPosition);
+  #ifdef USE_LIQUID_MASK
+    float landMask = liquidLandMask(vPosition);
   #else
     float landMask = 1.0;
   #endif
 
   // Base color — vertex colours are now the single source of truth for both
-  // ocean and land (flat sea colour below sea level, per-tile tone above), so
-  // the shader just reads `vVertexColor` directly. GL barycentric
-  // interpolation smooths the ocean/land transition. The legacy
+  // submerged and emerged tiles (flat sea colour below sea level, per-tile
+  // tone above), so the shader just reads `vVertexColor` directly. GL
+  // barycentric interpolation smooths the shoreline transition. The legacy
   // `samplePalette` fallback covers bodies without a palette (non-rocky or
   // unconfigured).
   vec3 baseColor;
@@ -162,22 +161,10 @@ void main() {
     computeCracks(baseColor, p, uCrackAmount, uCrackScale, uCrackWidth, uCrackDepth, uCrackColor, uCrackBlend);
   }
 
-  // ── Nuages ──────────────────────────────────────────────────
-  if (uWaveAmount > 0.0) {
-    float tCloud = uTime * 0.8 * 0.015;
-    vec3  cp     = p * uWaveScale;
-
-    vec3 cq = vec3(
-      fbm3(cp * 1.2 + vec3(tCloud,        0.0, 0.0), 2.0, 0.5),
-      fbm3(cp * 1.2 + vec3(0.0, tCloud * 0.8, 0.0), 2.0, 0.5),
-      fbm3(cp        + vec3(tCloud * 0.6,  0.0, 1.2), 2.0, 0.5)
-    ) * 2.0 - 1.0;
-
-    float cloud     = fbm4(cp * 1.5 + cq * 1.8 + vec3(tCloud * 0.7, 0.0, 0.0), 2.0, 0.5);
-    float cloudMask = pow(smoothstep(0.42, 0.62, cloud), 1.4);
-
-    baseColor = applyBlend(baseColor, uWaveColor, cloudMask * uWaveAmount, 0.0);
-  }
+  // Clouds were previously rendered here over the rocky surface — they
+  // now live on the atmospheric shell mesh (`buildAtmoShell`) instead,
+  // so the surface stays clean and the cloud cover only modulates the
+  // atmosphere layer.
 
   // Lighting — in top-down mode (uFlatLighting=1) the diffuse term is forced to 1.0
   // so every visible fragment receives equal illumination regardless of planet rotation.

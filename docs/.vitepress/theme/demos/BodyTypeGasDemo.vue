@@ -1,101 +1,77 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
+import { setBodyCoreVisible } from './bodyCoreVisibility'
 
 /**
- * Three.js demo — gas giant with live shader parameter controls.
- * Band structure, turbulence and cloud layer are fully driven by GPU uniforms
- * and can be updated without rebuilding the material.
+ * Three.js demo â€” gas giant with banded atmosphere, jet streams and
+ * procedural rings. View toggle: Shader / AtmosphÃ¨re.
  */
 
 const container = ref<HTMLDivElement>()
-const mounted   = ref(false)
-let cleanup: (() => void) | null = null
+const mode      = ref<ViewMode>('shader')
+let applyMode: ((m: ViewMode) => void) | null = null
+let cleanup:   (() => void) | null = null
 
-// Bandes
-const bandCount      = ref(8)
-const bandSharpness  = ref(0.30)
-const turbulence     = ref(0.50)
-const jetStream      = ref(0.40)
-// Nuages
-const cloudAmount = ref(0.0)
-const cloudColor  = ref('#e8eaf0')
-// Animation
-const animSpeed = ref(0.30)
-
-let planetMaterial: any = null
-
-watch(bandCount,     v => planetMaterial?.setParams({ bandCount: v }))
-watch(bandSharpness, v => planetMaterial?.setParams({ bandSharpness: v }))
-watch(turbulence,    v => planetMaterial?.setParams({ turbulence: v }))
-watch(jetStream,     v => planetMaterial?.setParams({ jetStream: v }))
-watch(cloudAmount,   v => planetMaterial?.setParams({ cloudAmount: v }))
-watch(cloudColor,    v => planetMaterial?.setParams({ cloudColor: v }))
-watch(animSpeed,     v => planetMaterial?.setParams({ animSpeed: v }))
+watch(mode, m => applyMode?.(m))
 
 onMounted(async () => {
-  const [THREE, { useBody, DEFAULT_TILE_SIZE }] = await Promise.all([
+  const [THREE, { OrbitControls }, { useBody, DEFAULT_TILE_SIZE }] = await Promise.all([
     import('three'),
+    import('three/examples/jsm/controls/OrbitControls.js'),
     import('@cedric-pouilleux/stellar-hex/core'),
   ])
 
-  const el     = container.value!
-  const width  = el.clientWidth
-  const height = 400
-
+  const el = container.value!
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-  renderer.setSize(width, height)
+  renderer.setSize(el.clientWidth, 400)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   el.appendChild(renderer.domElement)
 
   const scene  = new THREE.Scene()
-  const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100)
-  camera.position.set(0, 0, 3.5)
+  const camera = new THREE.PerspectiveCamera(50, el.clientWidth / 400, 0.1, 100)
+  camera.position.set(0, 0.6, 3.5)
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.15))
   const sun = new THREE.DirectionalLight(0xffffff, 2.0)
   sun.position.set(5, 2, 3)
   scene.add(sun)
 
-  const config = {
-    type:           'gaseous' as const,
+  const orbit = new OrbitControls(camera, renderer.domElement)
+  orbit.enableDamping = true
+  orbit.autoRotate = true
+  orbit.autoRotateSpeed = 0.5
+  orbit.minDistance = 1.6
+  orbit.maxDistance = 8
+
+  const body = useBody({
+    type:           'gaseous',
     name:           'gas-body-demo',
-    radius:         1,
-    temperatureMin: 90,
-    temperatureMax: 130,
-    rotationSpeed:  0.004,
-    axialTilt:      0.05,
-  }
-
-  const body = useBody(config, DEFAULT_TILE_SIZE)
-  body.group.rotation.z = config.axialTilt
+    radius:          1,
+    rotationSpeed:   0,
+    axialTilt:       0.05,
+    hasRings:        true,
+  }, DEFAULT_TILE_SIZE)
   scene.add(body.group)
+  setBodyCoreVisible(body, false)
 
-  planetMaterial = (body as any).planetMaterial
-
-  // Sync initial slider values from computed physics params
-  const p = planetMaterial?.params
-  if (p) {
-    if (typeof p.bandCount     === 'number') bandCount.value     = Math.round(p.bandCount)
-    if (typeof p.bandSharpness === 'number') bandSharpness.value = +p.bandSharpness.toFixed(2)
-    if (typeof p.turbulence    === 'number') turbulence.value    = +p.turbulence.toFixed(2)
-    if (typeof p.jetStream     === 'number') jetStream.value     = +p.jetStream.toFixed(2)
-    if (typeof p.cloudAmount   === 'number') cloudAmount.value   = +p.cloudAmount.toFixed(2)
-    if (typeof p.cloudColor    === 'string') cloudColor.value    = p.cloudColor
-    if (typeof p.animSpeed     === 'number') animSpeed.value     = +p.animSpeed.toFixed(2)
+  applyMode = (m) => {
+    if (m === 'shader') { body.view.set('shader'); body.interactive.deactivate(); setBodyCoreVisible(body, false) }
+    else {
+      body.interactive.activate()
+      body.view.set('atmosphere')
+      setBodyCoreVisible(body, true)
+    }
   }
-
-  mounted.value = true
 
   let animId: number
   let last = performance.now()
-
   const loop = () => {
-    animId    = requestAnimationFrame(loop)
+    animId = requestAnimationFrame(loop)
     const now = performance.now()
-    const dt  = (now - last) / 1000
-    last      = now
-
-    body.group.rotation.y += dt * 0.15
+    const dt = (now - last) / 1000
+    last = now
+    orbit.update()
     body.tick(dt)
     renderer.render(scene, camera)
   }
@@ -103,6 +79,8 @@ onMounted(async () => {
 
   cleanup = () => {
     cancelAnimationFrame(animId)
+    orbit.dispose()
+    body.dispose()
     renderer.dispose()
     el.removeChild(renderer.domElement)
   }
@@ -112,107 +90,13 @@ onBeforeUnmount(() => cleanup?.())
 </script>
 
 <template>
-  <div ref="container" class="three-demo" />
-
-  <Teleport v-if="mounted" to="#demo-controls-portal">
-    <div class="ctrl-panel">
-      <p class="ctrl-panel__title">Bandes</p>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Nombre de bandes</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="2" max="24" step="1"
-            :value="bandCount"
-            @input="bandCount = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ bandCount }}</span>
-        </div>
-      </label>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Netteté</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="0" max="1" step="0.01"
-            :value="bandSharpness"
-            @input="bandSharpness = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ bandSharpness.toFixed(2) }}</span>
-        </div>
-      </label>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Turbulence</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="0" max="1" step="0.01"
-            :value="turbulence"
-            @input="turbulence = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ turbulence.toFixed(2) }}</span>
-        </div>
-      </label>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Courants-jets</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="0" max="1" step="0.01"
-            :value="jetStream"
-            @input="jetStream = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ jetStream.toFixed(2) }}</span>
-        </div>
-      </label>
-    </div>
-
-    <div class="ctrl-panel">
-      <p class="ctrl-panel__title">Nuages</p>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Couverture</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="0" max="1" step="0.01"
-            :value="cloudAmount"
-            @input="cloudAmount = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ cloudAmount.toFixed(2) }}</span>
-        </div>
-      </label>
-
-      <label class="ctrl ctrl--color">
-        <span class="ctrl__name">Couleur</span>
-        <input
-          type="color"
-          :value="cloudColor"
-          @input="cloudColor = ($event.target as HTMLInputElement).value"
-        />
-      </label>
-    </div>
-
-    <div class="ctrl-panel">
-      <p class="ctrl-panel__title">Animation</p>
-
-      <label class="ctrl">
-        <span class="ctrl__name">Vitesse</span>
-        <div class="ctrl__row">
-          <input
-            type="range" min="0" max="2" step="0.01"
-            :value="animSpeed"
-            @input="animSpeed = +($event.target as HTMLInputElement).value"
-          />
-          <span class="ctrl__val">{{ animSpeed.toFixed(2) }}</span>
-        </div>
-      </label>
-    </div>
-  </Teleport>
+  <div class="demo-wrap">
+    <div ref="container" class="demo-canvas" />
+    <BodyViewBar :body-type="'gaseous'" v-model:mode="mode" />
+  </div>
 </template>
 
 <style scoped>
-.three-demo {
-  width: 100%;
-  height: 400px;
-}
+.demo-wrap   { width: 100%; }
+.demo-canvas { width: 100%; height: 400px; }
 </style>

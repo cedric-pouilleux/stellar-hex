@@ -1,46 +1,36 @@
 <script setup lang="ts">
 /**
- * Live tuning panel for the hex ocean shader.
+ * Live tuning panel for the hex liquid-shell shader.
  *
- * Drives `hexGraphicsUniforms` (wave strength, wave speed, specular, depth
- * darkening, opacity, master toggle, ocean-layer visibility) through the
- * reactive mirror exposed by `oceanShaderParams`. No rebuild required —
+ * Drives `hexGraphicsUniforms` (wave geometry, specular, fresnel, foam,
+ * roughness, opacity, master toggle, liquid-shell visibility) through the
+ * reactive mirror exposed by `liquidShaderParams`. No rebuild required —
  * every slider change is picked up by the material on the next frame.
  *
- * The liquid identity (`liquidType`, `liquidState`, `liquidColor`) is now
- * fully caller-owned: the user picks substance, state, and colour manually
- * via this panel. No temperature derivation happens here or in the lib.
+ * Liquid `state` (liquid / frozen / none) stays caller-driven via radio
+ * buttons because forcing a state is the only way to test, e.g., a frozen
+ * surface on a hot planet — the chemistry-driven auto-derive in `state.ts`
+ * picks the natural one but doesn't unlock that scenario. Substance is
+ * dropped: the colour picker covers any visual override the user needs.
  */
 import { computed } from 'vue'
 import type { BodyConfig } from '@lib'
 import {
-  oceanShaderParams,
-  OCEAN_SHADER_RANGES,
-  type OceanShaderNumericKey,
-} from '../lib/oceanShader'
+  liquidShaderParams,
+  LIQUID_SHADER_RANGES,
+  LIQUID_SHADER_DEFAULTS,
+  type LiquidShaderNumericKey,
+} from '../lib/liquidShader'
 import {
-  liquidAccent,
-  liquidLabel,
-  resolveLiquidState,
-  type SurfaceLiquidType,
-} from '../lib/liquidDiagnostics'
+  SURFACE_LIQUID_COLORS,
+  FROZEN_LIQUID_COLOR,
+  DRY_SEA_COLOR,
+} from '../lib/liquidCatalog'
+import { playgroundLibMeta } from '../lib/state'
+import { seaLevelFraction, SEA_LEVEL_DEFAULT } from '../lib/seaLevel'
 
 const props = defineProps<{ config: BodyConfig }>()
 
-const liquidState = computed(() => resolveLiquidState(props.config))
-
-/** Canonical sea-colour defaults mirrored from the lib so the colour swatch
- *  shows something meaningful even when `liquidColor` is left undefined. */
-const CANONICAL_SEA_COLORS: Record<SurfaceLiquidType, string> = {
-  water:    '#2878d0',
-  ammonia:  '#7a9840',
-  methane:  '#7a5828',
-  nitrogen: '#c8b0b8',
-}
-const FROZEN_SEA_COLOR = '#90b0c0'
-const DRY_SEA_COLOR    = '#686058'
-
-const liquidTypes: SurfaceLiquidType[] = ['water', 'ammonia', 'methane', 'nitrogen']
 const liquidStates: Array<'liquid' | 'frozen' | 'none'> = ['liquid', 'frozen', 'none']
 
 function toHexString(value: number | string | undefined): string {
@@ -52,20 +42,14 @@ function toHexString(value: number | string | undefined): string {
 const currentColor = computed(() => {
   const override = toHexString(props.config.liquidColor as number | string | undefined)
   if (override) return override
-  if (props.config.liquidState === 'frozen') return FROZEN_SEA_COLOR
-  const t = props.config.liquidType as SurfaceLiquidType | undefined
-  if (t && CANONICAL_SEA_COLORS[t]) return CANONICAL_SEA_COLORS[t]
+  if (props.config.liquidState === 'frozen') return FROZEN_LIQUID_COLOR
+  const t = playgroundLibMeta.liquidType
+  if (t && SURFACE_LIQUID_COLORS[t]) return SURFACE_LIQUID_COLORS[t]
   return DRY_SEA_COLOR
 })
 
-function setType(evt: Event) {
-  const raw = (evt.target as HTMLSelectElement).value
-  props.config.liquidType = raw === '' ? undefined : raw
-}
-
-function setState(evt: Event) {
-  const raw = (evt.target as HTMLSelectElement).value as 'liquid' | 'frozen' | 'none'
-  props.config.liquidState = raw
+function setState(value: 'liquid' | 'frozen' | 'none') {
+  props.config.liquidState = value
 }
 
 function setColor(evt: Event) {
@@ -74,19 +58,27 @@ function setColor(evt: Event) {
 }
 
 function resetColor() {
+  // Undefined lets the state watcher re-resolve from the catalogue.
   props.config.liquidColor = undefined
 }
 
-function setCoverage(evt: Event) {
-  props.config.liquidCoverage = parseFloat((evt.target as HTMLInputElement).value)
-}
-
-const numericKeys: OceanShaderNumericKey[] = [
-  'waveStrength', 'waveSpeed', 'specularIntensity', 'depthDarken', 'oceanOpacity',
+/**
+ * Two slider blocks: wave geometry first (most visible impact), then
+ * lighting / surface response. Foam threshold + colour come last because
+ * they only matter when the user is actively chasing a stylised look.
+ */
+const waveKeys: LiquidShaderNumericKey[] = ['waveStrength', 'waveSpeed', 'waveScale']
+const lightKeys: LiquidShaderNumericKey[] = [
+  'specularIntensity', 'specularSharpness', 'fresnelPower',
+  'liquidRoughness', 'depthDarken', 'liquidOpacity',
 ]
 
-function setNum(key: OceanShaderNumericKey, evt: Event) {
-  oceanShaderParams[key] = parseFloat((evt.target as HTMLInputElement).value)
+function setNum(key: LiquidShaderNumericKey, evt: Event) {
+  liquidShaderParams[key] = parseFloat((evt.target as HTMLInputElement).value)
+}
+
+function setFoamColor(evt: Event) {
+  liquidShaderParams.foamColor = (evt.target as HTMLInputElement).value
 }
 
 function digits(step: number): number {
@@ -96,39 +88,24 @@ function digits(step: number): number {
 
 <template>
   <div class="group-body">
-    <!-- ── Liquid identity badge ───────────────────────────────────── -->
-    <div class="liquid-badge" :style="{ borderColor: liquidAccent(liquidState) }">
-      <div class="liquid-dot" :style="{ background: liquidAccent(liquidState) }"></div>
-      <div class="liquid-badge-body">
-        <div class="liquid-badge-label">{{ liquidLabel(liquidState) }}</div>
-        <div class="liquid-badge-hint">
-          <template v-if="!liquidState.hasLiquid && liquidState.hasSurfaceBody">
-            frozen — wave animation keeps static bump
-          </template>
-          <template v-else-if="!liquidState.hasSurfaceBody">
-            no surface liquid — ocean shader inactive
-          </template>
-          <template v-else>caller-owned palette, live shader uniforms</template>
-        </div>
+    <!-- ── State (caller-forced override on top of the chemistry watcher) ── -->
+    <div class="row" style="grid-template-columns: 110px 1fr;">
+      <label>State</label>
+      <div class="state-radio">
+        <label v-for="s in liquidStates" :key="s" :class="{ 'is-active': (config.liquidState ?? 'none') === s }">
+          <input
+            type="radio"
+            name="liquid-state"
+            :value="s"
+            :checked="(config.liquidState ?? 'none') === s"
+            @change="setState(s)"
+          />
+          <span>{{ s }}</span>
+        </label>
       </div>
     </div>
 
-    <!-- ── Manual identity (no temperature coupling) ───────────────── -->
-    <div class="row">
-      <label>Substance</label>
-      <select :value="config.liquidType ?? ''" @change="setType">
-        <option value="">(none)</option>
-        <option v-for="t in liquidTypes" :key="t" :value="t">{{ t }}</option>
-      </select>
-      <span></span>
-    </div>
-    <div class="row">
-      <label>State</label>
-      <select :value="config.liquidState ?? 'none'" @change="setState">
-        <option v-for="s in liquidStates" :key="s" :value="s">{{ s }}</option>
-      </select>
-      <span></span>
-    </div>
+    <!-- ── Color (manual override on top of the chemistry-derived tint) ── -->
     <div class="row" style="grid-template-columns: 110px 1fr auto auto;">
       <label>Color</label>
       <input
@@ -147,20 +124,30 @@ function digits(step: number): number {
       >Reset</button>
     </div>
     <p class="hint" style="margin:0 0 6px;">
-      Substance, state and colour are caller-driven. Reset clears the manual override.
+      Reset clears the manual override — colour falls back to the chemistry-derived tint.
     </p>
 
-    <!-- ── Coverage ────────────────────────────────────────────────── -->
-    <div class="row">
-      <label>Coverage %</label>
+    <!-- ── Sea level ───────────────────────────────────────────────── -->
+    <div class="row" style="grid-template-columns: 110px 1fr auto auto;">
+      <label>Sea level</label>
       <input
         type="range" min="0" max="1" step="0.01"
-        :value="config.liquidCoverage ?? 0"
-        @input="setCoverage"
+        :value="seaLevelFraction"
+        :disabled="config.liquidState !== 'liquid'"
+        @input="seaLevelFraction = parseFloat(($event.target as HTMLInputElement).value)"
       />
-      <span class="val">{{ Math.round((config.liquidCoverage ?? 0) * 100) }}%</span>
+      <span class="val">{{ Math.round(seaLevelFraction * 100) }}%</span>
+      <button
+        type="button"
+        class="pill"
+        style="border:0; cursor:pointer; font-size:10px;"
+        :disabled="seaLevelFraction === SEA_LEVEL_DEFAULT"
+        @click="seaLevelFraction = SEA_LEVEL_DEFAULT"
+      >Reset</button>
     </div>
-    <p class="hint" style="margin:0 0 6px;">Structural — rebuilds the hex body.</p>
+    <p class="hint" style="margin:0 0 6px;">
+      Live — lifts the translucent liquid shell between core (0%) and nominal surface (100%). Tile classification is unchanged.
+    </p>
 
     <!-- ── Toggles ─────────────────────────────────────────────────── -->
     <div class="row" style="grid-template-columns: 110px 1fr auto;">
@@ -168,55 +155,110 @@ function digits(step: number): number {
       <span></span>
       <input
         type="checkbox"
-        :checked="oceanShaderParams.enabled"
-        @change="oceanShaderParams.enabled = ($event.target as HTMLInputElement).checked"
+        :checked="liquidShaderParams.enabled"
+        @change="liquidShaderParams.enabled = ($event.target as HTMLInputElement).checked"
       />
     </div>
     <div class="row" style="grid-template-columns: 110px 1fr auto;">
-      <label>Ocean layer</label>
+      <label>Liquid shell</label>
       <span class="hint" style="margin:0;">off = expose sea floor</span>
       <input
         type="checkbox"
-        :checked="oceanShaderParams.oceanVisible"
-        @change="oceanShaderParams.oceanVisible = ($event.target as HTMLInputElement).checked"
+        :checked="liquidShaderParams.liquidVisible"
+        @change="liquidShaderParams.liquidVisible = ($event.target as HTMLInputElement).checked"
       />
     </div>
 
-    <!-- ── Numeric sliders ─────────────────────────────────────────── -->
-    <div v-for="k in numericKeys" :key="k" class="row">
-      <label>{{ OCEAN_SHADER_RANGES[k].label }}</label>
+    <!-- ── Wave geometry ───────────────────────────────────────────── -->
+    <h4 class="sub-h">Waves</h4>
+    <div v-for="k in waveKeys" :key="k" class="row">
+      <label>{{ LIQUID_SHADER_RANGES[k].label }}</label>
       <input
         type="range"
-        :min="OCEAN_SHADER_RANGES[k].min"
-        :max="OCEAN_SHADER_RANGES[k].max"
-        :step="OCEAN_SHADER_RANGES[k].step"
-        :value="oceanShaderParams[k]"
+        :min="LIQUID_SHADER_RANGES[k].min"
+        :max="LIQUID_SHADER_RANGES[k].max"
+        :step="LIQUID_SHADER_RANGES[k].step"
+        :value="liquidShaderParams[k]"
         @input="setNum(k, $event)"
       />
-      <span class="val">{{ oceanShaderParams[k].toFixed(digits(OCEAN_SHADER_RANGES[k].step)) }}</span>
+      <span class="val">{{ liquidShaderParams[k].toFixed(digits(LIQUID_SHADER_RANGES[k].step)) }}</span>
     </div>
+
+    <!-- ── Lighting / surface response ─────────────────────────────── -->
+    <h4 class="sub-h">Lighting &amp; surface</h4>
+    <div v-for="k in lightKeys" :key="k" class="row">
+      <label>{{ LIQUID_SHADER_RANGES[k].label }}</label>
+      <input
+        type="range"
+        :min="LIQUID_SHADER_RANGES[k].min"
+        :max="LIQUID_SHADER_RANGES[k].max"
+        :step="LIQUID_SHADER_RANGES[k].step"
+        :value="liquidShaderParams[k]"
+        @input="setNum(k, $event)"
+      />
+      <span class="val">{{ liquidShaderParams[k].toFixed(digits(LIQUID_SHADER_RANGES[k].step)) }}</span>
+    </div>
+
+    <!-- ── Foam (whitecaps on wave crests) ─────────────────────────── -->
+    <h4 class="sub-h">Foam</h4>
+    <div class="row">
+      <label>{{ LIQUID_SHADER_RANGES.foamThreshold.label }}</label>
+      <input
+        type="range"
+        :min="LIQUID_SHADER_RANGES.foamThreshold.min"
+        :max="LIQUID_SHADER_RANGES.foamThreshold.max"
+        :step="LIQUID_SHADER_RANGES.foamThreshold.step"
+        :value="liquidShaderParams.foamThreshold"
+        @input="setNum('foamThreshold', $event)"
+      />
+      <span class="val">{{ liquidShaderParams.foamThreshold.toFixed(2) }}</span>
+    </div>
+    <div class="row" style="grid-template-columns: 110px 1fr auto auto;">
+      <label>Foam color</label>
+      <input
+        type="color"
+        :value="liquidShaderParams.foamColor"
+        @input="setFoamColor"
+      />
+      <span class="val" style="font-family: monospace;">{{ liquidShaderParams.foamColor }}</span>
+      <button
+        type="button"
+        class="pill"
+        style="border:0; cursor:pointer; font-size:10px;"
+        :disabled="liquidShaderParams.foamColor === LIQUID_SHADER_DEFAULTS.foamColor"
+        @click="liquidShaderParams.foamColor = LIQUID_SHADER_DEFAULTS.foamColor"
+      >Reset</button>
+    </div>
+    <p class="hint" style="margin:0;">
+      Threshold = 1 disables foam (no wave crest reaches a normalised height of 1). Lower it toward 0.5 to see whitecaps appear.
+    </p>
   </div>
 </template>
 
 <style scoped>
-.liquid-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+.sub-h {
+  margin: 8px 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6a7280;
+  letter-spacing: 0.08em;
+}
+.state-radio {
+  display: inline-flex;
   border: 1px solid #1d2028;
   border-radius: 3px;
-  background: #0b0d12;
-  margin-bottom: 6px;
+  overflow: hidden;
 }
-.liquid-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex: 0 0 10px;
-  box-shadow: 0 0 6px currentColor;
+.state-radio label {
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #8a919b;
+  background: #0a0c11;
+  border-left: 1px solid #1d2028;
 }
-.liquid-badge-body   { display: flex; flex-direction: column; }
-.liquid-badge-label  { color: #e4e6ea; font-size: 11px; font-weight: 600; }
-.liquid-badge-hint   { color: #8a919b; font-size: 10px; }
+.state-radio label:first-child { border-left: 0; }
+.state-radio label.is-active   { background: #1c2536; color: #e4e6ea; }
+.state-radio input             { display: none; }
 </style>

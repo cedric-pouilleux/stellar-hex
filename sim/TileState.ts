@@ -1,21 +1,16 @@
-import type { BiomeType } from '../types/surface.types'
-
-/**
- * Per-tile resource concentrations (resourceId → 0..1).
- * Body keeps IDs as opaque strings — the resources feature owns the catalog
- * and validates IDs; body only needs a keyed container for distribution output.
- */
-export type TileResources = ReadonlyMap<string, number>
-
 /** Per-tile simulation state — pure physical data, no game resource dependency. */
 export interface TileState {
   readonly tileId:     number
-  readonly elevation:  number           // -1..1, noise sample at tile center
   /**
-   * Semantic classification of the tile.
-   * Defined for rocky planets (ocean, ocean_deep, plains, forest, desert,
-   * mountain, volcanic, ice_peak, ice_sheet) and stars. Undefined for
-   * gaseous and metallic planets (no biome system).
+   * Integer band index in `[0, N-1]` where `N` is derived from
+   * `(radius, coreRadiusRatio)` via `resolveTerrainLevelCount`. `0` is
+   * the band closest to the core; higher values stack outward. Derived from
+   * seeded simplex noise ranked into `N` equal-frequency bins, so the value
+   * space is deterministic, uniform, and decoupled from the raw noise range.
+   *
+   * Sea level floats freely inside the same integer space
+   * (see {@link BodySimulation.seaLevelElevation}) — submerged status is
+   * computed live from `elevation < seaLevelElevation`, never baked here.
    */
-  readonly biome:      BiomeType | undefined
+  readonly elevation:  number
 }

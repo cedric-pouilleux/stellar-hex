@@ -17,8 +17,7 @@
     "types": ["vite/client"],
     "paths": {
       "@lib": ["../core.ts"],
-      "@sim": ["../sim.ts"],
-      "@render/configToLibParams": ["../render/configToLibParams.ts"]
+      "@sim": ["../sim.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.vue"],

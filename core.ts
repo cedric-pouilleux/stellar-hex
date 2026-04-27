@@ -15,6 +15,24 @@
 // ── Pure-logic surface (types, geometry, physics, sim…) ──────────
 export * from './sim'
 
+// ── Render-scoped types (THREE.js-coupled) ───────────────────────
+export type { TerrainLevel } from './types/terrain.types'
+export type { BodyRenderOptions } from './types/bodyRender.types'
+export type {
+  Body,
+  BodyBase,
+  PlanetBody,
+  StarBody,
+  BodyInteractive,
+  BodyHover,
+  BodyLiquid,
+  BodyView,
+  BodyTiles,
+  PlanetTiles,
+  RGB,
+  TileBaseVisual,
+} from './types/bodyHandle.types'
+
 // ── Render config (body-scoped) ──────────────────────────────────
 export {
   PREVIEW_ORBIT_SPEED,
@@ -39,22 +57,22 @@ export type { RenderableBody } from './types/renderableBody'
 
 // ── Terrain palettes (produce THREE.Color) ───────────────────────
 // Consumers wanting to tweak relief defaults can call the generator,
-// map over the returned levels, and pass the result as `config.palette`.
-// Height anchors (SEA_DEPTH, LOW_HEIGHT, MID_HEIGHT, PEAK_HEIGHT) are the
-// canonical default values referenced by `generateTerrainPalette`.
+// map over the returned levels, and pass the result as
+// `BodyRenderOptions.palette` at the render factory (`useBody`, `<Body>`).
+// The rocky default is a plain low → high grey ramp whose anchors are
+// exposed as `terrainColorLow` / `terrainColorHigh` on `BodyConfig`; the
+// `DEFAULT_TERRAIN_LOW_COLOR` / `DEFAULT_TERRAIN_HIGH_COLOR` constants are
+// the fallback values used when those knobs are omitted.
 export {
   generateTerrainPalette,
-  generateMetallicPalette,
+  buildMetallicPalette,
   buildGasPalette,
 } from './terrain/terrainPalette'
-export { subdividePalette } from './terrain/paletteSubdivide'
-export { buildStarPalette } from './terrain/starPalette'
 export {
-  SEA_DEPTH,
-  LOW_HEIGHT,
-  MID_HEIGHT,
-  PEAK_HEIGHT,
-} from './terrain/colorAnchors'
+  DEFAULT_TERRAIN_LOW_COLOR,
+  DEFAULT_TERRAIN_HIGH_COLOR,
+} from './terrain/paletteRocky'
+export { buildStarPalette } from './terrain/starPalette'
 
 // ── Shaders (procedural planet + post-processing) ────────────────
 export {
@@ -67,8 +85,6 @@ export {
   kelvinToRGB,
   kelvinToThreeColor,
   kelvinLabel,
-  VERTEX_SHADER,
-  FRAG_SHADERS,
   GodRaysShader,
 } from './shaders'
 export type {
@@ -81,52 +97,88 @@ export type {
 } from './shaders'
 
 // ── Rendering ────────────────────────────────────────────────────
-export { DEFAULT_TILE_SIZE } from './config/defaults'
+export {
+  DEFAULT_TILE_SIZE,
+  DEFAULT_CORE_RADIUS_RATIO,
+  resolveTerrainLevelCount,
+  resolveAtmosphereThickness,
+  terrainBandLayout,
+  type TerrainBandLayout,
+} from './physics/body'
 export {
   useBody,
   tileSizeToSubdivisions,
-  buildGasCoreConfig,
   resolveTileHeight,
   resolveTileLevel,
   choosePalette,
-  PALETTE_MOON,
-  PALETTE_GAS_GIANT,
-} from './render/useBody'
-export type { ShadowUniforms, OccluderUniforms, InteractiveMesh } from './render/useHexasphereMesh'
-export { buildAtmosphereShell } from './render/buildAtmosphereShell'
-export type { AtmosphereShellConfig, AtmosphereShellHandle } from './render/buildAtmosphereShell'
-export { buildCloudShell } from './render/buildCloudShell'
-export type { CloudShellConfig, CloudShellHandle } from './render/buildCloudShell'
-export { buildBodyRings } from './render/buildBodyRings'
-export type { BodyRingsConfig, BodyRingsHandle } from './render/buildBodyRings'
-export type { RingVariation, RingArchetype, Profile8 } from './render/ringVariation'
-export { RING_RANGES, RING_ARCHETYPES, ARCHETYPE_PROFILES } from './render/ringVariation'
-export { generateBodyVariation } from './render/bodyVariation'
-export type { BodyVariation } from './render/bodyVariation'
-export { createTileOverlayMesh } from './render/TileOverlayMesh'
-export type { TileOverlayMesh, TileOverlayOptions } from './render/TileOverlayMesh'
-export { buildBodyEffectLayer } from './render/buildBodyEffectLayer'
-export type { BodyEffectLayerConfig, BodyEffectLayerHandle, BodyEffectMode } from './render/buildBodyEffectLayer'
-export { atmosphereColorFromTemp } from './render/atmosphereColor'
-export { godRaysFromStar } from './render/godRaysFromStar'
-export { hexGraphicsUniforms } from './render/hexGraphicsUniforms'
-export { findSceneRoot, findDominantLightWorldPos } from './render/findDominantLight'
+} from './render/body/useBody'
+// Pure derivation: BodyConfig + variation → shader params. Exposed so
+// callers can preview the resolved uniforms (UI panes, debugging,
+// thumbnails) without having to build a full body. No GPU resource is
+// created — same function `useBody` runs internally.
+export { configToLibParams } from './render/body/configToLibParams'
+export type { ShadowUniforms, OccluderUniforms } from './render/hex/hexMeshShared'
+export type { InteractiveMesh, InteractiveMeshOptions } from './render/body/buildInteractiveMesh'
+export { buildAtmoShell } from './render/shells/buildAtmoShell'
+export type { AtmoShellConfig, AtmoShellHandle } from './render/shells/buildAtmoShell'
+export { buildBodyRings } from './render/shells/buildBodyRings'
+export type { BodyRingsConfig, BodyRingsHandle } from './render/shells/buildBodyRings'
+export { buildCoreMesh } from './render/shells/buildCoreMesh'
+export type { CoreMesh, CoreMeshConfig } from './render/shells/buildCoreMesh'
+export { buildLayeredPrismGeometry } from './render/layered/buildLayeredPrism'
+export { buildLayeredMergedGeometry } from './render/layered/buildLayeredMesh'
+export { createAtmoMaterial } from './render/layered/atmoMaterial'
+export type { AtmoMaterialOptions, AtmoMaterialHandle } from './render/layered/atmoMaterial'
+export { buildLiquidSphere } from './render/shells/buildLiquidSphere'
+export type { LiquidSphereConfig, LiquidSphereHandle } from './render/shells/buildLiquidSphere'
+export { buildSolidShell } from './render/shells/buildSolidShell'
+export type { SolidShellConfig, SolidShellHandle } from './render/shells/buildSolidShell'
+export { buildLayeredInteractiveMesh, resolveSolHeight } from './render/layered/buildLayeredInteractiveMesh'
+export type { LayeredInteractiveMesh, LayeredInteractiveMeshOptions, InteractiveLayer, InteractiveView } from './render/layered/buildLayeredInteractiveMesh'
+export type { RingVariation, RingArchetype, Profile8 } from './render/shells/ringVariation'
+export { RING_RANGES, RING_ARCHETYPES, ARCHETYPE_PROFILES } from './render/shells/ringVariation'
+export { generateBodyVariation } from './render/body/bodyVariation'
+export type { BodyVariation } from './render/body/bodyVariation'
+export { createTileOverlayMesh } from './render/shells/TileOverlayMesh'
+export type { TileOverlayMesh, TileOverlayOptions } from './render/shells/TileOverlayMesh'
 export {
-  registerResourceVisual,
-  getResourceVisual,
-} from './render/resourceVisualRegistry'
-export type { ResourceVisual } from './render/resourceVisualRegistry'
+  computeBodyQuaternion,
+  createBodyMotion,
+} from './render/body/bodyMotion'
+export type {
+  BodyMotionInput,
+  BodyMotionHandle,
+} from './render/body/bodyMotion'
+export { godRaysFromStar } from './render/lighting/godRaysFromStar'
+export { createGraphicsUniforms } from './render/hex/hexGraphicsUniforms'
+export type { GraphicsUniforms } from './render/hex/hexGraphicsUniforms'
+export { resolveSphereDetail } from './render/quality/renderQuality'
+export type { RenderQuality, SphereDetailQuality } from './render/quality/renderQuality'
+export { createHoverChannel } from './render/state/hoverState'
+export type { HoverChannel } from './render/state/hoverState'
+export { findSceneRoot, findDominantLightWorldPos } from './render/lighting/findDominantLight'
+
+// ── Body-type strategy ──────────────────────────────────────────
+// Centralised per-type policies (`flatSurface`, `displayMeshIsAtmosphere`,
+// `canHaveRings`, `metallicSheen`, `defaultAtmosphereOpacity`, palette
+// + shader builders). Adding a new body type collapses to one entry in
+// `BODY_TYPE_STRATEGIES` instead of hunting type discriminants across
+// the render pipeline.
+export {
+  BODY_TYPE_STRATEGIES,
+  strategyFor,
+} from './render/body/bodyTypeStrategy'
+export type {
+  BodyTypeStrategy,
+} from './render/body/bodyTypeStrategy'
 
 // ── Scene display helpers ───────────────────────────────────────
 export {
   BODY_TYPE_LABEL,
   BODY_TYPE_COLOR,
-  atmosphereRadius,
   bodyOuterRadius,
-  cloudShellRadius,
-  auraParamsFor,
-} from './render/sceneBodyUtils'
+} from './render/body/sceneBodyUtils'
 
 // ── Interaction ──────────────────────────────────────────────────
-export { findBodyIndex, raycastBodies } from './render/bodyRaycast'
-export type { RaycastBody, RaycastBodiesOptions, RaycastHit } from './render/bodyRaycast'
+export { findBodyIndex, raycastBodies } from './render/body/bodyRaycast'
+export type { RaycastBody, RaycastBodiesOptions, RaycastHit } from './render/body/bodyRaycast'
