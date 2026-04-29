@@ -7,12 +7,12 @@ import type { BodyConfig } from '../../types/body.types'
 function rockyConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
   return {
     name: 'test-rocky',
-    type: 'rocky',
+    type: 'planetary',
+    surfaceLook: 'terrain',
     radius: 1,
     rotationSpeed: 0.1,
     axialTilt: 0,
     atmosphereThickness: 0.5,
-    liquidType: 'water',
     liquidState: 'liquid',
     noiseScale: 1.0,
     ...overrides,
@@ -22,7 +22,8 @@ function rockyConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
 function gaseousConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
   return {
     name: 'test-gas',
-    type: 'gaseous',
+    type: 'planetary',
+    surfaceLook: 'bands',
     radius: 3,
     rotationSpeed: 0.5,
     axialTilt: 5,
@@ -35,7 +36,8 @@ function gaseousConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
 function metallicConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
   return {
     name: 'test-metallic',
-    type: 'metallic',
+    type: 'planetary',
+    surfaceLook: 'metallic',
     radius: 0.8,
     rotationSpeed: 0.05,
     axialTilt: 0,
@@ -58,32 +60,32 @@ describe('configToLibParams — rocky', () => {
     expect(p).toHaveProperty('lavaAmount')
   })
 
-  it('hasLava=false → lavaAmount = 0 regardless of variation', () => {
-    const p = configToLibParams(rockyConfig({ hasLava: false }), { lavaIntensity: 0.5 } as never)
+  it('lavaIntensity = 0 → lavaAmount = 0 (effect disabled by default)', () => {
+    const p = configToLibParams(rockyConfig(), { lavaIntensity: 0 } as never)
     expect(Number(p.lavaAmount)).toBe(0)
   })
 
-  it('hasLava=true + variation.lavaIntensity → lavaAmount tracks the variation', () => {
-    // Caller pushes the intensity directly; the lib no longer derives a
-    // baseline from temperature.
-    const p = configToLibParams(
-      rockyConfig({ hasLava: true }),
-      { lavaIntensity: 0.5 } as never,
-    )
+  it('lavaIntensity > 0 → lavaAmount > 0 (caller activates the effect)', () => {
+    const p = configToLibParams(rockyConfig(), { lavaIntensity: 0.5 } as never)
     expect(Number(p.lavaAmount)).toBeGreaterThan(0)
   })
 
-  it('hasCracks=false → crackAmount = 0 regardless of variation', () => {
-    const p = configToLibParams(rockyConfig({ hasCracks: false }))
+  it('crackIntensity = 0 → crackAmount = 0', () => {
+    const p = configToLibParams(rockyConfig(), { crackIntensity: 0 } as never)
     expect(p.crackAmount).toBe(0)
+  })
+
+  it('crackIntensity > 0 → crackAmount > 0', () => {
+    const p = configToLibParams(rockyConfig(), { crackIntensity: 0.6 } as never)
+    expect(Number(p.crackAmount)).toBeGreaterThan(0)
   })
 
   it('wet planet (liquid surface) → lower roughness than dry planet', () => {
     const wet = configToLibParams(rockyConfig({
-      liquidType: 'water', liquidState: 'liquid', atmosphereThickness: 0.8,
+      liquidState: 'liquid', atmosphereThickness: 0.8,
     }))
     const dry = configToLibParams(rockyConfig({
-      liquidType: undefined, liquidState: 'none', atmosphereThickness: 0.0,
+      liquidState: 'none', atmosphereThickness: 0.0,
     }))
     expect(Number(wet.roughness)).toBeLessThan(Number(dry.roughness))
   })
@@ -91,10 +93,10 @@ describe('configToLibParams — rocky', () => {
   it('heavy erosion (thick atmo + liquid surface) → lower craterDensity than bare rock', () => {
     // Erosion = atmo*0.85 + water*0.40; higher erosion → fewer craters.
     const eroded = configToLibParams(rockyConfig({
-      atmosphereThickness: 0.9, liquidType: 'water', liquidState: 'liquid',
+      atmosphereThickness: 0.9, liquidState: 'liquid',
     }))
     const bare = configToLibParams(rockyConfig({
-      atmosphereThickness: 0, liquidType: undefined, liquidState: 'none',
+      atmosphereThickness: 0, liquidState: 'none',
     }))
     expect(Number(eroded.craterDensity)).toBeLessThan(Number(bare.craterDensity))
   })
@@ -162,21 +164,18 @@ describe('configToLibParams — metallic', () => {
     expect(p).toHaveProperty('lavaAmount')
   })
 
-  it('hasCracks=false → crackAmount = 0', () => {
-    const p = configToLibParams(metallicConfig({ hasCracks: false }))
+  it('crackIntensity = 0 → crackAmount = 0', () => {
+    const p = configToLibParams(metallicConfig(), { crackIntensity: 0 } as never)
     expect(p.crackAmount).toBe(0)
   })
 
-  it('hasLava=false → lavaAmount = 0', () => {
-    const p = configToLibParams(metallicConfig({ hasLava: false }))
+  it('lavaIntensity = 0 → lavaAmount = 0', () => {
+    const p = configToLibParams(metallicConfig(), { lavaIntensity: 0 } as never)
     expect(p.lavaAmount).toBe(0)
   })
 
-  it('hasLava=true + variation.lavaIntensity → lavaAmount tracks the variation', () => {
-    const p = configToLibParams(
-      metallicConfig({ hasLava: true }),
-      { lavaIntensity: 0.5 } as never,
-    )
+  it('lavaIntensity > 0 → lavaAmount > 0 (caller activates the effect)', () => {
+    const p = configToLibParams(metallicConfig(), { lavaIntensity: 0.5 } as never)
     expect(Number(p.lavaAmount)).toBeGreaterThan(0)
   })
 

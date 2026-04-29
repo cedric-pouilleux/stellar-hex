@@ -40,7 +40,7 @@ onMounted(async () => {
   orbit.enableDamping = true
 
   const config = {
-    type:                'rocky' as const,
+    type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'bfs-demo',
     radius:               1,
     rotationSpeed:        0,
@@ -85,10 +85,10 @@ onMounted(async () => {
     pointer.x =  ((e.clientX - r.left) / r.width)  * 2 - 1
     pointer.y = -((e.clientY - r.top)  / r.height) * 2 + 1
     raycaster.setFromCamera(pointer, camera)
-    const id = body.interactive.queryHover(raycaster)
-    if (id != null) {
-      body.tiles.resetBaseColors()
-      paintBfs(id)
+    const ref = body.interactive.queryHover(raycaster)
+    if (ref?.layer === 'sol') {
+      ;(body.tiles as { resetBaseColors?: () => void }).resetBaseColors?.()
+      paintBfs(ref.tileId)
     }
   }
   renderer.domElement.addEventListener('click', onClick)

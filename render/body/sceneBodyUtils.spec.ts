@@ -1,14 +1,14 @@
-import { describe, it, expect } from 'vitest'
+﻿import { describe, it, expect } from 'vitest'
 import { bodyOuterRadius } from './sceneBodyUtils'
 import type { BodyConfig } from '../../types/body.types'
 import type { TerrainLevel } from '../../types/terrain.types'
 
-// ── Helpers ───────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function rocky(overrides: Partial<BodyConfig> = {}): BodyConfig {
   return {
     name: 'Test',
-    type: 'rocky',
+    type: 'planetary', surfaceLook: 'terrain',
     radius: 1,
     rotationSpeed: 0.05,
     axialTilt: 0,
@@ -16,7 +16,7 @@ function rocky(overrides: Partial<BodyConfig> = {}): BodyConfig {
   }
 }
 
-// ── bodyOuterRadius ───────────────────────────────────────────────
+// â”€â”€ bodyOuterRadius â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('bodyOuterRadius', () => {
   it('equals radius + palette max height when palette is provided', () => {

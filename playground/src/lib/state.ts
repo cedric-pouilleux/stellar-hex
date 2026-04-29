@@ -1,62 +1,268 @@
-import { reactive, ref, watchEffect } from 'vue'
+import { effectScope, reactive, ref, watchEffect } from 'vue'
 import * as THREE from 'three'
-import type { BodyConfig, RingVariation, SphereDetailQuality } from '@lib'
-import { BODY_PARAMS, getDefaultParams, type LibBodyType } from '@lib'
+import type {
+  BodyConfig, PlanetConfig, StarConfig, BodyVariation, RingVariation, SphereDetailQuality,
+  BodyNoiseProfile, MetallicBand, ColorInput, SpectralType, SurfaceLook,
+} from '@lib'
+import { BODY_PARAMS, generateBodyVariation, getDefaultParams, type LibBodyType } from '@lib'
 import type { DigOptions } from './useTileDig'
 import {
   liquidColorFromType,
   type SurfaceLiquidType,
 } from './liquidCatalog'
 import {
-  assignResourceMix, extractGasVolatiles, T_avgK,
+  assignResourceMix, T_avgK,
   partitionPhases, pickDominantVolatile,
   computeLiquidCoverage, volatileMassByPhase,
 } from './resourceMix'
-import { volatileState } from './volatileCatalog'
+import { volatileState, VOLATILE_IDS, type VolatileId } from './volatileCatalog'
 import { deriveBandColorsFromMix } from './atmoBands'
-import type { GasPatternKind } from './gasPatterns'
-import { DEMO_RESOURCES, resourceLayer } from './resourceDemo'
+import { patternForKind, type GasPatternKind } from './gasPatterns'
+import { DEMO_RESOURCES, resourceLayer, type ResourceLayer, type ResourceSpec } from './resourceDemo'
+import { customResources, resolveExtraResources } from './extraResources'
 import { registerResourceVisual } from './paint/resourceVisualRegistry'
 
 /** Local mirror of the shader `ParamMap` — not re-exported from `@lib/core`. */
 export type ParamMap = Record<string, number | string | number[] | boolean>
 
 /**
- * Playground-side extension of {@link BodyConfig} carrying the caller's
- * thermal metadata. The lib is climate-agnostic and no longer reads any
- * temperature field; the playground keeps `temperatureMin/Max` here so
- * its own helpers (palette anchors, lava colour, gas turbulence…) can
- * derive caller-driven values that get pushed back into the lib config
- * via {@link BodyVisualProfile} fields.
+ * Playground-side editing shape for a body. Carries the caller's thermal
+ * metadata (`temperatureMin/Max`) plus a **wide** view of every body-shape
+ * field — planet-only knobs like `surfaceLook` and star-only knobs like
+ * `spectralType` coexist as optional so the right-pane controls keep their
+ * values across type switches without having to swap the reactive object
+ * shape. The lib's strict {@link BodyConfig} discriminated union is
+ * recovered at handoff via {@link toLibBodyConfig}.
+ *
+ * The lib stays climate-agnostic — it never reads `temperatureMin/Max`
+ * directly. The playground derives palette anchors, lava colour, gas
+ * turbulence… from those and writes the resolved values back onto the
+ * appropriate lib fields ({@link PlanetVisualProfile}, {@link BodyVariation}).
  */
-export type PlaygroundBodyConfig = BodyConfig & {
+export interface PlaygroundBodyConfig extends BodyNoiseProfile {
+  // ── Identity (discriminant kept editable) ────────────────────────
+  type:                 'planetary' | 'star'
+  name:                 string
+  surfaceLook?:         SurfaceLook
+  spectralType?:        SpectralType
+  // ── Shared physics ──────────────────────────────────────────────
+  radius:               number
+  rotationSpeed:        number
+  axialTilt:            number
+  mass?:                number
+  coreRadiusRatio?:     number
+  // ── Planet-only physics (kept editable across switches) ─────────
+  atmosphereThickness?: number
+  atmosphereOpacity?:   number
+  gasMassFraction?:     number
+  liquidState?:         'liquid' | 'frozen' | 'none'
+  liquidCoverage?:      number
+  // ── Visual profile (planet) ─────────────────────────────────────
+  liquidColor?:         ColorInput
+  bandColors?: {
+    colorA: ColorInput
+    colorB: ColorInput
+    colorC: ColorInput
+    colorD: ColorInput
+  }
+  terrainColorLow?:     ColorInput
+  terrainColorHigh?:    ColorInput
+  metallicBands?: readonly [MetallicBand, MetallicBand, MetallicBand, MetallicBand]
+  hasRings?:            boolean
+  // ── Playground extras ───────────────────────────────────────────
   /** Coldest equilibrium temperature (°C). Caller metadata only. */
   temperatureMin: number
   /** Warmest equilibrium temperature (°C). Caller metadata only. */
   temperatureMax: number
 }
 
+/**
+ * Project the wide editing shape onto the lib's strict
+ * {@link BodyConfig} discriminated union. Branch-irrelevant fields are
+ * dropped at the boundary so the lib never sees a star with `surfaceLook`
+ * or a planet with `spectralType`.
+ */
+export function toLibBodyConfig(p: PlaygroundBodyConfig): BodyConfig {
+  const noise: BodyNoiseProfile = {
+    noiseScale:       p.noiseScale,
+    noiseOctaves:     p.noiseOctaves,
+    noisePersistence: p.noisePersistence,
+    noiseLacunarity:  p.noiseLacunarity,
+    noisePower:       p.noisePower,
+    noiseRidge:       p.noiseRidge,
+    continentAmount:  p.continentAmount,
+    continentScale:   p.continentScale,
+    reliefFlatness:   p.reliefFlatness,
+  }
+  if (p.type === 'star') {
+    const star: StarConfig = {
+      type:            'star',
+      name:            p.name,
+      spectralType:    p.spectralType ?? 'G',
+      radius:          p.radius,
+      rotationSpeed:   p.rotationSpeed,
+      axialTilt:       p.axialTilt,
+      mass:            p.mass,
+      coreRadiusRatio: p.coreRadiusRatio,
+      ...noise,
+    }
+    return star
+  }
+  const planet: PlanetConfig = {
+    type:                'planetary',
+    name:                p.name,
+    surfaceLook:         p.surfaceLook,
+    radius:              p.radius,
+    rotationSpeed:       p.rotationSpeed,
+    axialTilt:           p.axialTilt,
+    mass:                p.mass,
+    coreRadiusRatio:     p.coreRadiusRatio,
+    atmosphereThickness: p.atmosphereThickness,
+    atmosphereOpacity:   p.atmosphereOpacity,
+    gasMassFraction:     p.gasMassFraction,
+    liquidState:         p.liquidState,
+    liquidCoverage:      p.liquidCoverage,
+    liquidColor:         p.liquidColor,
+    bandColors:          p.bandColors,
+    terrainColorLow:     p.terrainColorLow,
+    terrainColorHigh:    p.terrainColorHigh,
+    metallicBands:       p.metallicBands,
+    hasRings:            p.hasRings,
+    ...noise,
+  }
+  return planet
+}
+
 /** Shared body type — drives both the shader preview and the hex body. */
+/**
+ * UI mode label — keeps the legacy four-button switcher (rocky / gaseous /
+ * metallic / star). Maps to `bodyConfig.{type, surfaceLook}` via the helpers
+ * below; the lib itself does not see this value.
+ */
 export const bodyType = ref<LibBodyType>('rocky')
+
+/**
+ * Per-mode default atmosphere thickness — caller-side convention now that
+ * the lib no longer caps by type. Values match the legacy lib caps so the
+ * playground keeps the same visual proportions:
+ *
+ *   - terrain  : 0.20 — sol dominates, thin halo above (~80% silhouette is sol)
+ *   - bands    : 0.80 — atmo dominates, sol is a slim core shell
+ *   - metallic : 0.05 — barely an exosphere by default (slider can grow it)
+ *   - star     : 0    — stars carry no atmo shell
+ */
+const DEFAULT_ATMO_BY_MODE: Record<LibBodyType, number> = {
+  rocky:    0.20,
+  gaseous:  0.80,
+  metallic: 0.05,
+  star:     0,
+}
+
+/**
+ * Per-mode default atmosphere opacity — controls whether the atmo shell is
+ * mounted (`> 0`) and how strongly it shows in the shader / surface view.
+ * The lib's `defaultAtmosphereOpacity` is `0` for metallic (legacy "no halo
+ * by default") so an explicit caller-side value is needed to make the shell
+ * visible without forcing the user to discover the slider.
+ *
+ *   - terrain  : 0.45 — translucent halo, blue marble look
+ *   - bands    : 1.00 — opaque envelope, smooth sphere = atmosphere
+ *   - metallic : 0.30 — visible halo, lets the user see the shell exists
+ *   - star     : 0    — stars never carry an atmo shell
+ */
+const DEFAULT_ATMO_OPACITY_BY_MODE: Record<LibBodyType, number> = {
+  rocky:    0.45,
+  gaseous:  1.00,
+  metallic: 0.30,
+  star:     0,
+}
+
+/** UI label → physics defaults projection consumed by the lib. */
+export function configFromUiMode(mode: LibBodyType): {
+  type:                'planetary' | 'star'
+  surfaceLook:         SurfaceLook | undefined
+  atmosphereThickness: number
+  atmosphereOpacity:   number
+} {
+  const atmosphereThickness = DEFAULT_ATMO_BY_MODE[mode]
+  const atmosphereOpacity   = DEFAULT_ATMO_OPACITY_BY_MODE[mode]
+  switch (mode) {
+    case 'rocky':    return { type: 'planetary', surfaceLook: 'terrain',  atmosphereThickness, atmosphereOpacity }
+    case 'gaseous':  return { type: 'planetary', surfaceLook: 'bands',    atmosphereThickness, atmosphereOpacity }
+    case 'metallic': return { type: 'planetary', surfaceLook: 'metallic', atmosphereThickness, atmosphereOpacity }
+    case 'star':     return { type: 'star',      surfaceLook: undefined,  atmosphereThickness, atmosphereOpacity }
+  }
+}
+
+/**
+ * Inverse projection — used to restore the UI label from the body config.
+ * Accepts both the lib's strict {@link BodyConfig} and the playground's
+ * wide {@link PlaygroundBodyConfig} (where `surfaceLook` is just an
+ * editable optional, regardless of `type`).
+ */
+export function uiModeFromConfig(
+  config: { type: 'planetary' | 'star'; surfaceLook?: SurfaceLook | undefined },
+): LibBodyType {
+  if (config.type === 'star') return 'star'
+  switch (config.surfaceLook ?? 'terrain') {
+    case 'terrain':  return 'rocky'
+    case 'bands':    return 'gaseous'
+    case 'metallic': return 'metallic'
+  }
+  return 'rocky'
+}
 
 /** Physical body config — edited by the right pane, consumed by `useBody`. */
 export const bodyConfig = reactive<PlaygroundBodyConfig>({
-  type:                 'rocky',
+  type:                 'planetary',
+  surfaceLook:          'terrain',
   name:                 'playground',
   radius:               3,
   temperatureMin:       -20,
   temperatureMax:       30,
   rotationSpeed:        0.02,
   axialTilt:            0.41,
-  atmosphereThickness:  0.6,
+  atmosphereThickness:  DEFAULT_ATMO_BY_MODE.rocky,
+  atmosphereOpacity:    DEFAULT_ATMO_OPACITY_BY_MODE.rocky,
   liquidState:          'liquid',
   liquidColor:          '#2878d0',
-  hasCracks:            false,
-  hasLava:              false,
   hasRings:             false,
   mass:                 1.0,
   spectralType:         'G',
 })
+
+/**
+ * Playground-side visual-effect toggles. Cracks and lava are pure rendering
+ * decisions — the lib carries no flag for them anymore (the variation does).
+ * The playground keeps its own UI state here, then folds the result into the
+ * `BodyVariation` it pushes to `useBody({ variation })`.
+ */
+export interface PlaygroundFx {
+  cracksEnabled: boolean
+  lavaEnabled:   boolean
+  /** Lava tint (#hex). Caller picks; default is a neutral dark red. */
+  lavaColor:     string
+}
+
+export const playgroundFx = reactive<PlaygroundFx>({
+  cracksEnabled: false,
+  lavaEnabled:   false,
+  lavaColor:     '#cc2200',
+})
+
+/**
+ * Generates a {@link BodyVariation} for the given config and folds the
+ * playground-side fx toggles in. Both panes call this before passing the
+ * variation to `useBody({ variation })` so the shader preview and the hex
+ * body see the same effect intensities.
+ */
+export function buildPlaygroundVariation(config: BodyConfig): BodyVariation {
+  const variation = generateBodyVariation(config)
+  if (playgroundFx.cracksEnabled) variation.crackIntensity = 0.6
+  if (playgroundFx.lavaEnabled)   variation.lavaIntensity  = 0.5
+  variation.lavaColor = playgroundFx.lavaColor
+  return variation
+}
 
 /**
  * Playground-owned chemistry metadata that does not belong on the lib's
@@ -104,6 +310,103 @@ export const resourceUIState = reactive<Record<string, ResourceUIState>>(
 )
 
 /**
+ * Runtime-extensible resource catalogue. Built from the user-driven
+ * "+" form in `ResourceControls`; merged with {@link DEMO_RESOURCES} via
+ * {@link allResources} at every iteration site (UI listing, paint
+ * registry sync, sol & atmo distribution).
+ *
+ * A custom resource carries the same {@link ResourceSpec} shape as the
+ * shipped catalogue so the downstream pipeline does not need a special
+ * case. Sol customs land on the mineral phase (so they share the rocky
+ * eligibility behaviour); atmo customs land on the gas phase (winner-
+ * takes-all in `runAtmoDistribution`).
+ *
+ * The reactive ref lives in `extraResources.ts` to break a circular
+ * import (`resourceDemo` → state would loop); re-exported here so the
+ * UI keeps a single import surface.
+ */
+export { customResources } from './extraResources'
+
+/**
+ * Returns the unified catalogue (shipped + custom) — preferred over
+ * iterating {@link DEMO_RESOURCES} directly when the caller must surface
+ * user-added entries. Plain function (not reactive computed) so it can be
+ * called from non-reactive contexts; consumers re-read on every rebuild.
+ */
+export function allResources(): ResourceSpec[] {
+  return resolveExtraResources()
+}
+
+/** User-supplied draft turned into a full {@link ResourceSpec} by {@link addCustomResource}. */
+export interface CustomResourceDraft {
+  layer:       ResourceLayer
+  label:       string
+  color:       number
+  patternKind: GasPatternKind
+}
+
+/**
+ * Slugifies a label into a kebab-case id. Falls back to `'custom'` when
+ * the label collapses to an empty slug (only symbols / accents stripped).
+ */
+function slugify(label: string): string {
+  const slug = label
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return slug.length > 0 ? slug : 'custom'
+}
+
+/** Builds a unique id from `label` by appending a counter on collision. */
+function makeUniqueId(label: string): string {
+  const base = slugify(label)
+  const taken = new Set<string>()
+  for (const r of DEMO_RESOURCES) taken.add(r.id)
+  for (const r of customResources.value) taken.add(r.id)
+  if (!taken.has(base)) return base
+  let i = 2
+  while (taken.has(`${base}-${i}`)) i++
+  return `${base}-${i}`
+}
+
+/**
+ * Appends a custom resource to {@link customResources} and seeds its
+ * matching {@link resourceUIState} entry. Returns the generated id so the
+ * UI can focus / scroll to the new row.
+ */
+export function addCustomResource(draft: CustomResourceDraft): string {
+  const id      = makeUniqueId(draft.label)
+  const phase   = draft.layer === 'sol' ? 'mineral' : 'gas'
+  const pattern = patternForKind(draft.patternKind)
+  const spec: ResourceSpec = {
+    id,
+    label:     draft.label,
+    color:     draft.color,
+    phase,
+    pattern,
+    roughness: 0.7,
+    metalness: 0.0,
+  }
+  customResources.value = [...customResources.value, spec]
+  resourceUIState[id] = {
+    enabled:     true,
+    color:       draft.color,
+    patternKind: draft.patternKind,
+    weight:      1,
+  }
+  return id
+}
+
+/** Removes a previously-added custom resource (no-op if `id` is shipped). */
+export function removeCustomResource(id: string): void {
+  const idx = customResources.value.findIndex(r => r.id === id)
+  if (idx < 0) return
+  customResources.value = customResources.value.filter(r => r.id !== id)
+  delete resourceUIState[id]
+}
+
+/**
  * Derived view — set of resource ids currently disabled. Passed to
  * `runDistribution` so disabled entries never land on a tile.
  */
@@ -120,7 +423,7 @@ export function disabledResourceIds(): Set<string> {
  */
 export function resourcePatternOverrides(): Partial<Record<string, GasPatternKind>> {
   const out: Partial<Record<string, GasPatternKind>> = {}
-  for (const r of DEMO_RESOURCES) {
+  for (const r of allResources()) {
     const ui = resourceUIState[r.id]
     if (ui && ui.patternKind !== r.pattern.kind) out[r.id] = ui.patternKind
   }
@@ -134,7 +437,7 @@ export function resourcePatternOverrides(): Partial<Record<string, GasPatternKin
  */
 export function resourceWeights(): Partial<Record<string, number>> {
   const out: Partial<Record<string, number>> = {}
-  for (const r of DEMO_RESOURCES) {
+  for (const r of allResources()) {
     const ui = resourceUIState[r.id]
     if (ui && ui.weight !== 1) out[r.id] = ui.weight
   }
@@ -161,21 +464,50 @@ export const totalResources = ref<Map<string, number>>(new Map())
 // One effect per resource so editing a single colour re-registers ONLY that
 // resource's visual — a shared loop would re-fire all 12 entries on every
 // keystroke since Vue tracks any reactive read inside `watchEffect`.
-for (const spec of DEMO_RESOURCES) {
+//
+// Custom resources are tracked in `visualScopes` so their effect can be
+// stopped on removal (otherwise a stale `resourceUIState[id]` access would
+// keep firing after the row is gone).
+const visualScopes = new Map<string, ReturnType<typeof effectScope>>()
+
+function installResourceVisualWatcher(spec: ResourceSpec): void {
   const layer = resourceLayer(spec.phase)
-  watchEffect(() => {
-    const ui = resourceUIState[spec.id]
-    if (!ui) return
-    registerResourceVisual(spec.id, {
-      color:             new THREE.Color(ui.color),
-      roughness:         spec.roughness ?? 0.6,
-      metalness:         spec.metalness ?? 0.0,
-      colorBlend:        layer === 'atmo' ? 0.98 : 0.9,
-      emissive:          spec.emissive ? new THREE.Color(ui.color) : undefined,
-      emissiveIntensity: spec.emissive ?? 0,
+  const scope = effectScope(true)
+  scope.run(() => {
+    watchEffect(() => {
+      const ui = resourceUIState[spec.id]
+      if (!ui) return
+      registerResourceVisual(spec.id, {
+        color:             new THREE.Color(ui.color),
+        roughness:         spec.roughness ?? 0.6,
+        metalness:         spec.metalness ?? 0.0,
+        colorBlend:        layer === 'atmo' ? 0.98 : 0.9,
+        emissive:          spec.emissive ? new THREE.Color(ui.color) : undefined,
+        emissiveIntensity: spec.emissive ?? 0,
+      })
     })
   })
+  visualScopes.set(spec.id, scope)
 }
+
+for (const spec of DEMO_RESOURCES) installResourceVisualWatcher(spec)
+
+// React to custom catalogue mutations: install/dispose the matching
+// per-id watcher so colour / pattern edits propagate to the paint registry
+// just like for shipped entries.
+watchEffect(() => {
+  const known = new Set(customResources.value.map(r => r.id))
+  for (const spec of customResources.value) {
+    if (!visualScopes.has(spec.id)) installResourceVisualWatcher(spec)
+  }
+  for (const [id, scope] of visualScopes) {
+    if (DEMO_RESOURCES.some(r => r.id === id)) continue
+    if (!known.has(id)) {
+      scope.stop()
+      visualScopes.delete(id)
+    }
+  }
+})
 
 
 /**
@@ -219,7 +551,7 @@ function hexColor(value: number): string {
  * change, so the lib already renders dry).
  */
 watchEffect(() => {
-  if (bodyConfig.type !== 'rocky') return
+  if (bodyConfig.surfaceLook !== 'terrain') return
 
   const physics = {
     tempMin: bodyConfig.temperatureMin,
@@ -280,26 +612,24 @@ watchEffect(() => {
 })
 
 /**
- * Band colours — physics-driven pipeline. For gaseous bodies, the volatile
- * mix (assigned from `radius` + `mass` + temperature via `assignResourceMix`)
- * is filtered to its gas-phase component (`extractGasVolatiles`) at the body's
- * average temperature, then blended into the lib's 4-stop `bandColors` via
- * `deriveBandColorsFromMix`. Non-gaseous bodies clear the field so the shader
- * falls back to its neutral default.
+ * Band colours — user-driven, decoupled from temperature so the atmo pane
+ * follows the resource toggles directly. For gaseous bodies, every enabled
+ * volatile contributes its UI weight to the blend; the result is fed into
+ * the lib's 4-stop `bandColors` via `deriveBandColorsFromMix`. Non-gaseous
+ * bodies clear the field so the shader falls back to its neutral default.
  */
 watchEffect(() => {
-  if (bodyConfig.type !== 'gaseous') {
+  if (bodyConfig.surfaceLook !== 'bands') {
     bodyConfig.bandColors = undefined
     return
   }
-  const physics = {
-    tempMin: bodyConfig.temperatureMin,
-    tempMax: bodyConfig.temperatureMax,
-    radius:  bodyConfig.radius,
-    mass:    bodyConfig.mass ?? 1,
+  const gasMix: Partial<Record<VolatileId, number>> = {}
+  for (const id of VOLATILE_IDS) {
+    const ui = resourceUIState[id]
+    if (!ui || !ui.enabled) continue
+    if (ui.weight <= 0) continue
+    gasMix[id] = ui.weight
   }
-  const mix    = assignResourceMix(physics)
-  const gasMix = extractGasVolatiles(mix, T_avgK(physics))
   bodyConfig.bandColors = deriveBandColorsFromMix(gasMix)
 })
 
@@ -326,22 +656,10 @@ export const ringOverrides = reactive<RingOverrides>({})
 export const tileSize = ref(0.15)
 
 /**
- * Atmospheric corona headroom forwarded to `useBody({ coronaHeadroom })`.
- * Slider lives in `BodyControls` (rocky only) — see lib for the clamp.
- */
-export const coronaHeadroom = ref(0.05)
-
-/**
  * Strength of painted-tile colour over the procedural tint on the
  * rocky atmoShell. Live-pushed via `body.atmoShell?.setParams({ tileColorMix })`.
  */
 export const atmoTileColorMix = ref(0.85)
-
-/**
- * Outer liquid-corona opacity on rocky bodies that carry a surface
- * liquid. Live-pushed via `body.liquidCorona?.setOpacity(...)`.
- */
-export const liquidCoronaOpacity = ref(0.3)
 
 /**
  * Render-quality preset for spherical meshes (smooth sphere, liquid sphere,
@@ -386,22 +704,37 @@ export interface HoverResource {
 export interface HoverInfo {
   tileId:    number
   /**
-   * What the cursor is actually pointing at. A frozen-liquid surface
-   * stacks an ice cap on top of the underlying mineral tile — both are
-   * separate entities for gameplay (the cap is mineable as ice; the
-   * mineral tile is reachable only after the cap is destroyed). The
-   * `'ice'` kind tells the panel + click handler to treat them as such.
+   * What the cursor is actually pointing at. `'liquid'` is the
+   * translucent water surface — pointing at it surfaces both the
+   * liquid layer and the mineral floor underneath in `seabed`. `'ice'`
+   * is the frozen cap stacked over the mineral tile. `'sol'` is the
+   * exposed mineral tile itself. `'atmo'` targets the atmosphere
+   * board (own hexasphere; tile id unrelated to sol).
    */
-  kind:      'ice' | 'sol'
+  kind:      'liquid' | 'ice' | 'sol' | 'atmo'
   biome:     string | undefined
-  elevation: number
-  height:    number
-  /** Signed terrain level — `0` is the first band above sea level (shoreline). */
-  level:     number
+  /** Sol-only — ground elevation band. `null` on atmo tiles. */
+  elevation: number | null
+  /** Sol-only — world-space sol cap height. `null` on atmo tiles. */
+  height:    number | null
+  /** Sol-only — signed terrain level. `null` on atmo tiles. */
+  level:     number | null
   /** Sol-layer resources (metals + minerals). */
   solResources:  HoverResource[]
   /** Atmo-layer resources (gases). */
   atmoResources: HoverResource[]
+  /**
+   * Mineral floor under a `'liquid'` hover — only set when `kind === 'liquid'`.
+   * Lets the tooltip render the sea-floor tile's biome / elevation /
+   * resources alongside the liquid surface info.
+   */
+  seabed?: {
+    biome:        string | undefined
+    elevation:    number
+    height:       number
+    level:        number
+    solResources: HoverResource[]
+  }
   /** Build generation of the source `useBody` — bumped on each rebuild so the
    *  hover loop can detect stale tooltips when the body rebuilds under a
    *  stationary cursor. */

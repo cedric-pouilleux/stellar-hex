@@ -11,7 +11,7 @@ export const headlessAnalyzeCode = `import {
 const { tiles } = generateHexasphere(1, 5)
 const sim       = initBodySimulation(tiles, {
   name:           'Analyzer',
-  type:           'rocky',
+  type:           'planetary', surfaceLook: 'terrain',
   radius:          1,
   rotationSpeed:   0,
   axialTilt:       0,

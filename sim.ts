@@ -51,11 +51,20 @@
 // ── Types ─────────────────────────────────────────────────────────
 export type {
   BodyConfig,
+  PlanetConfig,
+  StarConfig,
   BodyIdentity,
+  PlanetIdentity,
+  StarIdentity,
   BodyPhysics,
+  BodyPhysicsCore,
+  PlanetPhysics,
+  StarPhysics,
   BodyNoiseProfile,
   BodyVisualProfile,
+  PlanetVisualProfile,
   BodyType,
+  SurfaceLook,
   SpectralType,
   ColorInput,
   MetallicBand,
@@ -75,12 +84,13 @@ export { SPECTRAL_TABLE, resolveStarData, toStarParams } from './physics/starPhy
 export { REF_STAR_RADIUS, REF_STAR_TEMP, DEFAULT_TILE_SIZE } from './physics/body'
 export {
   hasSurfaceLiquid,
+  hasAtmosphere,
   deriveCoreRadiusRatio,
   resolveCoreRadiusRatio,
   REF_SOLID_DENSITY,
   REF_GAS_DENSITY,
 } from './physics/body'
-export type { StarConfig } from './types/body.types'
+export type { StarPhysicsInput } from './types/body.types'
 
 // ── Simulation ───────────────────────────────────────────────────
 export type { BodySimulation } from './sim/BodySimulation'

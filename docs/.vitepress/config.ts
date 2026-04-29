@@ -68,6 +68,7 @@ export default defineConfig({
           items: [
             { text: 'Shaders & matériaux',     link: '/guides/shaders-and-materials' },
             { text: 'Palettes & terrain',      link: '/guides/palettes-and-terrain'  },
+            { text: 'Curseur de survol',       link: '/guides/hover-cursor'          },
             { text: 'Performance',             link: '/guides/performance'           },
           ],
         },

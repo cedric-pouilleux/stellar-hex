@@ -1,4 +1,4 @@
-import type { StarConfig } from '../../types/body.types'
+import type { StarPhysicsInput } from '../../types/body.types'
 import type { GodRaysParams } from '../../config/render'
 import { resolveStarData, SPECTRAL_TABLE } from '../../physics/starPhysics'
 import { clamp } from '../../internal/math'
@@ -20,7 +20,7 @@ import { clamp } from '../../internal/math'
  * Calibrated on G-type reference (no radius override): exposure≈0.44,
  * decay≈0.94, density≈0.70, weight≈0.36.
  */
-export function godRaysFromStar(cfg: StarConfig): GodRaysParams {
+export function godRaysFromStar(cfg: StarPhysicsInput): GodRaysParams {
   const { luminosity, radius: actualRadius, tempK } = resolveStarData(cfg)
   const baseRadius = SPECTRAL_TABLE[cfg.spectralType].radius
   const areaScale  = (baseRadius / actualRadius) ** 2

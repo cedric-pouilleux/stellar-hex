@@ -10,7 +10,7 @@ import OrbitControlsBridge from './OrbitControlsBridge.vue'
  */
 
 const config: BodyConfig = {
-  type:           'gaseous',
+  type:           'planetary', surfaceLook: 'bands',
   name:           'archetype-demo',
   radius:          1.2,
   rotationSpeed:   0.002,

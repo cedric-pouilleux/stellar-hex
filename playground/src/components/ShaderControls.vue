@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { BODY_PARAMS, BODY_GROUPS, type LibBodyType, type ParamDef } from '@lib'
+import { BODY_PARAMS, type LibBodyType, type ParamDef } from '@lib'
+import { BODY_GROUP_LABELS, paramLabel, selectOptionLabels } from '../lib/paramLabels'
 
 type ParamValue = number | string | number[] | boolean
 
@@ -20,7 +21,7 @@ defineEmits<{ (e: 'update', key: string, value: ParamValue): void }>()
 const defs    = computed(() => BODY_PARAMS[props.type])
 const groups  = computed(() => {
   const hidden = new Set(props.hiddenGroups ?? [])
-  return BODY_GROUPS[props.type].filter((g: { label: string; keys: string[] }) => !hidden.has(g.label))
+  return BODY_GROUP_LABELS[props.type].filter(g => !hidden.has(g.label))
 })
 
 // Uniforms derived purely from `config.name` (via `configToLibParams` +
@@ -36,7 +37,16 @@ function isSelect(def: ParamDef) { return def.type === 'select' }
 function isSlider(def: ParamDef) { return !def.type && typeof def.default === 'number' }
 function isVec3(def: ParamDef)   { return !def.type && Array.isArray(def.default) }
 
-function fmt(v: number, step?: number) {
+function selectOptions(key: string, def: ParamDef): readonly string[] {
+  return selectOptionLabels(key, def.optionCount ?? 0)
+}
+
+function fmt(v: number | undefined, step?: number) {
+  // Defensive against transient undefined during type switches — the watcher
+  // pipeline backfills missing keys, but a render can still pick a stale
+  // `values` snapshot before the resync lands. Render a placeholder rather
+  // than crashing the panel.
+  if (v === undefined || Number.isNaN(v)) return '—'
   if (step === undefined || step >= 1) return String(Math.round(v))
   const dp = Math.max(0, -Math.floor(Math.log10(step)))
   return v.toFixed(dp)
@@ -44,14 +54,14 @@ function fmt(v: number, step?: number) {
 </script>
 
 <template>
-  <details v-for="group in groups" :key="group.label" class="group" open>
+  <details v-for="group in groups" :key="group.label" class="group">
     <summary>{{ group.label }}</summary>
     <div class="group-body">
       <template v-for="key in visibleKeys(group.keys)" :key="key">
         <template v-if="defs[key]">
           <!-- slider -->
           <div v-if="isSlider(defs[key])" class="row">
-            <label :title="key">{{ defs[key].label }}</label>
+            <label :title="key">{{ paramLabel(key) }}</label>
             <input
               type="range"
               :min="defs[key].min"
@@ -64,7 +74,7 @@ function fmt(v: number, step?: number) {
           </div>
           <!-- color -->
           <div v-else-if="isColor(defs[key])" class="row">
-            <label :title="key">{{ defs[key].label }}</label>
+            <label :title="key">{{ paramLabel(key) }}</label>
             <input
               type="color"
               :value="values[key] as string"
@@ -74,18 +84,18 @@ function fmt(v: number, step?: number) {
           </div>
           <!-- select -->
           <div v-else-if="isSelect(defs[key])" class="row">
-            <label :title="key">{{ defs[key].label }}</label>
+            <label :title="key">{{ paramLabel(key) }}</label>
             <select
               :value="values[key] as number"
               @change="$emit('update', key, parseInt(($event.target as HTMLSelectElement).value))"
             >
-              <option v-for="(opt, i) in defs[key].options" :key="opt" :value="i">{{ opt }}</option>
+              <option v-for="(opt, i) in selectOptions(key, defs[key])" :key="i" :value="i">{{ opt }}</option>
             </select>
             <span></span>
           </div>
           <!-- vec3 (noise seed) -->
           <div v-else-if="isVec3(defs[key])" class="row" style="grid-template-columns: 110px 1fr 1fr 1fr;">
-            <label :title="key">{{ defs[key].label }}</label>
+            <label :title="key">{{ paramLabel(key) }}</label>
             <input
               v-for="(n, i) in (values[key] as number[])"
               :key="i"

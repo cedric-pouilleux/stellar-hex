@@ -13,7 +13,7 @@ import HexRaycaster from './HexRaycaster.vue'
  */
 
 const config: BodyConfig = {
-  type:                'rocky',
+  type:                'planetary', surfaceLook: 'terrain',
   name:                'hex-demo',
   radius:              1,
   liquidState:         'liquid',

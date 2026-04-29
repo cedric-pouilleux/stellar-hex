@@ -14,7 +14,6 @@ export * from './core'
 
 // ── Scene controllers ────────────────────────────────────────────
 export { default as Body } from './scene/Body.vue'
-export { default as PinnedTileProjector } from './scene/PinnedTileProjector.vue'
 export { default as BodyController } from './scene/BodyController.vue'
 export { default as BodyRings } from './scene/BodyRings.vue'
 export { default as ShadowUpdater } from './scene/ShadowUpdater.vue'

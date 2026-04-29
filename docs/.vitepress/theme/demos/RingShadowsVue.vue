@@ -15,7 +15,7 @@ import OrbitControlsBridge from './OrbitControlsBridge.vue'
  */
 
 const config: BodyConfig = {
-  type:           'gaseous',
+  type:           'planetary', surfaceLook: 'bands',
   name:           'shadow-jove',
   radius:          1.4,
   rotationSpeed:   0.003,

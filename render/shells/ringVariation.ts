@@ -1,5 +1,8 @@
-import type { BodyConfig, BodyType } from '../../types/body.types'
+import type { BodyConfig, SurfaceLook } from '../../types/body.types'
 import { strategyFor } from '../body/bodyTypeStrategy'
+
+// Star bodies short-circuit the generator (`canHaveRings: false`); the
+// planet-only fields (`surfaceLook`, `hasRings`) are read after that gate.
 
 /**
  * Deterministic visual variation for a planet's ring system.
@@ -109,18 +112,18 @@ export const RING_ARCHETYPES: readonly RingArchetype[] = [
 ]
 
 /**
- * Probability (per planet type) that a body carrying `hasRings=true` actually
+ * Probability (per surface look) that a body carrying `hasRings=true` actually
  * produces a `RingVariation`. Physics flag is the gate; these weights merely
- * bias the *appearance* distribution given a candidate planet.
+ * bias the *appearance* distribution given a candidate planet. Stars opt out
+ * via `strategy.canHaveRings` and do not appear here.
  *
  * These could eventually be consumed by the seed generator to decide
  * `hasRings` itself — today the flag is set externally.
  */
-export const RING_SPAWN_WEIGHTS: Record<BodyType, number> = {
-  gaseous:  0.30,
-  rocky:    0.06,
+export const RING_SPAWN_WEIGHTS: Record<SurfaceLook, number> = {
+  bands:    0.30,
+  terrain:  0.06,
   metallic: 0.04,
-  star:     0.00,
 }
 
 // ── Color helpers ────────────────────────────────────────────────────────────
@@ -132,15 +135,15 @@ function pickArchetype(r: () => number): RingArchetype {
   return RING_ARCHETYPES[Math.min(i, RING_ARCHETYPES.length - 1)]
 }
 
-function typePaletteRanges(type: BodyType): { inner: RGBRange, outer: RGBRange } {
-  switch (type) {
-    case 'gaseous':
+function lookPaletteRanges(look: SurfaceLook): { inner: RGBRange, outer: RGBRange } {
+  switch (look) {
+    case 'bands':
       // Icy/silicate debris — warm ochre core fading to pale cream.
       return {
         inner: [[0xc8, 0xa0, 0x60], [0xe8, 0xc4, 0x80]],
         outer: [[0xe0, 0xd0, 0xb0], [0xff, 0xf2, 0xd8]],
       }
-    case 'rocky':
+    case 'terrain':
       // Rocky debris — charcoal to dusty brown.
       return {
         inner: [[0x50, 0x48, 0x42], [0x78, 0x6a, 0x5a]],
@@ -151,11 +154,6 @@ function typePaletteRanges(type: BodyType): { inner: RGBRange, outer: RGBRange }
       return {
         inner: [[0x6a, 0x4c, 0x28], [0x9a, 0x72, 0x3a]],
         outer: [[0xc0, 0x9a, 0x58], [0xe8, 0xc8, 0x88]],
-      }
-    default:
-      return {
-        inner: [[0x80, 0x80, 0x80], [0xb0, 0xb0, 0xb0]],
-        outer: [[0xb0, 0xb0, 0xb0], [0xe0, 0xe0, 0xe0]],
       }
   }
 }
@@ -258,9 +256,12 @@ export function generateRingVariation(
     innerRange = pickExotic(rng)
     outerRange = pickExotic(rng)
   } else {
-    const palette = typePaletteRanges(config.type)
-    innerRange    = palette.inner
-    outerRange    = palette.outer
+    // Stars never reach this branch (filtered below by `canHaveRings`); the
+    // remaining types are planetary, so `surfaceLook` is the relevant key.
+    const surfaceLook = config.type === 'planetary' ? (config.surfaceLook ?? 'terrain') : 'terrain'
+    const palette     = lookPaletteRanges(surfaceLook)
+    innerRange        = palette.inner
+    outerRange        = palette.outer
     // Keep PRNG stream aligned with the exotic branch (2 pickExotic draws).
     rng(); rng()
   }
@@ -294,7 +295,10 @@ export function generateRingVariation(
 
   // Body types that cannot carry a ring system (currently `star`) opt out
   // through the strategy table — defensive even when `hasRings` is set.
-  if (!strategyFor(config.type).canHaveRings || !config.hasRings) return null
+  // `hasRings` lives on `PlanetVisualProfile`, so star configs short-circuit
+  // here regardless of any visual override.
+  if (!strategyFor(config).canHaveRings) return null
+  if (config.type !== 'planetary' || !config.hasRings) return null
 
   return {
     innerRatio,

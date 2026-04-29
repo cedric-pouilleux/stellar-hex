@@ -131,7 +131,7 @@ function onMaxInput(evt: Event) {
   inset: 0;
   height: 28px;
   border-radius: 3px;
-  border: 1px solid #1d2028;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .temp-selected {
@@ -191,8 +191,8 @@ function onMaxInput(evt: Event) {
   cursor: ew-resize;
 }
 
-.temp-thumb:focus-visible::-webkit-slider-thumb { border-color: #4d7dd4; }
-.temp-thumb:focus-visible::-moz-range-thumb     { border-color: #4d7dd4; }
+.temp-thumb:focus-visible::-webkit-slider-thumb { border-color: #c9cdd4; }
+.temp-thumb:focus-visible::-moz-range-thumb     { border-color: #c9cdd4; }
 
 .temp-scale {
   display: flex;

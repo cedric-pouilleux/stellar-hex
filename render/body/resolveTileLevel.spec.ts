@@ -1,22 +1,22 @@
-import { describe, it, expect } from 'vitest'
+﻿import { describe, it, expect } from 'vitest'
 import { resolveTileLevel } from './useBody'
 import { DEFAULT_CORE_RADIUS_RATIO, resolveTerrainLevelCount } from '../../physics/body'
 import type { BodyConfig } from '../../types/body.types'
 
-/** Wet rocky body — sea level sits inside the integer band range. */
+/** Wet rocky body â€” sea level sits inside the integer band range. */
 function wetRocky(): BodyConfig {
   return {
-    name: 'TestWet', type: 'rocky',
+    name: 'TestWet', type: 'planetary', surfaceLook: 'terrain',
     atmosphereThickness: 0.5,
-    liquidType: 'water', liquidState: 'liquid',
+    liquidState: 'liquid',
     radius: 3, rotationSpeed: 0, axialTilt: 0,
   }
 }
 
-/** Dry rocky body — no sea. `seaLevel = -1` from the sim. */
+/** Dry rocky body â€” no sea. `seaLevel = -1` from the sim. */
 function dryRocky(): BodyConfig {
   return {
-    name: 'TestDry', type: 'rocky',
+    name: 'TestDry', type: 'planetary', surfaceLook: 'terrain',
     atmosphereThickness: 0.5,
     liquidState: 'none',
     radius: 3, rotationSpeed: 0, axialTilt: 0,
@@ -40,7 +40,7 @@ describe('resolveTileLevel', () => {
     const seaLevel = 5
     expect(resolveTileLevel(seaLevel, 0)).toBeLessThan(0)
     expect(resolveTileLevel(seaLevel, 3)).toBeLessThan(0)
-    // Immediately below sea level → shallowest ocean band = -1.
+    // Immediately below sea level â†’ shallowest ocean band = -1.
     expect(resolveTileLevel(seaLevel, 4)).toBe(-1)
   })
 
@@ -48,7 +48,7 @@ describe('resolveTileLevel', () => {
     const cfg      = wetRocky()
     const seaLevel = 5
     expect(resolveTileLevel(seaLevel, 9)).toBeGreaterThan(0)
-    // Just above sea level → first land band = +1.
+    // Just above sea level â†’ first land band = +1.
     expect(resolveTileLevel(seaLevel, 6)).toBe(1)
   })
 

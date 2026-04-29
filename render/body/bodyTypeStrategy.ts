@@ -1,23 +1,19 @@
 /**
- * Per-body-type policy table.
+ * Strategy resolution for body rendering.
  *
- * Centralises every decision the lib makes "based on the body's type"
- * (rocky / gaseous / metallic / star) so adding a new type — `'icy'`,
- * `'anomaly'`, … — collapses to a one-table edit instead of hunting
- * `if (config.type === '…')` cascades across `useBody`, `layeredMaterials`,
- * `buildBodyEffectLayer`, `buildInteractiveMesh`, `ringVariation` and
- * `configToLibParams`.
+ * Two top-level body kinds (`'planetary'` / `'star'`) share the same handle
+ * shape but use structurally different mesh pipelines (`useStar` vs the
+ * planetary scene assembler). Stars are a single strategy; planetary bodies
+ * pick a {@link SurfaceLook} ('terrain' / 'bands' / 'metallic') that drives
+ * palette generator + atmo defaults + shader family.
  *
- * Each strategy is a flat data record + two builders (palette + shader
- * params). Callers go through {@link strategyFor} and never branch on
- * `config.type` again. The dispatcher fork between planets and stars
- * inside `useBody` stays as-is — stars use a structurally different
- * mesh pipeline (`useStar`), which is a different concern from the
- * per-type decisions consolidated here.
+ * Adding a new visual archetype on a planet = one entry in
+ * {@link SURFACE_LOOK_STRATEGIES}. Adding a new top-level kind (`'blackhole'`
+ * later) = a new pipeline branch in `useBody`.
  */
 
-import type { BodyConfig } from '../../types/body.types'
-import type { BodyType } from '../../types/surface.types'
+import type { BodyConfig, PlanetConfig, StarConfig } from '../../types/body.types'
+import type { SurfaceLook } from '../../types/surface.types'
 import type { BodyVariation } from './bodyVariation'
 import type { TerrainLevel } from '../../types/terrain.types'
 import type { ParamMap } from '../../shaders/BodyMaterial'
@@ -25,7 +21,7 @@ import { generateTerrainPalette, buildMetallicPalette, buildGasPalette } from '.
 import { buildStarPalette } from '../../terrain/starPalette'
 import { subdividePalette } from '../../terrain/paletteSubdivide'
 import { terrainBandLayout, SPECTRAL_KELVIN, resolveAtmosphereThickness } from '../../physics/body'
-import { getDefaultParams } from '../../shaders'
+import { getDefaultParams, type LibBodyType } from '../../shaders'
 import {
   rockyShaderParams,
   gasShaderParams,
@@ -66,6 +62,14 @@ export interface VariationRanges {
 export interface BodyTypeStrategy {
   /** Human-readable name — used for logs / panels, not for dispatch. */
   readonly displayName: string
+  /**
+   * Shader family used by the procedural material — selects which fragment
+   * shader runs (`rocky.frag`, `gas.frag`, `metallic.frag`, `star.frag`).
+   * Decoupled from the public {@link BodyType} so the shader catalogue can
+   * keep its current names while the public taxonomy moves to
+   * `'planetary' | 'star'` + {@link SurfaceLook}.
+   */
+  readonly shaderType: LibBodyType
   /**
    * `true` when the smooth-sphere display should be flat (no vertex
    * displacement) — currently only stars, whose granulation is a shader
@@ -124,6 +128,24 @@ export interface BodyTypeStrategy {
   buildShaderParams(config: BodyConfig, seed: number, variation?: BodyVariation): ParamMap
 }
 
+// ── Branch narrowing helpers ─────────────────────────────────────────
+//
+// `BodyConfig` is a discriminated union — the strategy-table router
+// (`strategyFor`) only ever calls the planetary strategies with a
+// `PlanetConfig` and the star strategy with a `StarConfig`. These helpers
+// let each strategy callback recover the narrower shape so it can read
+// branch-specific fields (`metallicBands`, `spectralType`…) without a cast.
+
+function asPlanet(config: BodyConfig): PlanetConfig {
+  if (config.type !== 'planetary') throw new Error('Planet strategy received a non-planetary config')
+  return config
+}
+
+function asStar(config: BodyConfig): StarConfig {
+  if (config.type !== 'star') throw new Error('Star strategy received a non-star config')
+  return config
+}
+
 // ── Shared palette helper ─────────────────────────────────────────────
 
 /**
@@ -163,8 +185,9 @@ function remapToIntegerBands(
  */
 const STAR_TILE_REF_FALLBACK = STAR_TILE_REF.G ?? 3.0
 
-const ROCKY_STRATEGY: BodyTypeStrategy = {
-  displayName:             'rocky',
+const TERRAIN_STRATEGY: BodyTypeStrategy = {
+  displayName:             'terrain',
+  shaderType:              'rocky',
   flatSurface:             false,
   displayMeshIsAtmosphere: false,
   canHaveRings:            true,
@@ -177,23 +200,27 @@ const ROCKY_STRATEGY: BodyTypeStrategy = {
     pickCrackBlend: (rng) => Math.floor(rng() * 5),
   },
   tileRefRadius: (config) => config.radius,
-  buildPalette:  (config, count, coreRatio) => generateTerrainPalette(
-    count,
-    config.radius,
-    coreRatio,
-    config.terrainColorLow,
-    config.terrainColorHigh,
-    resolveAtmosphereThickness(config),
-  ),
+  buildPalette:  (config, count, coreRatio) => {
+    const c = asPlanet(config)
+    return generateTerrainPalette(
+      count,
+      c.radius,
+      coreRatio,
+      c.terrainColorLow,
+      c.terrainColorHigh,
+      resolveAtmosphereThickness(c),
+    )
+  },
   buildShaderParams: (config, seed, variation) => ({
     ...getDefaultParams('rocky'),
-    ...rockyShaderParams(config, variation),
+    ...rockyShaderParams(asPlanet(config), variation),
     seed,
   }),
 }
 
-const GASEOUS_STRATEGY: BodyTypeStrategy = {
-  displayName:             'gaseous',
+const BANDS_STRATEGY: BodyTypeStrategy = {
+  displayName:             'bands',
+  shaderType:              'gaseous',
   flatSurface:             false,
   displayMeshIsAtmosphere: true,
   canHaveRings:            true,
@@ -208,17 +235,20 @@ const GASEOUS_STRATEGY: BodyTypeStrategy = {
     pickCrackBlend: (rng) => Math.floor(rng() * 5),
   },
   tileRefRadius: (config) => config.radius,
-  buildPalette:  (config, count, coreRatio) => remapToIntegerBands(
-    buildGasPalette(config.bandColors),
-    count,
-    coreRatio,
-    config.radius,
-    /* flatSurface */ false,
-    resolveAtmosphereThickness(config),
-  ),
+  buildPalette:  (config, count, coreRatio) => {
+    const c = asPlanet(config)
+    return remapToIntegerBands(
+      buildGasPalette(c.bandColors),
+      count,
+      coreRatio,
+      c.radius,
+      /* flatSurface */ false,
+      resolveAtmosphereThickness(c),
+    )
+  },
   buildShaderParams: (config, seed, variation) => ({
     ...getDefaultParams('gaseous'),
-    ...gasShaderParams(config, variation),
+    ...gasShaderParams(asPlanet(config), variation),
     // Gas variation drives the noise field — overridden here so the
     // shader picks up the deterministic seed regardless of which preset
     // the gas params used internally.
@@ -230,6 +260,7 @@ const GASEOUS_STRATEGY: BodyTypeStrategy = {
 
 const METALLIC_STRATEGY: BodyTypeStrategy = {
   displayName:             'metallic',
+  shaderType:              'metallic',
   flatSurface:             false,
   displayMeshIsAtmosphere: false,
   canHaveRings:            true,
@@ -244,23 +275,27 @@ const METALLIC_STRATEGY: BodyTypeStrategy = {
     pickCrackBlend: (rng) => rng() > 0.5 ? 4 : 0,
   },
   tileRefRadius: (config) => config.radius,
-  buildPalette:  (config, count, coreRatio) => remapToIntegerBands(
-    buildMetallicPalette(config.metallicBands),
-    count,
-    coreRatio,
-    config.radius,
-    /* flatSurface */ false,
-    resolveAtmosphereThickness(config),
-  ),
+  buildPalette:  (config, count, coreRatio) => {
+    const c = asPlanet(config)
+    return remapToIntegerBands(
+      buildMetallicPalette(c.metallicBands),
+      count,
+      coreRatio,
+      c.radius,
+      /* flatSurface */ false,
+      resolveAtmosphereThickness(c),
+    )
+  },
   buildShaderParams: (config, seed, variation) => ({
     ...getDefaultParams('metallic'),
-    ...metallicShaderParams(config, variation),
+    ...metallicShaderParams(asPlanet(config), variation),
     seed,
   }),
 }
 
 const STAR_STRATEGY: BodyTypeStrategy = {
   displayName:             'star',
+  shaderType:              'star',
   flatSurface:             true,
   displayMeshIsAtmosphere: false,
   canHaveRings:            false,
@@ -276,20 +311,24 @@ const STAR_STRATEGY: BodyTypeStrategy = {
     lavaScale:      [0.30, 2.50],
     pickCrackBlend: (rng) => Math.floor(rng() * 5),
   },
-  tileRefRadius: (config) => STAR_TILE_REF[config.spectralType ?? 'G'] ?? STAR_TILE_REF_FALLBACK,
-  buildPalette:  (config, count, coreRatio) => remapToIntegerBands(
-    buildStarPalette(config.spectralType ?? 'G'),
-    count,
-    coreRatio,
-    config.radius,
-    /* flatSurface */ true,
-    resolveAtmosphereThickness(config),
-  ),
+  tileRefRadius: (config) => STAR_TILE_REF[asStar(config).spectralType] ?? STAR_TILE_REF_FALLBACK,
+  buildPalette:  (config, count, coreRatio) => {
+    const c = asStar(config)
+    return remapToIntegerBands(
+      buildStarPalette(c.spectralType),
+      count,
+      coreRatio,
+      c.radius,
+      /* flatSurface */ true,
+      resolveAtmosphereThickness(c),
+    )
+  },
   buildShaderParams: (config, seed) => {
-    const temperature = config.spectralType ? (SPECTRAL_KELVIN[config.spectralType] ?? 5778) : 5778
+    const c = asStar(config)
+    const temperature = SPECTRAL_KELVIN[c.spectralType] ?? 5778
     return {
       ...getDefaultParams('star'),
-      ...starShaderParams(config),
+      ...starShaderParams(c),
       seed,
       temperature,
     }
@@ -297,25 +336,26 @@ const STAR_STRATEGY: BodyTypeStrategy = {
 }
 
 /**
- * Strategy table indexed by {@link BodyType}. Add a new type =
- * append one entry here and add the discriminant to the union in
- * `types/surface.types.ts`. Every dispatch in the lib resolves through
- * this record.
+ * Strategy table for planetary surface looks. Adding a new visual archetype
+ * (`'crystalline'`, `'oceanic'`, …) collapses to one entry here plus a new
+ * discriminant in {@link SurfaceLook}.
  */
-export const BODY_TYPE_STRATEGIES: Readonly<Record<BodyType, BodyTypeStrategy>> = {
-  rocky:    ROCKY_STRATEGY,
-  gaseous:  GASEOUS_STRATEGY,
+export const SURFACE_LOOK_STRATEGIES: Readonly<Record<SurfaceLook, BodyTypeStrategy>> = {
+  terrain:  TERRAIN_STRATEGY,
+  bands:    BANDS_STRATEGY,
   metallic: METALLIC_STRATEGY,
-  star:     STAR_STRATEGY,
 }
 
 /**
- * Resolves the strategy for a body type. Throws on an unknown type so
- * forgetting an entry in {@link BODY_TYPE_STRATEGIES} fails loudly during
- * development instead of silently mis-rendering.
+ * Resolves the strategy for a body. Stars use a fixed strategy (their
+ * pipeline is structurally different — see {@link useStar}); planetary
+ * bodies pick a {@link SurfaceLook}, defaulting to `'terrain'` when the
+ * config omits it.
  */
-export function strategyFor(type: BodyType): BodyTypeStrategy {
-  const s = BODY_TYPE_STRATEGIES[type]
-  if (!s) throw new Error(`No body-type strategy registered for "${type}"`)
+export function strategyFor(config: BodyConfig): BodyTypeStrategy {
+  if (config.type === 'star') return STAR_STRATEGY
+  const look = config.surfaceLook ?? 'terrain'
+  const s = SURFACE_LOOK_STRATEGIES[look]
+  if (!s) throw new Error(`No surface-look strategy registered for "${look}"`)
   return s
 }

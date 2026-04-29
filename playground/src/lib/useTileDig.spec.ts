@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+﻿import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   generateHexasphere,
   buildNeighborMap,
@@ -8,7 +8,7 @@ import {
 } from '@lib'
 import { useTileDig, type DigBodyHandle } from './useTileDig'
 
-// ── Test fixtures ─────────────────────────────────────────────────
+// â”€â”€ Test fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const RADIUS         = 1
 const CORE_RATIO     = 0.5
@@ -19,7 +19,7 @@ const INITIAL_BAND   = Math.min(5, BAND_COUNT - 1)
 function makeConfig(): BodyConfig {
   return {
     name:               'test',
-    type:               'rocky',
+    type:               'planetary', surfaceLook: 'terrain',
     radius:             RADIUS,
     temperatureMin:     -50,
     temperatureMax:     50,
@@ -82,7 +82,7 @@ function buildHarness(initialBand = INITIAL_BAND): Harness {
   return { body, tiles, bands, setElevation, centerId: center.id, ringIds }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('useTileDig', () => {
   let h: Harness
@@ -102,7 +102,7 @@ describe('useTileDig', () => {
     expect(touched.size).toBe(1 + h.ringIds.get(1)!.length)
   })
 
-  it('extends the cone to further rings — drop(ring) = max(0, centerDrop - ring)', () => {
+  it('extends the cone to further rings â€” drop(ring) = max(0, centerDrop - ring)', () => {
     const { dig } = useTileDig(h.body)
     dig(h.centerId, { centerDrop: 3, radius: 2 })
 
@@ -120,7 +120,7 @@ describe('useTileDig', () => {
 
   it('stops walking once the ring drop reaches zero, even if radius is larger', () => {
     const { dig } = useTileDig(h.body)
-    // centerDrop=2 but radius=5 → only the centre and ring 1 should change.
+    // centerDrop=2 but radius=5 â†’ only the centre and ring 1 should change.
     dig(h.centerId, { centerDrop: 2, radius: 5 })
 
     expect(h.bands.get(h.centerId)).toBe(INITIAL_BAND - 2)

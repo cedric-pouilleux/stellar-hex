@@ -24,6 +24,14 @@ uniform float     uLiquidNoiseScale;
 uniform float     uLiquidRadius;
 uniform float     uSeaLevel;
 
+// ── Macro continent layer ───────────────────────────────────────────
+// Matches `internal/continents.ts` byte-for-byte. `uContinentAmount = 0`
+// short-circuits the layer entirely so dry / continent-less worlds pay
+// nothing. Seed is uploaded as a vec3 from `continentSeedFromName(name)`.
+uniform float uContinentAmount;
+uniform float uContinentScale;
+uniform vec3  uContinentSeed;
+
 const float SIMPLEX_F3 = 0.333333333;
 const float SIMPLEX_G3 = 0.166666667;
 
@@ -93,9 +101,62 @@ float liquidSimplex3D(vec3 pp) {
   return 32.0 * (n0 + n1 + n2 + n3);
 }
 
+// ── Continent mask (sin-free polynomial hash, byte-identical to TS) ─────────
+// The hash matches `internal/continents.ts:hash3` exactly — any precision
+// drift here will desync the GPU classification from the CPU one on the
+// liquid boundary.
+vec3 continentHash3(vec3 p) {
+  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  // p += dot(p, p.yxz + 33.33)
+  float d = dot(p, p.yxz + vec3(33.33));
+  p += vec3(d);
+  // (p.xxy + p.yxx) * p.zyx
+  return fract((p.xxy + p.yxx) * p.zyx);
+}
+
+float continentMask3D(vec3 unit, float scale, vec3 seedOffset) {
+  vec3 p = unit * scale + seedOffset;
+  vec3 i = floor(p);
+  vec3 f = p - i;
+
+  float f1 = 1e10, f2 = 1e10;
+  float nearestTag = 0.0;
+
+  for (int dz = -1; dz <= 1; dz++) {
+    for (int dy = -1; dy <= 1; dy++) {
+      for (int dx = -1; dx <= 1; dx++) {
+        vec3 cell    = i + vec3(float(dx), float(dy), float(dz));
+        vec3 jitter  = continentHash3(cell);
+        vec3 dv      = vec3(float(dx), float(dy), float(dz)) + jitter - f;
+        float d2     = dot(dv, dv);
+        if (d2 < f1) {
+          f2 = f1;
+          f1 = d2;
+          // Re-hash with a swizzled origin to decorrelate the binary tag from
+          // the jitter — same swizzle as the TS side (cellZ, cellX, cellY).
+          nearestTag = continentHash3(cell.zxy).x;
+        } else if (d2 < f2) {
+          f2 = d2;
+        }
+      }
+    }
+  }
+
+  float sign     = nearestTag > 0.5 ? 1.0 : -1.0;
+  float edge     = sqrt(f2) - sqrt(f1);
+  float softness = smoothstep(0.0, 0.18, edge);
+  return sign * softness;
+}
+
 /** 1.0 on land, 0.0 on submerged tiles — matches the exact tile-level classification. */
 float liquidLandMask(vec3 objectPos) {
   vec3  unit = normalize(objectPos);
   float elev = liquidSimplex3D(unit * uLiquidNoiseScale);
+  // Optional macro continent layer — added in unit-sphere space, same as the
+  // CPU sampler in `BodySimulation.noiseAt`. Gated by amount > 0 so dry /
+  // continent-less worlds pay nothing.
+  if (uContinentAmount > 0.001) {
+    elev += continentMask3D(unit, uContinentScale, uContinentSeed) * uContinentAmount;
+  }
   return step(uSeaLevel, elev);
 }

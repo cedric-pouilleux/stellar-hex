@@ -16,10 +16,7 @@
 
 export { hasSurfaceLiquid } from './liquid'
 
-export {
-  MAX_ATMOSPHERE_THICKNESS_BY_TYPE,
-  resolveAtmosphereThickness,
-} from './atmosphere'
+export { resolveAtmosphereThickness, hasAtmosphere } from './atmosphere'
 
 export {
   DEFAULT_CORE_RADIUS_RATIO,

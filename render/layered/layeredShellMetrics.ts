@@ -1,21 +1,19 @@
 /**
- * Pure shell-dimension math for the layered interactive mesh.
+ * Pure shell-dimension math for the sol interactive mesh.
  *
  * No Three.js allocation, no state — just geometry calculations derived
- * from `BodyConfig`. Extracted so the main factory
- * ({@link buildLayeredInteractiveMesh}) reads as pure orchestration, and
- * the math stays unit-testable without mounting a full body.
+ * from `BodyConfig`. The radial partition `[core | sol | atmo]` stays
+ * the conceptual model:
  *
- * The radial partition is **strict**: the silhouette stays at exactly
- * `config.radius`, and the shell `[0, radius]` is divided as:
+ *   - core     : `[0, coreRadius]`              length `coreRadiusRatio × radius`
+ *   - sol      : `[coreRadius, solOuterRadius]` length `(1 − coreRadiusRatio − atmosphereThickness) × radius`
+ *   - atmo     : `[solOuterRadius, radius]`     length `atmosphereThickness × radius`
  *
- *   - core      : `[0, coreRadius]`            length `coreRadiusRatio × radius`
- *   - sol       : `[coreRadius, solOuterRadius]` length `(1 − coreRadiusRatio − atmosphereThickness) × radius`
- *   - atmosphere: `[solOuterRadius, radius]`   length `atmosphereThickness × radius`
- *
- * Tile elevation is clamped to the sol band so peaks stop at
- * `solOuterRadius`; the atmo shell stays unobstructed regardless of relief
- * height.
+ * The sol mesh built from these metrics covers the **sol band only**. The
+ * atmosphere lives on its own dedicated board mesh ({@link buildAtmoBoardMesh})
+ * — the radial atmo span surfaces here as `atmoFraction` for the board
+ * mesh's caller (`assemblePlanetSceneGraph`) to size its prisms, but no
+ * geometry produced from this module ever sits above `solOuterRadius`.
  */
 
 import type { Tile } from '../../geometry/hexasphere.types'
@@ -30,13 +28,10 @@ import {
 import { getTileLevel } from '../hex/hexMeshShared'
 
 /**
- * Resolves the per-tile sol height inside the unified shell.
- *
- * With the band-indexed elevation model, the palette already encodes
- * `height = elevation * unit` — strictly positive, monotonically
- * increasing. The height is clamped only to `maxHeight` so callers decide
- * whether hex tops may sit above the nominal surface (experimental mode
- * lets them poke through) or should stay inside a fixed envelope.
+ * Resolves the per-tile sol height for the unified shell. Pure look-up
+ * into the palette — the band-indexed elevation model already stamps a
+ * monotonically increasing height on every band, so the resolver only
+ * has to clamp to `maxHeight`.
  */
 export function resolveSolHeight(
   tile:      Tile,
@@ -50,12 +45,12 @@ export function resolveSolHeight(
 }
 
 /**
- * Aggregate of every geometric dimension the layered mesh needs at build
- * time. Everything here is a deterministic function of `sim.config` — no
- * mutable state.
+ * Aggregate of every geometric dimension the sol mesh and the atmo board
+ * builder need at build time. Everything here is a deterministic function
+ * of `sim.config`.
  */
 export interface LayeredShellMetrics {
-  /** Visual surface radius (= `config.radius`) — the body's silhouette. */
+  /** Visual silhouette radius (= `config.radius`). */
   solSurfaceRadius: number
   /** World radius of the opaque inner core sphere. */
   coreRadius:       number
@@ -67,12 +62,8 @@ export interface LayeredShellMetrics {
   maxTerrainHeight: number
   /** Atmosphere band fraction of the radius (`atmosphereThickness ∈ [0, 1]`). */
   atmoFraction:     number
-  /** Atmosphere band thickness in world units (`radius - solOuterRadius`). */
+  /** Atmosphere band thickness in world units (`solSurfaceRadius - solOuterRadius`). */
   atmoHeadroom:     number
-  /** Outer radius of the atmo band — equal to `solSurfaceRadius`. */
-  atmoOuterRadius:  number
-  /** Total shell thickness (`atmoOuterRadius - coreRadius`). */
-  totalThickness:   number
   /** Integer band count `N` for the staircase elevation model. */
   bandCount:        number
   /** Per-band world-unit step. */
@@ -86,22 +77,16 @@ export interface LayeredShellMetrics {
 }
 
 /**
- * Derives every shell + atmo + band dimension used by the layered mesh
- * from a simulation's config.
+ * Derives every shell + atmo + band dimension used by the sol mesh and
+ * the atmo board from a simulation's config.
  *
- * STRICT SILHOUETTE INVARIANCE:
- *   atmoOuterRadius = solSurfaceRadius = config.radius
- *
- * The visible planet size is exactly `config.radius` — never inflated by
- * the atmosphere thickness. Switching between hex and shader views keeps
- * the silhouette identical.
+ * The visible planet silhouette is exactly `config.radius` — the sol mesh
+ * caps at `solOuterRadius`, the atmo board spans
+ * `[solOuterRadius, config.radius]`, and a tile's elevation is clamped to
+ * the sol band so peaks never poke into the atmo region.
  */
 export function computeLayeredShellMetrics(sim: BodySimulation): LayeredShellMetrics {
   const solSurfaceRadius = sim.config.radius
-  // Body-type cap is enforced here — a rocky planet config carrying a
-  // gas-giant `atmosphereThickness` value still rounds down to the rocky
-  // cap, so the sol band stays at the dominantly-rocky proportion the
-  // game design demands.
   const atmoFraction     = resolveAtmosphereThickness(sim.config)
   const coreRatio        = resolveCoreRadiusRatio(sim.config)
   const coreRadius       = solSurfaceRadius * coreRatio
@@ -109,8 +94,6 @@ export function computeLayeredShellMetrics(sim: BodySimulation): LayeredShellMet
   const shellThickness   = Math.max(0, solOuterRadius - coreRadius)
   const maxTerrainHeight = shellThickness
   const atmoHeadroom     = solSurfaceRadius - solOuterRadius
-  const atmoOuterRadius  = solSurfaceRadius
-  const totalThickness   = atmoOuterRadius - coreRadius
 
   const bandCount    = resolveTerrainLevelCount(sim.config.radius, coreRatio, atmoFraction)
   const bandLayout   = terrainBandLayout(sim.config.radius, coreRatio, bandCount, atmoFraction)
@@ -125,8 +108,6 @@ export function computeLayeredShellMetrics(sim: BodySimulation): LayeredShellMet
     maxTerrainHeight,
     atmoFraction,
     atmoHeadroom,
-    atmoOuterRadius,
-    totalThickness,
     bandCount,
     bandUnit,
     bandToRadius,

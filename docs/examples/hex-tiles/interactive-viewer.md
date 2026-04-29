@@ -28,23 +28,25 @@ scene.add(body.group)
 
 // par frame :
 raycaster.setFromCamera(pointer, camera)
-const tileId = body.interactive.queryHover(raycaster)
-body.hover.setTile(tileId)
+const ref = body.interactive.queryHover(raycaster)  // { layer, tileId } | null
+body.hover.setBoardTile(ref)                         // dispatch ring + emissive (+ column en liquid)
 
-// lecture de l'état :
-const state = body.sim.tileStates.get(tileId)
-const h     = resolveTileHeight(config, state.elevation)
+// lecture de l'état (sol uniquement) :
+if (ref?.layer === 'sol') {
+  const state = body.sim.tileStates.get(ref.tileId)
+  const h     = resolveTileHeight(config, state.elevation)
+}
 ```
 
 ## Trois APIs en jeu
 
 | API | Rôle |
 | --- | ---- |
-| `body.interactive.activate()`     | Active le mesh hex (sinon : sphère lisse, pas raycastable) |
-| `body.interactive.queryHover(r)`  | Renvoie l'id de la tuile sous le rayon (ou `null`) |
-| `body.hover.setTile(id)`          | Pose le surlignage visuel (overlay + couleur de tuile) |
+| `body.interactive.activate()`         | Active le mesh hex (sinon : sphère lisse, pas raycastable) |
+| `body.interactive.queryHover(r)`      | Renvoie `{ layer, tileId }` sous le rayon, ou `null`. Layer ∈ `'sol' \| 'liquid' \| 'atmo'`. |
+| `body.hover.setBoardTile(ref)`        | Dispatch le visuel sur le bon layer (ring + emissive + column si liquid) |
 
-Le découpage **query / set** sert à laisser le caller décider de la politique de hover (debounce, multi-hover, hover sticky, etc.).
+Le découpage **query / set** laisse le caller décider de la politique de hover (debounce, multi-hover, hover sticky, etc.) et de l'apparence (couleur du ring, intensité de l'emissive, switch de presets) — voir le [guide curseur](/guides/hover-cursor).
 
 ## Coût
 

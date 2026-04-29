@@ -55,7 +55,9 @@ export function buildMergedGeometry(
   // a gap where their bottom meets the (lower) neighbouring ocean-floor
   // tile's top. Frozen and dry bodies don't need the basement extension,
   // and gaseous/metallic/star configs never do regardless of `liquidState`.
-  const surfaceIsLiquid = hasSurfaceLiquid(sim.config) && sim.config.liquidState === 'liquid'
+  const surfaceIsLiquid = hasSurfaceLiquid(sim.config)
+    && sim.config.type === 'planetary'
+    && sim.config.liquidState === 'liquid'
   const basementHeight  = surfaceIsLiquid ? levels[0].height : 0
 
   let vertexOffset = 0
@@ -74,7 +76,7 @@ export function buildMergedGeometry(
     // Bake the palette-only visual for the tile: base colour folded with
     // the palette's emissive (lava on volcanic rocky, sun granulation on
     // stars). Resource-aware tinting now lives entirely off-lib — callers
-    // paint on top via `body.tiles.applyTileOverlay` after construction.
+    // paint on top via `body.tiles.sol.applyOverlay` after construction.
     const rough         = level.roughness         ?? 0.85
     const metal         = level.metalness         ?? 0.0
     const emissive      = level.emissive

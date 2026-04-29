@@ -8,16 +8,18 @@
  * without rebuilding the mesh (unless inner/outer ratios change, which force
  * a RingGeometry rebuild inside the builder).
  *
- * The ring shader auto-discovers the scene's dominant light source for its
- * backlight / shadow math — no sun prop. Time scrubbing (pause / speed
- * multiplier) is a caller concern: pass a scaled `dt` upstream of `tick()`
- * (or omit the call entirely to freeze) — this component does not own that
- * concept.
+ * Sun position: the lib core requires an explicit `sunWorldPos` for the
+ * rings' shadow + backlight math. This wrapper accepts the prop verbatim;
+ * when omitted, it falls back to per-frame `findDominantLightWorldPos`
+ * traversal of the scene root, preserving the plug-and-play ergonomics
+ * for simple `<Body>` scenes that just have a single point/directional
+ * light. Multi-star scenes pass the resolved sun ref explicitly.
  */
 import { onMounted, onBeforeUnmount, watch } from 'vue'
 import * as THREE from 'three'
 import { useLoop } from '@tresjs/core'
 import { buildBodyRings } from '../render/shells/buildBodyRings'
+import { findSceneRoot, findDominantLightWorldPos } from '../render/lighting/findDominantLight'
 import type { RingVariation } from '../render/shells/ringVariation'
 
 const props = defineProps<{
@@ -29,17 +31,32 @@ const props = defineProps<{
   rotationSpeed:    number
   /** Deterministic ring variation produced by planetVariation. */
   variation:        RingVariation
+  /**
+   * Optional caller-driven sun world-space position. When provided, the
+   * wrapper wires it directly into the ring shader (no traversal). When
+   * omitted, the wrapper does a per-frame `findDominantLightWorldPos`
+   * over the scene root — handy for simple scenes with a single
+   * point/directional light.
+   */
+  sunWorldPos?:     THREE.Vector3
 }>()
 
 // Mutable Vector3 the builder reads by reference — refreshed on every
 // render before `tick()` so the shader sees the up-to-date world pos.
 const planetWorldPos = new THREE.Vector3()
 
+// When the caller doesn't push a sun ref, the wrapper owns one and
+// refreshes it via the scene-traversal helper each frame. Otherwise we
+// alias the caller's vector and skip the traversal entirely.
+const ownsSunRef     = props.sunWorldPos === undefined
+const sunWorldPos    = props.sunWorldPos ?? new THREE.Vector3()
+
 const rings = buildBodyRings({
   radius:         props.radius,
   rotationSpeed:  props.rotationSpeed,
   variation:      props.variation,
   planetWorldPos,
+  sunWorldPos,
 })
 
 watch(() => props.variation, v => rings.updateVariation(v), { deep: true })
@@ -49,6 +66,11 @@ const { off: stopLoop }   = onBeforeRender(({ delta }) => {
   // Refresh the planet's world position before tick — `rings.tick` and the
   // shader read `planetWorldPos` by reference.
   props.group.getWorldPosition(planetWorldPos)
+  // Auto-discover the dominant light only when the caller didn't push
+  // its own sun ref — otherwise the caller's update is authoritative.
+  if (ownsSunRef && rings.mesh.parent) {
+    findDominantLightWorldPos(findSceneRoot(rings.mesh), sunWorldPos)
+  }
   rings.tick(delta)
 })
 

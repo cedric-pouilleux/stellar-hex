@@ -35,7 +35,7 @@ function setInt<K extends 'centerDrop' | 'radius'>(key: K, evt: Event) {
 </script>
 
 <template>
-  <details class="group" open>
+  <details class="group">
     <summary>Creusage / Impact</summary>
     <div class="group-body">
       <div class="row">

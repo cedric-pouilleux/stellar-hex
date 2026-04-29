@@ -23,10 +23,9 @@
  */
 
 import * as THREE from 'three'
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { Tile } from '../../geometry/hexasphere.types'
 import type { TerrainLevel } from '../../types/terrain.types'
-import { buildPrismGeometry } from '../hex/hexPrismGeometry'
+import { buildHexShellGeometry, writeTilePrism } from './hexShellGeometry'
 
 // ── Public types ──────────────────────────────────────────────────
 
@@ -121,127 +120,6 @@ export interface SolidShellHandle {
   dispose: () => void
 }
 
-// ── Internal helpers ──────────────────────────────────────────────
-
-/**
- * Linearly interpolates between palette band heights so a fractional band
- * resolves to a smooth world-space height. Out-of-range bands clamp.
- */
-function bandToWorldHeight(band: number, palette: TerrainLevel[]): number {
-  const N = palette.length
-  if (N === 0) return 0
-  const clamped = Math.max(0, Math.min(N - 1, band))
-  const lo = Math.floor(clamped)
-  const hi = Math.min(N - 1, lo + 1)
-  const frac = clamped - lo
-  return palette[lo].height + (palette[hi].height - palette[lo].height) * frac
-}
-
-/** Vertex range in the merged buffer for a single tile. */
-interface TileSlot {
-  tile:     Tile
-  baseBand: number
-  start:    number
-  count:    number
-}
-
-/**
- * Re-extrudes the prism geometry of a tile into the shared position
- * buffer at the tile's known vertex range. Used both at build time (full
- * extrusion) and at runtime (`lowerTile` / `removeTile`).
- *
- * When `topBand <= baseBand` the prism is fully collapsed: every vertex
- * of the slot range — top cap AND walls — is forced onto the tile's base
- * centre point. All triangles thus degenerate (zero-area), the GPU drops
- * them at primitive-assembly time, and the raycaster never hits them.
- * This is what makes a `removeTile`d cap actually disappear (a partial
- * collapse leaves the flat top cap hexagon floating at base height —
- * exactly the artefact users see when "the destroyed tile keeps its
- * top face").
- *
- * `heightOffset` shifts every band height to the absolute world frame
- * `buildPrismGeometry` expects (`tileLen + delta`). The lib's sol mesh
- * extrudes from `coreRadius`, but `buildPrismGeometry` extrudes from the
- * tile's own length (= `bodyRadius`), so we add `coreRadius - bodyRadius`
- * to land on the same anchor as the underlying floor.
- */
-function writeTilePrism(
-  positions:    Float32Array,
-  normals:      Float32Array,
-  slot:         TileSlot,
-  topBand:      number,
-  palette:      TerrainLevel[],
-  heightOffset: number,
-): void {
-  const baseHeight = bandToWorldHeight(slot.baseBand, palette)             + heightOffset
-  const clampedTop = Math.max(slot.baseBand, topBand)
-  const topHeight  = bandToWorldHeight(clampedTop, palette) + heightOffset
-
-  // Fully-collapsed slot: every vertex of the slot collapses onto the
-  // tile's base centre point. The top cap, the walls — everything goes
-  // there. Result: every triangle is a 0-area degenerate, no fragments,
-  // no raycast hit, no visible artefact.
-  if (clampedTop <= slot.baseBand) {
-    const c   = slot.tile.centerPoint
-    const len = Math.sqrt(c.x * c.x + c.y * c.y + c.z * c.z) || 1
-    const scale = (len + baseHeight) / len
-    const cx = c.x * scale
-    const cy = c.y * scale
-    const cz = c.z * scale
-    const nx = c.x / len
-    const ny = c.y / len
-    const nz = c.z / len
-    const start = slot.start * 3
-    const end   = (slot.start + slot.count) * 3
-    for (let i = start; i < end; i += 3) {
-      positions[i]     = cx
-      positions[i + 1] = cy
-      positions[i + 2] = cz
-      normals[i]       = nx
-      normals[i + 1]   = ny
-      normals[i + 2]   = nz
-    }
-    return
-  }
-
-  // Standing prism — full top cap + walls.
-  const geo = buildPrismGeometry(slot.tile, topHeight, baseHeight)
-  const src = geo.getAttribute('position').array as Float32Array
-  const nrm = geo.getAttribute('normal').array   as Float32Array
-
-  positions.set(src, slot.start * 3)
-  normals.set(nrm, slot.start * 3)
-
-  // `buildPrismGeometry` skips the wall vertices when the resulting
-  // prism is degenerate. Because `clampedTop > slot.baseBand` here, this
-  // branch normally produces the full vertex set (top + walls), but a
-  // micro-thin prism could still emit fewer vertices than the slot
-  // allocated at build time. Pad any unused tail with the base centre
-  // so leftover triangles stay degenerate.
-  const writtenFloats = src.length
-  const totalFloats   = slot.count * 3
-  if (writtenFloats < totalFloats) {
-    const c   = slot.tile.centerPoint
-    const len = Math.sqrt(c.x * c.x + c.y * c.y + c.z * c.z) || 1
-    const scale = (len + baseHeight) / len
-    const cx = c.x * scale
-    const cy = c.y * scale
-    const cz = c.z * scale
-    const start = slot.start * 3 + writtenFloats
-    const end   = (slot.start + slot.count) * 3
-    for (let i = start; i < end; i += 3) {
-      positions[i]     = cx
-      positions[i + 1] = cy
-      positions[i + 2] = cz
-      normals[i]       = c.x / len
-      normals[i + 1]   = c.y / len
-      normals[i + 2]   = c.z / len
-    }
-  }
-
-  geo.dispose()
-}
-
 // ── Builder ───────────────────────────────────────────────────────
 
 /**
@@ -254,62 +132,27 @@ function writeTilePrism(
  */
 export function buildSolidShell(config: SolidShellConfig): SolidShellHandle {
   const {
-    tiles,
-    baseElevation,
-    topElevation,
-    palette,
-    bodyRadius,
-    coreRadius,
-    color,
-    roughness = 0.8,
-    metalness = 0.0,
+    tiles, baseElevation, topElevation, palette, bodyRadius, coreRadius,
+    color, roughness = 0.8, metalness = 0.0,
   } = config
-
-  // Sol mesh extrudes from coreRadius, prismGeometry extrudes from the
-  // tile's own length (== bodyRadius). The offset bridges the two so the
-  // cap walls meet the underlying mineral cap exactly.
-  const heightOffset = coreRadius - bodyRadius
-
-  // Filter eligible tiles + bake initial prism geometries. Skipping
-  // happens here so the rest of the builder works with a packed list.
-  const slots:      TileSlot[]            = []
-  const geometries: THREE.BufferGeometry[] = []
-  const slotByTileId = new Map<number, TileSlot>()
-  const currentTopBand = new Map<number, number>()
-
-  let vertexOffset = 0
-  for (const tile of tiles) {
-    const base = baseElevation.get(tile.id)
-    if (base === undefined) continue
-    if (base >= topElevation)  continue   // no room for ice above
-
-    const baseHeight = bandToWorldHeight(base, palette)         + heightOffset
-    const topHeight  = bandToWorldHeight(topElevation, palette) + heightOffset
-    const geo        = buildPrismGeometry(tile, topHeight, baseHeight)
-    const count      = geo.getAttribute('position').count
-
-    const slot: TileSlot = { tile, baseBand: base, start: vertexOffset, count }
-    slots.push(slot)
-    slotByTileId.set(tile.id, slot)
-    currentTopBand.set(tile.id, topElevation)
-    geometries.push(geo)
-    vertexOffset += count
-  }
 
   const group = new THREE.Group()
   group.name  = 'solid-shell'
 
+  const shell = buildHexShellGeometry({
+    tiles, baseElevation, topElevation, palette, bodyRadius, coreRadius,
+  })
+
   // Empty cap: return a no-op handle with a hidden placeholder mesh so the
   // caller can unconditionally hold the handle without null-checks.
-  if (geometries.length === 0) {
+  if (!shell) {
     const empty   = new THREE.BufferGeometry()
     const mat     = new THREE.MeshStandardMaterial({ color, roughness, metalness })
     const mesh    = new THREE.Mesh(empty, mat)
     mesh.visible  = false
     group.add(mesh)
     return {
-      group,
-      mesh,
+      group, mesh,
       faceToTileId:    [],
       lowerTile:       () => undefined,
       removeTile:      () => { /* no-op */ },
@@ -322,28 +165,12 @@ export function buildSolidShell(config: SolidShellConfig): SolidShellHandle {
     }
   }
 
-  const merged = mergeGeometries(geometries)
-  geometries.forEach(g => g.dispose())
-
-  // Build the face → tile id lookup in lockstep with the merge order. Each
-  // triangle is 3 contiguous vertices in a non-indexed buffer, so a slot
-  // contributing `count` vertices owns `count / 3` consecutive faces.
-  const faceToTileId: number[] = []
-  for (const slot of slots) {
-    const faces = slot.count / 3
-    for (let f = 0; f < faces; f++) faceToTileId.push(slot.tile.id)
-  }
-
-  const positions = merged.getAttribute('position').array as Float32Array
-  const normals   = merged.getAttribute('normal').array   as Float32Array
-  const positionAttr = merged.getAttribute('position') as THREE.BufferAttribute
-  const normalAttr   = merged.getAttribute('normal')   as THREE.BufferAttribute
+  const { merged, slots, slotByTileId, faceToTileId, positionAttr, normalAttr, heightOffset, currentTopBand } = shell
+  const positions = positionAttr.array as Float32Array
+  const normals   = normalAttr.array   as Float32Array
 
   const material = new THREE.MeshStandardMaterial({
-    color,
-    roughness,
-    metalness,
-    side: THREE.FrontSide,
+    color, roughness, metalness, side: THREE.FrontSide,
   })
   const mesh = new THREE.Mesh(merged, material)
   mesh.name           = 'solid-shell-mesh'
@@ -364,9 +191,7 @@ export function buildSolidShell(config: SolidShellConfig): SolidShellHandle {
   }
 
   return {
-    group,
-    mesh,
-    faceToTileId,
+    group, mesh, faceToTileId,
     lowerTile(tileId, bandsDelta) {
       if (!(bandsDelta >= 0)) return undefined
       const cur = currentTopBand.get(tileId)
@@ -379,13 +204,10 @@ export function buildSolidShell(config: SolidShellConfig): SolidShellHandle {
       setTileTop(tileId, slot.baseBand)
     },
     setTopElevation(newTopBand) {
-      // Re-extrude every standing prism so the cap surface tracks a moving
-      // sea level (driven by an external sea-level slider on the caller).
-      // Tiles already mined to their base stay collapsed.
       let touched = false
       for (const slot of slots) {
         const cur = currentTopBand.get(slot.tile.id)
-        if (cur === undefined || cur <= slot.baseBand) continue   // collapsed → keep
+        if (cur === undefined || cur <= slot.baseBand) continue
         const clamped = Math.max(slot.baseBand, newTopBand)
         if (clamped === cur) continue
         writeTilePrism(positions, normals, slot, clamped, palette, heightOffset)

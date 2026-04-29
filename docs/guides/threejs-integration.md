@@ -50,7 +50,7 @@ camera.position.set(0, 0, 4)
 | `body.palette`       | tous | La palette terrain résolue |
 | `body.variation`     | tous | Variations procédurales dérivées du seed (anneaux, etc.) |
 | `body.interactive`   | tous | Setters de mode interactif (smooth ↔ hex) |
-| `body.hover`         | tous | API hover (tuile survolée) |
+| `body.hover`         | tous | API hover unifié — ring + emissive light + column (cf. [guide curseur](/guides/hover-cursor)) |
 | `body.tiles`         | tous | API per-tile (visuels, couleurs) — étendue sur les planètes |
 | `body.liquid`        | planet | Niveau de la mer dynamique |
 | `body.view`          | planet | Mode de visualisation (`surface \| atmosphere \| shader`) |
@@ -126,7 +126,7 @@ if (body.variation.rings) {
 
 ### Liquide
 
-Le liquide est intégré au mesh principal pour les mondes rocheux. Pour un contrôle direct (preview, scène headless qui passe l'override de palette, etc.), `buildLiquidSphere(...)` est exporté depuis `/core` et accepte `liquidColor`, `seaLevelElevation` et le profil de vagues.
+Le liquide est intégré au mesh principal pour les mondes rocheux : `buildLayeredInteractiveMesh` empile une coquille hexagonale (`buildLiquidShell`) sur les tuiles submergées, top fan animé (vagues / foam / caustics) au niveau de la mer, sans murs. Pour un contrôle direct (preview, scène headless), `buildLiquidShell(...)` est exporté depuis `/core` et accepte les tuiles cibles, `baseElevation`, `topElevation`, `palette`, `color` et un bag `graphicsUniforms` pour piloter les uniforms de vagues / opacité / fresnel.
 
 ### Atmosphère opaque (gazeuses)
 

@@ -1,13 +1,13 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
- * Three.js demo — playable atmosphere band.
+ * Three.js demo â€” playable atmosphere band.
  *
  * Mounts a rocky body in interactive hex mode + atmosphere view: the
  * sol prisms are hidden and the demo renders the *atmo band* of the
  * LayeredInteractiveMesh instead. Each hex on screen is a tile of the
- * atmospheric shell — hover to inspect, click to "pollute" (paint).
+ * atmospheric shell â€” hover to inspect, click to "pollute" (paint).
  *
  * Switch back to the surface view to see the relief; both share the
  * same tile ids, so a paint applied here keeps its identity across
@@ -64,7 +64,7 @@ onMounted(async () => {
   orbit.maxDistance = 8
 
   const body = useBody({
-    type:                'rocky',
+    type:                'planetary', surfaceLook: 'terrain',
     name:                'atmo-playable',
     radius:               1,
     rotationSpeed:        0,
@@ -103,11 +103,9 @@ onMounted(async () => {
   }
   function onClick() {
     raycaster.setFromCamera(pointer, camera)
-    const id = body.interactive.queryHover(raycaster)
-    if (id != null) {
-      // Paint the atmo band: stamp on the 'atmo' layer, not 'sol'.
-      // Same tile id, different layer — surface paint stays separate.
-      body.tiles.applyTileOverlay('atmo', new Map([[id, TINT]]))
+    const ref = body.interactive.queryHover(raycaster)
+    if (ref?.layer === 'atmo' && body.tiles.atmo) {
+      body.tiles.atmo.applyOverlay(new Map([[ref.tileId, TINT]]))
     }
   }
   renderer.domElement.addEventListener('pointermove',  onPointerMove)
@@ -126,10 +124,11 @@ onMounted(async () => {
 
     if (pointerIn) {
       raycaster.setFromCamera(pointer, camera)
-      const id = body.interactive.queryHover(raycaster)
-      body.hover.setTile(id)
-      if (id != null) {
-        const state = body.sim.tileStates.get(id)
+      const ref = body.interactive.queryHover(raycaster)
+      body.hover.setBoardTile(ref)
+      if (ref != null) {
+        const id    = ref.tileId
+        const state = ref.layer === 'sol' ? body.sim.tileStates.get(id) : null
         if (state) tooltip.value = { id, elevation: state.elevation }
       } else {
         tooltip.value = null
@@ -166,9 +165,9 @@ onBeforeUnmount(() => cleanup?.())
         :style="{ left: tipPos.x + 'px', top: tipPos.y + 'px' }"
       >
         <div class="atmo-tip__row"><span class="k">Tile</span><span class="v">#{{ tooltip.id }}</span></div>
-        <div class="atmo-tip__row"><span class="k">Élév.</span><span class="v">{{ tooltip.elevation }}</span></div>
+        <div class="atmo-tip__row"><span class="k">Ã‰lÃ©v.</span><span class="v">{{ tooltip.elevation }}</span></div>
       </div>
-      <p class="atmo-hint">Survol = info · Clic = peindre la tuile atmo</p>
+      <p class="atmo-hint">Survol = info Â· Clic = peindre la tuile atmo</p>
     </div>
 
     <div class="atmo-bar">
@@ -177,8 +176,8 @@ onBeforeUnmount(() => cleanup?.())
           class="atmo-pill"
           :style="{ transform: view === 'atmo' ? 'translateX(0)' : 'translateX(calc(100% + 6px))' }"
         />
-        <button class="atmo-btn" :class="{ on: view === 'atmo' }" @click="view = 'atmo'">⬢ Atmosphère</button>
-        <button class="atmo-btn" :class="{ on: view === 'sol'  }" @click="view = 'sol'">⬢ Sol</button>
+        <button class="atmo-btn" :class="{ on: view === 'atmo' }" @click="view = 'atmo'">â¬¢ AtmosphÃ¨re</button>
+        <button class="atmo-btn" :class="{ on: view === 'sol'  }" @click="view = 'sol'">â¬¢ Sol</button>
       </div>
     </div>
   </div>

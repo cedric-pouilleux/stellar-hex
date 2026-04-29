@@ -46,7 +46,7 @@ onMounted(async () => {
   orbit.maxDistance = 8
 
   const config = {
-    type:                'rocky' as const,
+    type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'frozen-demo',
     radius:               1,
     rotationSpeed:        0,

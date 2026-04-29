@@ -97,7 +97,6 @@ export function makeInteractiveController(
   }
 
   function deactivateInteractive(): void {
-    interactive.setHover(null)
     interactive.setFill(false)
     group.remove(interactive.group)
     if (manageDisplay) group.add(displayMesh)

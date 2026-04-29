@@ -47,7 +47,7 @@ onMounted(async () => {
   orbit.maxDistance = 12
 
   const body = useBody({
-    type:           'gaseous',
+    type:           'planetary', surfaceLook: 'bands',
     name:           'shadow-jove',
     radius:          1.4,
     rotationSpeed:   0.003,
@@ -66,11 +66,13 @@ onMounted(async () => {
   let rings: ReturnType<typeof buildBodyRings> | null = null
   if (body.variation.rings) {
     const planetWorldPos = new THREE.Vector3()
+    const sunWorldPos    = new THREE.Vector3()
     rings = buildBodyRings({
       radius:        body.config.radius,
       rotationSpeed: body.config.rotationSpeed,
       variation:     body.variation.rings,
       planetWorldPos,
+      sunWorldPos,
     })
     body.group.add(rings.carrier)
 
@@ -93,6 +95,7 @@ onMounted(async () => {
       orbit.update()
       body.tick(dt)
       body.group.getWorldPosition(planetWorldPos)
+      sun.getWorldPosition(sunWorldPos)
       rings!.tick(dt)
       renderer.render(scene, camera)
     }

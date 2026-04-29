@@ -7,9 +7,7 @@ La lib expose **un seul matériau procédural** par type de corps via la classe 
 ```ts
 import {
   BodyMaterial,
-  BODY_TYPES,
   BODY_PARAMS,
-  BODY_GROUPS,
   getDefaultParams,
   SHADER_RANGES,
 } from '@cedric-pouilleux/stellar-hex/core'
@@ -21,12 +19,12 @@ const material = new BodyMaterial({ type: 'rocky', params })
 | Symbole | Rôle |
 | ------- | ---- |
 | `BodyMaterial`     | Classe — wrap un `THREE.ShaderMaterial` typé par type de corps |
-| `BODY_TYPES`       | `Array<{ id: LibBodyType, label, icon }>` — catalogue UI des types `'rocky' \| 'gaseous' \| 'metallic' \| 'star'` |
-| `BODY_PARAMS`      | Définitions complètes des paramètres par type (label, range, default) |
-| `BODY_GROUPS`      | Regroupement UI (Terrain, Couleurs, Fissures, Lave, Couronne, …) |
+| `BODY_PARAMS`      | Schéma des paramètres par type (`type`, `min/max/step`, `default`, `optionCount`) — sans labels d'affichage |
 | `getDefaultParams` | Renvoie les valeurs par défaut pour un type donné |
 | `SHADER_RANGES`    | Bornes min/max/step des sliders |
 | `GodRaysShader`    | Pass post-processing god rays |
+
+> **Display labels & UI groups.** La lib n'embarque pas de labels d'affichage ni de regroupement par section — i18n et organisation UI sont à la charge du caller. Le playground maintient un dictionnaire local `paramLabels.ts` (labels anglais + groupes + libellés des `select`) que tu peux reprendre comme référence.
 
 ## Pousser des paramètres en temps réel
 
@@ -44,24 +42,77 @@ material.setParams({
 
 Les types numériques sont convertis en `float`, les chaînes hex (`'#rrggbb'`) sont parsées en `THREE.Color`. Les paramètres inconnus pour le type courant sont **silencieusement ignorés** — vous pouvez maintenir un dictionnaire global et laisser chaque matériau ne consommer que ce qui le concerne.
 
-## Construire une UI à partir des métadonnées
+## Construire une UI à partir du schéma
 
-`BODY_PARAMS[type]` liste tous les paramètres consommés, avec assez de méta pour générer un panneau automatiquement :
+`BODY_PARAMS[type]` liste tous les paramètres consommés avec leur type, leurs bornes et leur valeur par défaut. Les labels affichés et le groupement par section sont à toi — le playground maintient un dictionnaire local pour son propre panneau.
 
 ```ts
-import { BODY_PARAMS, BODY_GROUPS, SHADER_RANGES } from '@cedric-pouilleux/stellar-hex/core'
+import { BODY_PARAMS, SHADER_RANGES } from '@cedric-pouilleux/stellar-hex/core'
 
-for (const group of BODY_GROUPS.rocky) {
-  console.log(group.label) // 'Terrain', 'Couleurs', 'Fissures'…
-  for (const key of group.keys) {
-    const def   = BODY_PARAMS.rocky[key]
-    const range = SHADER_RANGES[key]
-    // def.label, def.default, range.min, range.max, range.step…
-  }
+// Caller-side label dictionary — adapt to your i18n / UX.
+const LABELS: Record<string, string> = {
+  roughness:   'Roughness',
+  crackAmount: 'Cracks',
+  // …
+}
+
+for (const [key, def] of Object.entries(BODY_PARAMS.rocky)) {
+  const label = LABELS[key] ?? key
+  // def.type, def.default, def.min, def.max, def.step, def.optionCount…
 }
 ```
 
-C'est exactement ce que fait `playground/src/components/ShaderControls.vue` — vous pouvez l'utiliser comme référence.
+`playground/src/components/ShaderControls.vue` + `playground/src/lib/paramLabels.ts` montrent un exemple complet de panneau auto-généré à partir du schéma.
+
+## Variations & identité visuelle par planète
+
+La lib expose plusieurs leviers de variabilité automatique (déterministes du `name` du body) ou pilotables via le panneau shader.
+
+### Relief terrain — archetypes (rocky, metallic)
+
+`terrainArchetype` (entier 0–3) sélectionne la forme du FBm utilisé pour le relief :
+
+| Index | Archétype | Effet |
+| ----- | --------- | ----- |
+| `0` | Lisse (FBM) | Bosses douces classiques (défaut) |
+| `1` | Crêtes (Ridged) | Arêtes nettes, chaînes de montagnes |
+| `2` | Dunes (Billow) | Mounds arrondis, dunes |
+| `3` | Hybride | Plaines en dunes + sommets en crêtes |
+
+L'archetype est consommé **à la fois** par le vertex shader (displacement géométrique) et le fragment (motif coloré), donc la silhouette suit le pattern.
+
+```ts
+material.setParams({ terrainArchetype: 1 })  // crêtes
+```
+
+En complément, le shader rocky module l'amplitude du domain-warp via `hash1(uSeed)` — chaque planète a une « tortuosité » distincte sans aucune action utilisateur.
+
+### Atmosphère — halo et nuages (rocky, metallic)
+
+Le bloc **Atmosphère** centralise tout ce qui pilote l'atmo shell live (sans rebuild) :
+
+| Param | Effet |
+| ----- | ----- |
+| `atmoTint` | Couleur du halo — Mars rouille, Vénus jaune, Pluton bleu glacé |
+| `atmoOpacity` | Opacité globale du halo |
+| `atmoColorMix` | Mix entre tint procédural et couleurs des tuiles peintes |
+| `waveAmount` / `waveColor` / `waveScale` / `waveSpeed` | Couche nuages (couverture, teinte, fréquence, vitesse de drift) |
+| `cloudPattern` | Preset structurel : `Dispersé` / `Cyclones` / `Voile` |
+
+`cloudPattern` configure simultanément `bandiness`, `turbulence`, `storms` et `bandFreq` de l'atmo shell pour produire des identités atmosphériques distinctes — Terre cycloned, Vénus voilée, etc.
+
+### Tempêtes — vortex (gaseous)
+
+Les géantes gazeuses portent jusqu'à **3 vortex ovales** (taches type Jupiter) dont la position, la taille et le sens de rotation sont dérivés du seed du body. Pilotables via :
+
+| Param | Effet |
+| ----- | ----- |
+| `stormStrength` | Visibilité globale (`0` = vortex désactivés) |
+| `stormColor` | Couleur dédiée des taches (indépendante du palette gaz) |
+| `stormSize` | Multiplicateur de rayon (0.3 = mini ovales, 2.5 = grandes bandes) |
+| `stormEyeStrength` | Intensité de l'œil sombre central |
+
+Chaque vortex a une structure à 3 zones (couronne extérieure, cœur saturé avec spirale animée, œil sombre) et bende localement les bandes du gaz.
 
 ## Étoiles : conversion Kelvin → couleur
 

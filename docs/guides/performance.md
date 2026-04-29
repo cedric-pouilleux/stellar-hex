@@ -50,7 +50,7 @@ Chaque couche est une draw call supplémentaire :
 | ------ | -------------- |
 | `<BodyRings>`         | 1 disque + alpha test (faible) |
 | `buildAtmoShell`      | 1 sphère + uniforms atmo (modéré, géantes gazeuses) |
-| `buildLiquidSphere`   | 1 sphère + vagues (modéré, mondes liquides) |
+| `buildLiquidShell`    | 1 coquille hex top-fan + vagues animées sur la face supérieure (modéré, mondes liquides) |
 | God rays              | 1 pass post-process (élevé) |
 
 Astuce : sur les vues système (multi-corps loin), désactivez les god rays et basculez les corps en mode shader (sans hex), ce qui supprime à la fois le BVH et l'overlay de tuiles.

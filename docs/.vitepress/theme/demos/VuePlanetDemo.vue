@@ -10,7 +10,7 @@ import OrbitControlsBridge from './OrbitControlsBridge.vue'
  */
 
 const config: BodyConfig = {
-  type:                'rocky',
+  type:                'planetary', surfaceLook: 'terrain',
   name:                'demo-earth',
   radius:              1,
   liquidState:         'liquid',

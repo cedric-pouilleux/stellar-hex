@@ -11,7 +11,9 @@ const tabs = [
 
 # Aspect visuel
 
-Le paramètre `atmosphereThickness` (0–1) contrôle l'épaisseur de la coquille atmosphérique **visuelle** — celle vue en mode shader (smooth sphere). Plus la valeur monte, plus le shader adoucit le relief, ajoute la diffusion Rayleigh et étend la couche de halo derrière le terminateur.
+`config.radius` désigne la **silhouette totale** de la planète (sol + atmo). `atmosphereThickness` ∈ `[0, 1]` est la **fraction radiale** occupée par l'atmosphère, comptée depuis l'extérieur : le sol s'étend de `0` à `radius × (1 - atmosphereThickness)`, l'atmo de là jusqu'à `radius`. Avec `atmosphereThickness = 0`, le sol prend toute la silhouette ; avec `0.6`, l'atmo occupe 60 % du rayon et le sol les 40 % intérieurs.
+
+Plus l'épaisseur monte, plus le shader adoucit le relief, ajoute la diffusion Rayleigh et étend le halo derrière le terminateur.
 
 Pour la version **jouable** (bandes hex atmo cliquables), voir [Atmosphère jouable](/examples/atmosphere/playable).
 
@@ -55,7 +57,8 @@ Le playground fournit une implémentation de référence (`deriveTemperatureAnch
 
 | Prop | Plage | Effet |
 | ---- | ----- | ----- |
-| `atmosphereThickness` | `0`–`1` | Épaisseur globale du shell |
+| `radius`              | unités monde | Rayon de la silhouette totale (sol + atmo) |
+| `atmosphereThickness` | `0`–`1` | Fraction radiale de `radius` occupée par l'atmo (sol = `radius × (1 - thickness)`) |
 | `atmosphereOpacity`   | `0`–`1` | Opacité du halo en mode shader |
 | `bandColors`          | 4 stops | Palette 4 couleurs (géantes gazeuses) |
 | `tint` (option de `buildAtmoShell`) | hex string | Couleur résolue caller-side du halo |

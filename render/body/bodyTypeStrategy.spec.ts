@@ -1,18 +1,43 @@
 import { describe, it, expect } from 'vitest'
 import {
-  BODY_TYPE_STRATEGIES,
+  SURFACE_LOOK_STRATEGIES,
   strategyFor,
   type BodyTypeStrategy,
 } from './bodyTypeStrategy'
-import type { BodyType } from '../../types/surface.types'
+import type { BodyConfig } from '../../types/body.types'
+import type { SurfaceLook } from '../../types/surface.types'
 
-const ALL_TYPES: BodyType[] = ['rocky', 'gaseous', 'metallic', 'star']
+const ALL_LOOKS: SurfaceLook[] = ['terrain', 'bands', 'metallic']
 
-describe('BODY_TYPE_STRATEGIES', () => {
-  it('has an entry for every BodyType', () => {
-    for (const t of ALL_TYPES) {
-      expect(BODY_TYPE_STRATEGIES[t]).toBeDefined()
-      expect(BODY_TYPE_STRATEGIES[t].displayName).toBe(t)
+function planetary(look: SurfaceLook | undefined, overrides: Partial<BodyConfig> = {}): BodyConfig {
+  return {
+    type:           'planetary',
+    name:           'sample',
+    surfaceLook:    look,
+    radius:         3,
+    rotationSpeed:  0.05,
+    axialTilt:      0,
+    ...overrides,
+  } as BodyConfig
+}
+
+function star(overrides: Partial<BodyConfig> = {}): BodyConfig {
+  return {
+    type:           'star',
+    name:           'sample-star',
+    radius:         3,
+    rotationSpeed:  0.02,
+    axialTilt:      0,
+    spectralType:   'G',
+    ...overrides,
+  } as BodyConfig
+}
+
+describe('SURFACE_LOOK_STRATEGIES', () => {
+  it('has an entry for every SurfaceLook', () => {
+    for (const look of ALL_LOOKS) {
+      expect(SURFACE_LOOK_STRATEGIES[look]).toBeDefined()
+      expect(SURFACE_LOOK_STRATEGIES[look].displayName).toBe(look)
     }
   })
 
@@ -28,75 +53,71 @@ describe('BODY_TYPE_STRATEGIES', () => {
       'buildPalette',
       'buildShaderParams',
     ]
-    for (const t of ALL_TYPES) {
-      const s = BODY_TYPE_STRATEGIES[t]
+    for (const look of ALL_LOOKS) {
+      const s = SURFACE_LOOK_STRATEGIES[look]
       for (const k of required) {
-        expect(s[k], `strategy[${t}].${String(k)}`).toBeDefined()
+        expect(s[k], `strategy[${look}].${String(k)}`).toBeDefined()
       }
     }
   })
 
-  it('keeps the per-type policies that scattered call sites used to read', () => {
+  it('keeps the per-look policies that scattered call sites used to read', () => {
     // Pinning the values that downstream consumers (layeredMaterials,
     // buildInteractiveMesh, ringVariation, useBody) used to compute via
     // inline `config.type === '…'` checks. Future changes here are
     // intentional and will surface in the diff.
-    expect(BODY_TYPE_STRATEGIES.rocky.flatSurface).toBe(false)
-    expect(BODY_TYPE_STRATEGIES.gaseous.flatSurface).toBe(false)
-    expect(BODY_TYPE_STRATEGIES.metallic.flatSurface).toBe(false)
-    expect(BODY_TYPE_STRATEGIES.star.flatSurface).toBe(true)
+    expect(SURFACE_LOOK_STRATEGIES.terrain.flatSurface).toBe(false)
+    expect(SURFACE_LOOK_STRATEGIES.bands.flatSurface).toBe(false)
+    expect(SURFACE_LOOK_STRATEGIES.metallic.flatSurface).toBe(false)
 
-    // Display mesh role — only gas giants treat it as the atmospheric
-    // silhouette; every other type uses it as an inert sol backdrop.
-    expect(BODY_TYPE_STRATEGIES.rocky.displayMeshIsAtmosphere).toBe(false)
-    expect(BODY_TYPE_STRATEGIES.gaseous.displayMeshIsAtmosphere).toBe(true)
-    expect(BODY_TYPE_STRATEGIES.metallic.displayMeshIsAtmosphere).toBe(false)
-    expect(BODY_TYPE_STRATEGIES.star.displayMeshIsAtmosphere).toBe(false)
+    // Display mesh role — only the bands look treats the smooth sphere as
+    // the atmospheric silhouette; the others use it as an inert sol backdrop.
+    expect(SURFACE_LOOK_STRATEGIES.terrain.displayMeshIsAtmosphere).toBe(false)
+    expect(SURFACE_LOOK_STRATEGIES.bands.displayMeshIsAtmosphere).toBe(true)
+    expect(SURFACE_LOOK_STRATEGIES.metallic.displayMeshIsAtmosphere).toBe(false)
 
-    // Default atmosphere opacity drives the `'shader'` view: rocky bodies
-    // show a translucent halo, gas envelopes are opaque (smooth sphere
-    // skipped), metallic + star skip the atmo halo entirely.
-    expect(BODY_TYPE_STRATEGIES.rocky.defaultAtmosphereOpacity).toBeGreaterThan(0)
-    expect(BODY_TYPE_STRATEGIES.rocky.defaultAtmosphereOpacity).toBeLessThan(1)
-    expect(BODY_TYPE_STRATEGIES.gaseous.defaultAtmosphereOpacity).toBe(1)
-    expect(BODY_TYPE_STRATEGIES.metallic.defaultAtmosphereOpacity).toBe(0)
-    expect(BODY_TYPE_STRATEGIES.star.defaultAtmosphereOpacity).toBe(0)
+    // Default atmosphere opacity drives the `'shader'` view.
+    expect(SURFACE_LOOK_STRATEGIES.terrain.defaultAtmosphereOpacity).toBeGreaterThan(0)
+    expect(SURFACE_LOOK_STRATEGIES.terrain.defaultAtmosphereOpacity).toBeLessThan(1)
+    expect(SURFACE_LOOK_STRATEGIES.bands.defaultAtmosphereOpacity).toBe(1)
+    expect(SURFACE_LOOK_STRATEGIES.metallic.defaultAtmosphereOpacity).toBe(0)
 
-    expect(BODY_TYPE_STRATEGIES.rocky.canHaveRings).toBe(true)
-    expect(BODY_TYPE_STRATEGIES.gaseous.canHaveRings).toBe(true)
-    expect(BODY_TYPE_STRATEGIES.metallic.canHaveRings).toBe(true)
-    expect(BODY_TYPE_STRATEGIES.star.canHaveRings).toBe(false)
+    expect(SURFACE_LOOK_STRATEGIES.terrain.canHaveRings).toBe(true)
+    expect(SURFACE_LOOK_STRATEGIES.bands.canHaveRings).toBe(true)
+    expect(SURFACE_LOOK_STRATEGIES.metallic.canHaveRings).toBe(true)
 
-    expect(BODY_TYPE_STRATEGIES.metallic.metallicSheen).toBe(1.0)
-    expect(BODY_TYPE_STRATEGIES.rocky.metallicSheen).toBe(0.0)
-    expect(BODY_TYPE_STRATEGIES.gaseous.metallicSheen).toBe(0.0)
-    expect(BODY_TYPE_STRATEGIES.star.metallicSheen).toBe(0.0)
+    expect(SURFACE_LOOK_STRATEGIES.metallic.metallicSheen).toBe(1.0)
+    expect(SURFACE_LOOK_STRATEGIES.terrain.metallicSheen).toBe(0.0)
+    expect(SURFACE_LOOK_STRATEGIES.bands.metallicSheen).toBe(0.0)
   })
 })
 
 describe('strategyFor', () => {
-  it('returns the same instance as the table for every known type', () => {
-    for (const t of ALL_TYPES) {
-      expect(strategyFor(t)).toBe(BODY_TYPE_STRATEGIES[t])
+  it('returns the matching surface-look strategy for a planetary body', () => {
+    for (const look of ALL_LOOKS) {
+      expect(strategyFor(planetary(look))).toBe(SURFACE_LOOK_STRATEGIES[look])
     }
   })
 
-  it('throws on an unknown type so missing-entry bugs surface loud', () => {
-    // Cast out to simulate a developer adding a new BodyType union member
-    // without registering its strategy — production code should never
-    // hit this path, but the throw is the safety net.
-    expect(() => strategyFor('icy' as BodyType)).toThrow(/no body-type strategy/i)
+  it('defaults to the terrain look when surfaceLook is omitted', () => {
+    expect(strategyFor(planetary(undefined))).toBe(SURFACE_LOOK_STRATEGIES.terrain)
   })
 
-  it('tileRefRadius defaults to config.radius for non-star bodies', () => {
-    const config = { type: 'rocky' as const, radius: 7 } as Parameters<BodyTypeStrategy['tileRefRadius']>[0]
-    expect(strategyFor('rocky').tileRefRadius(config)).toBe(7)
+  it('routes star bodies to a dedicated strategy (star pipeline)', () => {
+    const s = strategyFor(star())
+    expect(s.flatSurface).toBe(true)
+    expect(s.canHaveRings).toBe(false)
+    expect(s.displayMeshIsAtmosphere).toBe(false)
+  })
+
+  it('tileRefRadius defaults to config.radius for planetary bodies', () => {
+    expect(strategyFor(planetary('terrain', { radius: 7 })).tileRefRadius(planetary('terrain', { radius: 7 }))).toBe(7)
   })
 
   it('tileRefRadius for stars is keyed on spectralType, not config.radius', () => {
-    const star = { type: 'star' as const, radius: 99, spectralType: 'M' as const } as Parameters<BodyTypeStrategy['tileRefRadius']>[0]
+    const s = star({ radius: 99, spectralType: 'M' })
     // M-class fallback in `useStar.STAR_TILE_REF` is 2.0 — must not echo `radius`.
-    expect(strategyFor('star').tileRefRadius(star)).toBe(2.0)
-    expect(strategyFor('star').tileRefRadius(star)).not.toBe(99)
+    expect(strategyFor(s).tileRefRadius(s)).toBe(2.0)
+    expect(strategyFor(s).tileRefRadius(s)).not.toBe(99)
   })
 })

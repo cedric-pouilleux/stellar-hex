@@ -13,7 +13,8 @@
  */
 
 import type * as THREE from 'three'
-import type { BodyConfig } from './body.types'
+import type { Tile } from '../geometry/hexasphere.types'
+import type { BodyConfig, PlanetConfig, StarConfig } from './body.types'
 import type { TerrainLevel } from './terrain.types'
 import type { BodySimulation } from '../sim/BodySimulation'
 import type { BodyVariation } from '../render/body/bodyVariation'
@@ -21,7 +22,6 @@ import type { BodyMaterial } from '../shaders/BodyMaterial'
 import type { HoverChannel } from '../render/state/hoverState'
 import type { GraphicsUniforms } from '../render/hex/hexGraphicsUniforms'
 import type { AtmoShellHandle } from '../render/shells/buildAtmoShell'
-import type { LiquidCoronaHandle } from '../render/shells/buildLiquidCorona'
 import type {
   ShadowUniforms,
   OccluderUniforms,
@@ -29,17 +29,21 @@ import type {
   HoverListener,
 } from '../render/hex/hexMeshShared'
 
-/** Layer selector for the layered interactive mesh — sol (terrain) or atmo (shell). */
-export type InteractiveLayer = 'sol' | 'atmo'
+/**
+ * Layer selector for the multi-board model — sol terrain, liquid surface,
+ * or atmo shell. The lib's hover detection raycasts all three boards and
+ * resolves the closest hit into one of these layers.
+ */
+export type InteractiveLayer = 'sol' | 'liquid' | 'atmo'
 
 /**
  * View selector for {@link BodyView.set} — three mutually exclusive
  * rendering modes:
  *
- *   - `'surface'`    : interactive hex sol visible (relief + liquid),
- *                      atmo hidden, smooth sphere hidden.
- *   - `'atmosphere'` : interactive hex atmo visible **fully opaque**
- *                      (resource board), sol hidden, smooth sphere hidden.
+ *   - `'surface'`    : interactive sol board visible (relief + liquid),
+ *                      atmo board hidden, smooth sphere hidden.
+ *   - `'atmosphere'` : interactive atmo board visible (resource grid),
+ *                      sol board hidden, smooth sphere hidden.
  *   - `'shader'`     : non-interactive overview render. Smooth sphere
  *                      shown when the body type benefits from it (rocky,
  *                      metallic, star); atmo halo overlaid with the
@@ -54,6 +58,17 @@ export interface RGB {
   r: number
   g: number
   b: number
+}
+
+/**
+ * Discriminated reference to a tile on one of the two boards. Returned by
+ * {@link BodyInteractive.queryHover} so callers can route the hit into the
+ * correct board's API — sol and atmo live on independent hexaspheres, so
+ * a tile id is only meaningful in the context of its layer.
+ */
+export interface BoardTileRef {
+  layer:  InteractiveLayer
+  tileId: number
 }
 
 /**
@@ -81,27 +96,26 @@ export interface TileBaseVisual {
 
 /**
  * Mode switch + raycast queries. `activate` swaps the smooth display mesh
- * for the interactive hex mesh; `deactivate` reverts. `queryHover` returns
- * the tile id under the ray, or `null` when the body is not in interactive
- * mode or when the ray misses.
+ * for the interactive boards; `deactivate` reverts. `queryHover` returns
+ * the layer + tile id under the ray, or `null` when the body is not in
+ * interactive mode or when the ray misses both boards.
  */
 export interface BodyInteractive {
   activate(): void
   deactivate(): void
-  queryHover(raycaster: THREE.Raycaster): number | null
+  /**
+   * Resolves the tile under the ray on the **active** board (sol board in
+   * surface view, atmo board in atmosphere view). Returns `null` in the
+   * shader view (non-interactive) or when the ray misses.
+   */
+  queryHover(raycaster: THREE.Raycaster): BoardTileRef | null
 }
 
-/** Optional knobs accepted by {@link BodyHover.setTile} / `setPinnedTile`. */
+/** Optional knobs accepted by {@link BodyHover.setTile}. */
 export interface HoverPlacementOptions {
   /**
    * Override the radial offset (above the surface radius) at which the
    * hover ring is drawn. Defaults to the tile's own sol cap height.
-   *
-   * Useful when a caller stacks something above the sol mesh — e.g. an
-   * ice cap built via `buildSolidShell` — and wants the hover ring to
-   * sit on the cap's top face instead of the buried mineral floor. Pass
-   * `coreRadius + capWorldHeight - surfaceRadius` to anchor on a cap
-   * whose top sits at world distance `coreRadius + capWorldHeight`.
    */
   capOffsetFromRadius?: number
 }
@@ -109,23 +123,46 @@ export interface HoverPlacementOptions {
 /**
  * Controlled hover state — scene controllers drive these from their own
  * raycast events. The body itself never auto-mutates hover state.
+ *
+ * Sol hover is rendered as a ring overlay; atmo hover is rendered as a
+ * vertex-colour tint on the targeted atmo tile (no extra mesh). The
+ * dispatcher {@link setBoardTile} routes to the right board based on the
+ * `BoardTileRef.layer`, so callers can forward the result of
+ * {@link BodyInteractive.queryHover} verbatim.
  */
 export interface BodyHover {
-  /** Highlights the given tile (or clears highlight when `null`). */
+  /** Highlights the given sol tile (or clears highlight when `null`). */
   setTile(id: number | null, options?: HoverPlacementOptions): void
   /**
-   * Pins the given tile as the popover anchor. Unlike `setTile`, the pin
-   * persists when the cursor leaves the tile — its world-space position is
-   * projected every frame so popovers and markers stay on the hex as the
-   * planet rotates.
+   * Routes a hover update to the correct board. Pass the result of
+   * {@link BodyInteractive.queryHover} directly — `null` clears hover on
+   * both boards, a sol ref highlights the sol ring, an atmo ref tints
+   * the atmo tile.
    */
-  setPinnedTile(id: number | null, options?: HoverPlacementOptions): void
+  setBoardTile(ref: BoardTileRef | null, options?: HoverPlacementOptions): void
   /** Toggles the body-level hover ring (used when another body is hovered). */
   setBodyHover(visible: boolean): void
   /**
-   * Subscribes to hovered-tile changes — returns an unsubscribe function.
-   * Used by overlay renderers that repaint tiles entering or leaving hover
-   * state.
+   * Live mutation of the hover-cursor visuals (ring color / size,
+   * emissive color / intensity / size, column color). Disabled
+   * primitives (`false` at build time) cannot be enabled this way —
+   * pass them through `useBody`'s `hoverCursor`/`hoverCursors` option
+   * instead so the GPU resource is allocated up front.
+   */
+  updateCursor(config: import('./hoverCursor.types').HoverCursorConfig): void
+  /**
+   * Switches the active cursor preset by name — must be one of the keys
+   * registered in `useBody`'s `hoverCursors` option (or `'default'` when
+   * the body was built with the single-cursor `hoverCursor` shortcut).
+   * Throws on unknown names. Each preset is a full {@link
+   * import('./hoverCursor.types').HoverCursorConfig} — switching applies
+   * the entire preset (any primitive not mentioned by the preset falls
+   * back to its lib default, NOT the previous preset's value).
+   */
+  useCursor(name: string): void
+  /**
+   * Subscribes to hovered sol-tile changes — returns an unsubscribe
+   * function.
    */
   onChange(listener: HoverListener): () => void
 }
@@ -135,16 +172,20 @@ export interface BodyHover {
  * (dry rocky, metallic, gaseous, stars).
  */
 export interface BodyLiquid {
-  /**
-   * Sets the world-space radius of the liquid surface sphere. Combine
-   * with `Body.getCoreRadius()` / `Body.getSurfaceRadius()` to derive
-   * in-band values. A value `≤ coreRadius` hides the liquid mesh.
-   */
+  /** Sets the world-space radius of the liquid surface sphere. */
   setSeaLevel(worldRadius: number): void
   /** Toggles the liquid surface visibility. */
   setVisible(visible: boolean): void
   /** Sets the liquid surface alpha in `[0, 1]`. */
   setOpacity(alpha: number): void
+  /**
+   * Resolves the liquid shell's raycast target — `mesh` is the merged
+   * water cap, `faceToTileId[i]` returns the tile id of the i-th
+   * triangle. Returns `null` on dry / frozen bodies (no shell built).
+   * Lets callers raycast against the water surface and identify which
+   * submerged tile sits under the pointer.
+   */
+  getRaycastState(): { mesh: import('three').Mesh; faceToTileId: readonly number[] } | null
 }
 
 /**
@@ -157,63 +198,88 @@ export interface BodyView {
 }
 
 /**
- * Tile-level access + mutation primitives common to every body type
- * (planets and stars). Layered-mesh specific helpers live on the
- * planet-only {@link PlanetTiles} extension below.
+ * Tile-level access + mutation primitives common to every board (sol or
+ * atmo). Each board carries its own hexasphere, so ids are scoped to the
+ * board: a sol id `42` and an atmo id `42` are unrelated.
  */
-export interface BodyTiles {
-  /** Baseline radial offset (body-relative) applied to the interactive surface. */
-  surfaceOffset: number
-  /** Resolves the geometry context for a tile (tile + terrain level). Null on unknown id. */
-  tileGeometry(tileId: number): TileGeometryInfo | null
-  /** Writes a raw RGB value to every vertex of a tile in the merged color buffer. */
+export interface BoardTiles {
+  /** Tiles of this board (sol or atmo hexasphere). */
+  tiles:           readonly Tile[]
+  /** Writes a raw RGB value to every vertex of a tile. */
   writeTileColor(tileId: number, rgb: RGB): void
   /**
-   * Resolves the pre-blend visual snapshot for a tile: the palette colour
-   * on emerged tiles, the sea-anchor colour on submerged ones, plus the
-   * PBR + emissive hints consumers need to run their own resource blend
-   * off-lib. Returns `null` on unknown ids.
+   * Stamps per-tile RGB into the vertex buffer. Same effect as calling
+   * {@link writeTileColor} once per entry.
    */
+  applyOverlay(colors: Map<number, RGB>): void
+  /**
+   * World-space top-cap centre of a tile. Returns `null` for unknown ids.
+   * Used by overlay renderers that anchor markers on the board.
+   */
+  getTilePosition(tileId: number): THREE.Vector3 | null
+}
+
+/**
+ * Sol-board specific tile primitives — height mutation, geometry context,
+ * pre-blend visual snapshot. Lives on top of the shared {@link BoardTiles}
+ * interface.
+ */
+export interface SolBoardTiles extends BoardTiles {
+  /** Baseline radial offset (body-relative) applied to the interactive surface. */
+  surfaceOffset: number
+  /** Resolves the geometry context for a tile (tile + terrain level). */
+  tileGeometry(tileId: number): TileGeometryInfo | null
+  /** Mutates the sol height of the given tiles in place. */
+  updateTileSolHeight(updates: Map<number, number>): void
+  /** Resolves the pre-blend visual snapshot for a sol tile. */
   tileBaseVisual(tileId: number): TileBaseVisual | null
 }
 
 /**
- * Planet-only tile primitives — the layered prism mesh exposes per-layer
- * overlays, sol-height mutation and atmo paint. Stars do not carry these.
+ * Planet-only tile primitives — exposes the sol and atmo boards under
+ * separate sub-namespaces, plus the smooth-sphere paint helpers shared
+ * across the body.
  */
-export interface PlanetTiles extends BodyTiles {
+export interface PlanetTiles {
+  /** Sol board — interactive hex grid carrying terrain relief. */
+  sol:  SolBoardTiles
   /**
-   * World-space position at the top of the requested layer (sol cap or
-   * atmo shell). Returns `null` for unknown ids.
+   * Atmo board — playable hex grid floating above the sol surface.
+   * `null` on bodies without an atmosphere (`atmosphereThickness === 0`).
    */
-  getTilePosition(tileId: number, layer?: InteractiveLayer): THREE.Vector3 | null
-  /** Mutates the sol height of the given tiles in place. */
-  updateTileSolHeight(updates: Map<number, number>): void
-  /**
-   * Stamps per-tile RGB into the vertex buffer of a single layer. Lets
-   * overlay renderers tint the sol without touching the atmo band.
-   */
-  applyTileOverlay(layer: InteractiveLayer, colors: Map<number, RGB>): void
+  atmo: BoardTiles | null
+
   /**
    * Forces the smooth-sphere preview to re-read `sim.tileStates` and
    * repaint its vertices. Call after mutating tile elevations.
    */
   repaintSmoothSphere(): void
-  /**
-   * Stamps per-tile RGB into the smooth-sphere vertex buffer. Intended for
-   * a single post-build paint: the smooth sphere is treated as a frozen
-   * geological snapshot, so runtime mutations are not reflected there.
-   * Use {@link applyTileOverlay} on the layered mesh for interactive
-   * repaints instead.
-   */
+  /** Stamps per-tile RGB into the smooth-sphere vertex buffer. */
   paintSmoothSphere(colors: Map<number, RGB>): void
   /**
    * Stamps per-tile RGB onto the procedural atmo shell that drives the
    * `'shader'` view on rocky and gaseous bodies. The shell uses a
    * nearest-tile lookup so vertices closest to a painted hex pick up its
-   * colour. No-op on bodies without an atmo shell (metallic).
+   * colour. No-op on bodies without an atmo shell.
    */
   paintAtmoShell(colors: Map<number, RGB>): void
+}
+
+/**
+ * Star-only tile namespace — flat board (no atmo, no height mutation, no
+ * sea level), kept separate from the planet variant.
+ */
+export interface StarTiles {
+  /** Baseline radial offset (body-relative) applied to the interactive surface. */
+  surfaceOffset: number
+  /** Star tiles. */
+  tiles:         readonly Tile[]
+  /** Resolves the geometry context for a star tile. */
+  tileGeometry(tileId: number): TileGeometryInfo | null
+  /** Writes a raw RGB value to every vertex of a star tile. */
+  writeTileColor(tileId: number, rgb: RGB): void
+  /** Resolves the pre-blend visual snapshot for a star tile. */
+  tileBaseVisual(tileId: number): TileBaseVisual | null
 }
 
 // ── Body ──────────────────────────────────────────────────────────
@@ -226,37 +292,17 @@ export interface PlanetTiles extends BodyTiles {
  */
 export interface BodyBase {
   // ── Identity / state ─────────────────────────────────────────────
-  /** Root THREE group — meshes and shells attach under it. */
   group:            THREE.Group
-  /** The config the body was built from. */
   config:           BodyConfig
-  /** Deterministic simulation state (tiles, elevations, sea level…). */
   sim:              BodySimulation
-  /** Effective terrain palette — caller-supplied override or auto-derived. */
   palette:          TerrainLevel[]
-  /** Deterministic visual variation (rings, shader params). */
   variation:        BodyVariation
-  /** Number of tiles generated by the hexasphere. */
+  /** Number of sol tiles generated by the hexasphere. */
   tileCount:        number
-  /** Shadow uniforms a child body writes into when casting an eclipse on this body. */
   shadowUniforms:   ShadowUniforms
-  /** Occluder uniforms this body's cloud shell reads to darken the underside. */
   occluderUniforms: OccluderUniforms
-  /**
-   * Raw procedural material handle. Exposed for live-update paths that
-   * push shader uniforms without rebuilding the whole body (slider drags).
-   */
   planetMaterial:   BodyMaterial
-  /**
-   * Per-body hover/pin publication channel. Each body owns its own channel
-   * so multi-body scenes host independent hovered/pinned tiles.
-   */
   hoverChannel:     HoverChannel
-  /**
-   * Per-body graphics-uniform bag — drives this body's cloud / liquid /
-   * terrain shaders. Each body has its own bag so live tuning never
-   * leaks across bodies.
-   */
   graphicsUniforms: GraphicsUniforms
 
   // ── Lifecycle ───────────────────────────────────────────────────
@@ -276,25 +322,23 @@ export interface BodyBase {
 
 /**
  * Handle returned by `useBody()` for `'rocky' | 'gaseous' | 'metallic'`.
- * Carries the layered-prism specific surface (liquid, view toggle, atmo
- * shell, layered tile mutations).
+ * Carries the dual-board surface (sol + atmo), liquid, view toggle and
+ * atmo halo shell.
  */
 export interface PlanetBody extends BodyBase {
   /** Discriminant — narrows the union {@link Body} to the planet branch. */
   kind: 'planet'
 
+  /** Narrowed to the planet branch of {@link BodyConfig}. */
+  config: PlanetConfig
+
   /**
-   * Procedural atmosphere shell handle — `null` on bodies without an
-   * atmospheric layer (metallic) or when `atmosphereOpacity` resolves to
-   * `0`. Live-tune the procedural look via `atmoShell?.setParams({...})`;
-   * resource overlays go through `tiles.paintAtmoShell(...)` instead.
+   * Procedural atmosphere halo handle — `null` on bodies without an
+   * atmospheric layer or when `atmosphereOpacity` resolves to `0`. Used
+   * by the `'shader'` overview view; the playable atmo grid is the
+   * separate `tiles.atmo` board.
    */
   atmoShell:    AtmoShellHandle | null
-  /**
-   * Outer translucent halo coloured with the body's `liquidColor`. `null`
-   * on bodies without a surface liquid. Live-tunable opacity + colour.
-   */
-  liquidCorona: LiquidCoronaHandle | null
 
   liquid: BodyLiquid
   view:   BodyView
@@ -311,7 +355,10 @@ export interface StarBody extends BodyBase {
   /** Discriminant — narrows the union {@link Body} to the star branch. */
   kind: 'star'
 
-  tiles: BodyTiles
+  /** Narrowed to the star branch of {@link BodyConfig}. */
+  config: StarConfig
+
+  tiles: StarTiles
 }
 
 /**

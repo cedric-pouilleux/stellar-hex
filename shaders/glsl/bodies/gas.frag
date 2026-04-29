@@ -27,6 +27,16 @@ uniform float uCloudAmount;
 uniform vec3  uCloudColor;
 uniform float uCloudBlend;
 
+// Tempêtes — 3 vortex ovales déterministes du seed (taches type Jupiter).
+// `uStormStrength = 0` désactive la couche (court-circuit total).
+//   - uStormColor      : couleur dédiée du vortex (indépendante du palette gaz)
+//   - uStormSize       : multiplicateur sur le rayon des 3 vortex
+//   - uStormEyeStrength: intensité de l'œil sombre central (0 = pas d'œil)
+uniform float uStormStrength;
+uniform vec3  uStormColor;
+uniform float uStormSize;
+uniform float uStormEyeStrength;
+
 // Lighting
 uniform vec3  uLightColor;
 uniform vec3  uLightDir;
@@ -70,6 +80,67 @@ void main() {
   float warpZ     = fbm4(vec3(p.z * 1.2, p.x * 0.4, p.y * 1.2) + vec3(0.0, tJet * 0.5, 0.0), 2.0, 0.5);
   float latWarped = lat + (warpX - 0.5) * uBandWarp * 0.5
                        + (warpZ - 0.5) * uBandWarp * 0.25;
+
+  // ── Storm vortices ────────────────────────────────────────
+  // 3 vortex max, position/taille/intensité dérivées du seed via hash3.
+  // Structure à 3 zones par vortex pour un rendu plus 3D :
+  //   - corona  : bordure douce, prend la couleur uColorC légèrement
+  //   - core    : corps saturé, sur-éclairci en uColorC
+  //   - eye     : œil sombre central (œil de cyclone)
+  // Le mask est combiné en max() pour que des vortex chevauchants ne
+  // s'additionnent pas en sur-luminance. Court-circuit complet quand
+  // `uStormStrength == 0`.
+  float stormCorona = 0.0;
+  float stormCore   = 0.0;
+  float stormEye    = 0.0;
+  float stormSwirl  = 0.0;
+  float stormSpiral = 0.0;
+  if (uStormStrength > 0.001) {
+    vec3 unitPos = normalize(vPosition);
+    for (int k = 0; k < 3; k++) {
+      float fk = float(k);
+      vec3  h        = hash3(vec3(uSeed * 0.013 + fk * 7.7, fk * 1.3, fk * 2.1));
+      float clat     = (h.x - 0.5) * 1.2;             // [-0.6, +0.6] — évite les pôles
+      float clon     = h.y * 6.2831853;
+      // Rayon élargi pour des taches lisibles à distance, modulé par
+      // `uStormSize` (slider — 0.3 = petits ovales, 2.5 = grosses bandes).
+      float radius   = mix(0.10, 0.28, h.z) * uStormSize;
+      float intensity = hash1(uSeed * 0.013 + fk * 11.3);
+      // Sens de rotation par vortex (binaire pour rester stable)
+      float spin     = intensity > 0.5 ? 1.0 : -1.0;
+      // Vecteur cardinal du centre du vortex sur la sphère unité
+      float cy = sin(clat), cr = cos(clat);
+      vec3  centerDir = vec3(cos(clon) * cr, cy, sin(clon) * cr);
+      // Bordure du vortex perturbée par un fbm faible-fréquence — évite
+      // l'aspect "disque parfait" et donne une lecture organique.
+      float jitter   = (gnoise(unitPos * 4.0 + vec3(fk * 3.7)) - 0.5) * 0.06;
+      float angDist  = 1.0 - dot(unitPos, centerDir) + jitter;
+      // 3 zones concentriques. `corona` couvre toute la tache, `core` ~60%
+      // central, `eye` ~25% au centre.
+      float corona   = smoothstep(radius,        0.0, angDist) * intensity;
+      float core     = smoothstep(radius * 0.55, 0.0, angDist) * intensity;
+      float eye      = smoothstep(radius * 0.22, 0.0, angDist) * intensity;
+      stormCorona = max(stormCorona, corona);
+      stormCore   = max(stormCore,   core);
+      stormEye    = max(stormEye,    eye);
+      // Phase angulaire autour du centre — module la lat (bend des bandes)
+      // ET produit un motif spirale animé visible dans le corps du vortex.
+      vec3 tangent = unitPos - centerDir * dot(unitPos, centerDir);
+      float ang    = atan(tangent.y, tangent.x + 1e-5);
+      stormSwirl  += corona * sin(ang * 2.0 + tJet * 1.8) * spin * 0.18;
+      // Phase spirale (logarithmique) animée dans le sens du vortex —
+      // rend visible la rotation interne du tourbillon.
+      float spiralPhase = ang * 3.0 - angDist * 12.0 * spin + tJet * 2.5 * spin;
+      stormSpiral = max(stormSpiral, core * (sin(spiralPhase) * 0.5 + 0.5));
+    }
+    float s = uStormStrength;
+    stormCorona *= s;
+    stormCore   *= s;
+    stormEye    *= s;
+    stormSwirl  *= s;
+    // Bend les bandes localement — `latWarped` est encore consommé ci-dessous.
+    latWarped += stormSwirl;
+  }
 
   // ── Band turbulence -- fbm4 instead of warpedFBM ────────
   float turbA      = fbm4(p * 1.8 + vec3(tJet, 0.0, 0.0), 2.0, 0.5);
@@ -120,6 +191,22 @@ void main() {
     float cloud     = fbm4(p * 1.8 + cq * 2.2 + vec3(tCloud * 0.5, 0.0, 0.0), 2.0, 0.5);
     float cloudMask = pow(smoothstep(0.44, 0.62, cloud), 1.2);
     bandColor = applyBlend(bandColor, uCloudColor, cloudMask * uCloudAmount, uCloudBlend);
+  }
+
+  // ── Storm vortex colour overlay ─────────────────────────────
+  // Couleur tempête dédiée (`uStormColor`) — indépendante du palette gaz
+  // pour rester lisible quel que soit le preset (les palettes brunes
+  // rendaient les vortex sombres). 3 couches : couronne large, cœur
+  // saturé modulé par la spirale animée, œil sombre central pilotable.
+  if (stormCorona > 0.0) {
+    // Bordure large : tint subtil
+    bandColor = mix(bandColor, uStormColor * 1.10, stormCorona * 0.55);
+    // Corps saturé, modulé par la spirale (donne le mouvement rotatif)
+    vec3 coreCol = mix(uStormColor * 1.20, uStormColor * 1.60, stormSpiral);
+    bandColor    = mix(bandColor, coreCol, stormCore * 0.90);
+    // Œil de cyclone : assombrit vers une version foncée de la couleur
+    // tempête. Désactivable via `uStormEyeStrength = 0`.
+    bandColor    = mix(bandColor, uStormColor * 0.30, stormEye * uStormEyeStrength);
   }
 
   // ── Lighting ────────────────────────────────────────────────

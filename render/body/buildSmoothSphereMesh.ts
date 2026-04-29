@@ -3,20 +3,14 @@
  *
  * Vertices are colored using `sim.noise3D` — same seed + scale as tile
  * elevations. Resource colors are approximated by snapping each vertex
- * to its nearest tile via dot product on the unit sphere.
- *
- * Spatial bucketing reduces `O(T) → O(k)` per query where `k ≈ 36` for
- * 642 tiles. Grid: 18 azimuth × 9 polar cells (20° per cell). A 3×3
- * neighbour window guarantees correctness since max inter-tile angle ≈ 9°.
- * Pole rows (col 0 / GRID_POL-1) expand to all azimuths to avoid
- * wrap-around misses.
+ * to its nearest tile, via the shared {@link buildSphericalNearestLookup}
+ * spatial index.
  */
 
 import * as THREE from 'three'
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { TerrainLevel } from '../../types/terrain.types'
 import type { BodySimulation } from '../../sim/BodySimulation'
-import type { TileState } from '../../sim/TileState'
 import type { BodyVariation } from './bodyVariation'
 import {
   resolveCoreRadiusRatio,
@@ -28,79 +22,15 @@ import {
 import { BodyMaterial } from '../../shaders'
 import { buildPermTable, permTableToTexture } from '../../shaders/simplexPerm'
 import { configToLibParams } from './configToLibParams'
-import { strategyFor } from './bodyTypeStrategy'
+import { strategyFor, type BodyTypeStrategy } from './bodyTypeStrategy'
 import { resolveSeaAnchor } from '../../terrain/paletteRocky'
 import { getTileLevel } from '../hex/hexMeshShared'
+import { buildSphericalNearestLookup } from '../hex/sphericalTileLookup'
 import { resolveSphereDetail, type RenderQuality } from '../quality/renderQuality'
 
 /** Folds emissive into the base channel, clamped to [0, 1]. */
 function foldEmissive(base: number, emissive: number | undefined, intensity: number): number {
   return Math.min(1, base + (emissive ?? 0) * intensity)
-}
-
-const GRID_AZI = 18 // 360° / 18 = 20° per cell
-const GRID_POL = 9  // 180° / 9  = 20° per cell
-
-function tileAziCell(nz: number, nx: number): number {
-  return Math.floor(((Math.atan2(nz, nx) / (2 * Math.PI)) + 0.5) * GRID_AZI) % GRID_AZI
-}
-
-function tilePolCell(ny: number): number {
-  return Math.min(GRID_POL - 1, Math.floor((Math.acos(Math.max(-1, Math.min(1, ny))) / Math.PI) * GRID_POL))
-}
-
-/**
- * Returns a function that maps any world-space point to the nearest
- * TileState. Uses a spherical azimuth × polar grid for O(k) queries
- * (k ≈ 36 at subdivision 2, vs brute-force O(T) = 642). Scales to higher
- * subdivisions without code changes.
- */
-function buildNearestTileFn(sim: BodySimulation) {
-  const count = sim.tiles.length
-  // Flat typed arrays for cache-friendly dot product
-  const nxArr = new Float32Array(count)
-  const nyArr = new Float32Array(count)
-  const nzArr = new Float32Array(count)
-  const idArr = new Int32Array(count)
-  const cells: number[][] = Array.from({ length: GRID_AZI * GRID_POL }, () => [])
-
-  sim.tiles.forEach((tile, i) => {
-    const { x, y, z } = tile.centerPoint
-    const len = Math.sqrt(x * x + y * y + z * z)
-    nxArr[i] = x / len
-    nyArr[i] = y / len
-    nzArr[i] = z / len
-    idArr[i] = tile.id
-    cells[tilePolCell(nyArr[i]) * GRID_AZI + tileAziCell(nzArr[i], nxArr[i])].push(i)
-  })
-
-  return (x: number, y: number, z: number) => {
-    const len = Math.sqrt(x * x + y * y + z * z)
-    const qnx = x / len, qny = y / len, qnz = z / len
-    const qAzi = tileAziCell(qnz, qnx)
-    const qPol = tilePolCell(qny)
-
-    let bestDot = -Infinity
-    let bestIdx = 0
-
-    for (let dp = -1; dp <= 1; dp++) {
-      const p = qPol + dp
-      if (p < 0 || p >= GRID_POL) continue
-      // Polar rows wrap fully in azimuth — check all cells in that ring
-      const isPolar  = p === 0 || p === GRID_POL - 1
-      const aziCount = isPolar ? GRID_AZI : 3
-      const aziStart = isPolar ? 0 : qAzi - 1
-      for (let da = 0; da < aziCount; da++) {
-        const a = ((aziStart + da) + GRID_AZI) % GRID_AZI
-        for (const i of cells[p * GRID_AZI + a]) {
-          const dot = qnx * nxArr[i] + qny * nyArr[i] + qnz * nzArr[i]
-          if (dot > bestDot) { bestDot = dot; bestIdx = i }
-        }
-      }
-    }
-
-    return sim.tileStates.get(idArr[bestIdx])
-  }
 }
 
 /**
@@ -152,9 +82,14 @@ export function buildSmoothSphereMesh(
   sim:       BodySimulation,
   levels:    TerrainLevel[],
   variation?: BodyVariation,
-  options?:  { meshRadius?: number; quality?: RenderQuality },
+  options?:  { meshRadius?: number; quality?: RenderQuality; strategy?: BodyTypeStrategy },
 ): SmoothSphereHandle {
   const { config } = sim
+  // Resolve the body-type strategy once — it's a constant for this body
+  // and several branches below read from it. Caller may pass a pre-resolved
+  // instance to avoid the redundant lookup when the orchestrator already
+  // resolved it.
+  const strategy = options?.strategy ?? strategyFor(config)
   const noiseScale  = config.noiseScale ?? 1.4
   // Segs scales with tile count so the smooth sphere never exceeds the hex mesh
   // in polygon count: small planets use fewer segments, large ones up to the noise limit.
@@ -168,7 +103,13 @@ export function buildSmoothSphereMesh(
   // `mergeVertices` collapses the duplicated per-face vertices into a single
   // shared one — restores the indexed topology the per-vertex paint expects
   // and lets adjacent triangles agree on the same colour at every join.
-  const baseDetail  = Math.max(2, Math.min(5, Math.ceil(Math.log2(segs / 4))))
+  //
+  // Ceiling bumped from 5 to 6 — gives ~10k vertices instead of ~2.5k on
+  // the densest builds, halving the apparent size of nearest-tile colour
+  // blocks in the `'shader'` view without changing any other behaviour.
+  // Cost: ≈ 4× tris on the smooth sphere, which is rendered once per
+  // body and stays well under the hex prism budget.
+  const baseDetail  = Math.max(2, Math.min(6, Math.ceil(Math.log2(segs / 4))))
   const detail      = resolveSphereDetail(baseDetail, options?.quality)
   // Default radius is `solOuterRadius` so the smooth sphere tucks under
   // the rocky atmo halo in `'shader'` view. The caller can override when
@@ -187,21 +128,34 @@ export function buildSmoothSphereMesh(
   const colAttr     = new THREE.Float32BufferAttribute(new Float32Array(pos.count * 3), 3)
   const col         = colAttr.array as Float32Array
   geo.setAttribute('color', colAttr)
-  const nearestTile = buildNearestTileFn(sim)
+  const nearestSolTileId = buildSphericalNearestLookup(sim.tiles)
+  // Resource-paint mapping. On bodies whose smooth sphere plays the role
+  // of atmosphere (gas giants), `paintFromTiles` consumes atmo tile ids
+  // — so the lookup must run against the dedicated atmo hexasphere. On
+  // every other body, the smooth sphere maps to sol tiles for the
+  // resource-paint path (the sol-side palette dominates the silhouette).
+  const paintTiles    = strategy.displayMeshIsAtmosphere && sim.atmoTiles.length > 0
+    ? sim.atmoTiles
+    : sim.tiles
+  const nearestPaintTileId = buildSphericalNearestLookup(paintTiles)
 
   // `hasSurfaceLiquid(config)` is the single source of truth — encodes the
-  // "only rocky bodies can hold a liquid surface" invariant across sim
+  // "only planetary bodies can hold a liquid surface" invariant across sim
   // and render layers. `sim.seaLevelElevation >= 0` is belt-and-braces
   // since the sim already applied the same filter.
-  const showLiquidSurface = hasSurfaceLiquid(config)
+  // Liquid fields live on `PlanetConfig` only — capture the narrowed shape
+  // once so the seaAnchor branch below can read them without re-narrowing.
+  const planetConfig      = config.type === 'planetary' ? config : null
+  const showLiquidSurface = planetConfig !== null
+    && hasSurfaceLiquid(planetConfig)
     && sim.seaLevelElevation >= 0
-    && config.liquidState === 'liquid'
+    && planetConfig.liquidState === 'liquid'
   // Sea anchor — submerged vertices need an explicit underwater tint
   // here because the smooth sphere owns the Shader view, where the
   // liquid sphere mesh is hidden. The hex-prism path skips this and
   // lets the (visible) liquid sphere do the tinting on its own.
-  const seaAnchor = showLiquidSurface
-    ? resolveSeaAnchor(config.liquidColor, config.liquidState ?? 'none')
+  const seaAnchor = showLiquidSurface && planetConfig
+    ? resolveSeaAnchor(planetConfig.liquidColor, planetConfig.liquidState ?? 'none')
     : null
 
   // Pre-compute per-vertex band + nearest tile state: these are geometry-
@@ -213,13 +167,19 @@ export function buildSmoothSphereMesh(
   // shift the vertex band accordingly. Bands themselves stay noise-derived,
   // which preserves the sphere's organic look; mutations (dig) show as a
   // localised dip around the affected tile instead of retiling the sphere.
-  const bands:  number[]             = new Array(pos.count)
-  const states: (TileState | undefined)[] = new Array(pos.count)
+  const bands:        number[]    = new Array(pos.count)
+  // Per-vertex sol tile id, used by the paint loop to chase tile-elevation
+  // mutations (dig delta) without re-running the lookup. Resource-paint
+  // routing keeps its own tile-id buffer because gas-giant smooth spheres
+  // remap onto the atmo hexasphere.
+  const solTileId:    Int32Array  = new Int32Array(pos.count)
+  const paintTileId:  Int32Array  = new Int32Array(pos.count)
   const initialTileElevation = new Map<number, number>()
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i)
-    bands[i]  = sim.elevationAt(x, y, z)
-    states[i] = nearestTile(x, y, z)
+    bands[i]       = sim.elevationAt(x, y, z)
+    solTileId[i]   = nearestSolTileId(x, y, z)
+    paintTileId[i] = nearestPaintTileId(x, y, z)
   }
   for (const [id, st] of sim.tileStates) initialTileElevation.set(id, st.elevation)
 
@@ -228,7 +188,7 @@ export function buildSmoothSphereMesh(
   // buffer at `(0, 0, 0)` — the atmospheric shader reads band stops
   // procedurally and only consumes vertex colours via its overlay-mask
   // path (driven by `paintFromTiles` at resource paint time).
-  const skipDefaultPaint = strategyFor(config.type).displayMeshIsAtmosphere
+  const skipDefaultPaint = strategy.displayMeshIsAtmosphere
 
   /** Last sea-level band passed through `paintColors` — reused by `repaint`. */
   let lastSeaLevelBand = sim.seaLevelElevation
@@ -237,16 +197,16 @@ export function buildSmoothSphereMesh(
     lastSeaLevelBand = seaLevelBand
     if (skipDefaultPaint) return
     for (let i = 0; i < pos.count; i++) {
-      const state = states[i]
+      const tileId = solTileId[i]
+      const state  = sim.tileStates.get(tileId)
       // Shift the vertex's noise band by the tile's dig delta so mined
       // tiles drag the surrounding smooth-sphere pixels down to their
       // freshly exposed band. Vertices with no nearest tile fall back to
       // the raw noise band (poles, etc.).
       let band = bands[i]
       if (state) {
-        const now  = sim.tileStates.get(state.tileId)?.elevation ?? state.elevation
-        const init = initialTileElevation.get(state.tileId) ?? state.elevation
-        band = Math.max(0, band + (now - init))
+        const init = initialTileElevation.get(tileId) ?? state.elevation
+        band = Math.max(0, band + (state.elevation - init))
       }
       const level        = getTileLevel(band, levels)
       const submerged    = showLiquidSurface && band < seaLevelBand
@@ -278,7 +238,7 @@ export function buildSmoothSphereMesh(
       }
     : undefined
 
-  const planetMat = new BodyMaterial(config.type, params, {
+  const planetMat = new BodyMaterial(strategy.shaderType, params, {
     vertexColors: true,
     liquid,
     palette: levels,
@@ -313,10 +273,13 @@ export function buildSmoothSphereMesh(
 
   function paintFromTiles(colors: Map<number, { r: number; g: number; b: number }>): void {
     if (colors.size === 0) return
+    // Strict nearest-only — the body fragment shaders (gas / rocky / metallic)
+    // gate the overlay on `max(r, g, b) > 0` so unpainted vertices fall back
+    // to the procedural pattern. A K-nearest blend would smear partial
+    // weights onto unpainted neighbourhoods and produce star-shaped overlay
+    // halos at every painted-region boundary.
     for (let i = 0; i < pos.count; i++) {
-      const state = states[i]
-      if (!state) continue
-      const rgb = colors.get(state.tileId)
+      const rgb = colors.get(paintTileId[i])
       if (!rgb) continue
       col[i * 3]     = rgb.r
       col[i * 3 + 1] = rgb.g

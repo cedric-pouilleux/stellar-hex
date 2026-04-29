@@ -5,7 +5,7 @@ html, body, #app {
   padding: 0;
   height: 100%;
   width: 100%;
-  background: #0b0d12;
+  background: #0a0a0c;
   color: #e4e6ea;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   font-size: 13px;
@@ -17,6 +17,22 @@ button, input, select {
   color: inherit;
 }
 
+/* ── Scrollbars (thin & discreet) ──────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+*::-webkit-scrollbar-corner { background: transparent; }
+
 /* ── Layout ──────────────────────────────────────────────
    Hexa mode (default): resources | viewport | body params.
    Shader mode: resources | shader params | viewport | body params.
@@ -25,13 +41,22 @@ button, input, select {
    viewport off-axis. */
 .layout {
   display: grid;
-  grid-template-columns: 260px 1fr 320px;
+  grid-template-columns: 320px 1fr 280px;
   grid-template-rows: 40px 1fr;
   width: 100vw;
   height: 100vh;
 }
 .layout.has-shader-pane {
-  grid-template-columns: 260px 280px 1fr 320px;
+  grid-template-columns: 320px 280px 1fr 280px;
+}
+/* Stars expose no hex sol — the Resources panel is removed via v-if,
+   so the grid drops the left column to keep the viewport flush against
+   the topbar's left edge instead of leaving an empty 260px slot. */
+.layout.is-star {
+  grid-template-columns: 1fr 280px;
+}
+.layout.is-star.has-shader-pane {
+  grid-template-columns: 280px 1fr 280px;
 }
 /* Stack container that hosts both render panes in the single centre
    cell. Each pane sits at `inset: 0` and is swapped via `v-show` so the
@@ -48,7 +73,7 @@ button, input, select {
    (Shader/Hexa + Sol/Atmosphère). */
 .view-toggle {
   display: inline-flex;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -62,20 +87,21 @@ button, input, select {
   font-size: 12px;
 }
 .view-toggle__btn + .view-toggle__btn {
-  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 .view-toggle__btn.is-active {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.10);
   color: #fff;
 }
+
 .topbar {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 0 16px;
-  border-bottom: 1px solid #1d2028;
-  background: #0f1218;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
   font-size: 12px;
   color: #8a919b;
 }
@@ -84,23 +110,23 @@ button, input, select {
 .topbar .pill {
   padding: 2px 8px;
   border-radius: 12px;
-  background: #1a1e26;
+  background: rgba(255, 255, 255, 0.04);
   color: #b0b6c0;
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Panels ────────────────────────────────────────────── */
+/* ── Panels ──────────────────────────────────────────────
+   Transparent background so the layout reads as a single flat surface;
+   only a subtle vertical rule separates each column from the viewport. */
 .panel {
   height: 100%;
   overflow-y: auto;
-  background: #0f1218;
-  padding: 12px;
+  background: transparent;
+  padding: 12px 14px;
 }
-/* Border between every column except the viewport. The viewport sits in
-   the 1fr cell (no `.panel` class) and doesn't need its own border. */
-.panel-resources { border-right: 1px solid #1d2028; }
-.panel-shader    { border-right: 1px solid #1d2028; }
-.panel-body      { border-left:  1px solid #1d2028; }
+.panel-resources { border-right: 1px solid rgba(255, 255, 255, 0.06); }
+.panel-shader    { border-right: 1px solid rgba(255, 255, 255, 0.06); }
+.panel-body      { border-left:  1px solid rgba(255, 255, 255, 0.06); }
 
 .panel h2 {
   margin: 0 0 8px;
@@ -113,7 +139,7 @@ button, input, select {
 
 .view {
   position: relative;
-  background: #070809;
+  background: #070708;
   overflow: hidden;
 }
 .view canvas { display: block; width: 100%; height: 100%; }
@@ -141,15 +167,20 @@ button, input, select {
 }
 
 /* ── Controls ──────────────────────────────────────────── */
+/* Collapsible groups stack vertically with a thin separator between
+   each — no border box, no background, no chrome. Last group drops its
+   separator so the panel does not end on a half-line. */
 .group {
-  border: 1px solid #1d2028;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  background: #10141c;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
+  margin: 0;
+  background: transparent;
 }
+.group:last-of-type { border-bottom: 0; }
 .group > summary {
   cursor: pointer;
-  padding: 6px 10px;
+  padding: 8px 2px;
   font-size: 12px;
   font-weight: 600;
   color: #c9cdd4;
@@ -164,7 +195,7 @@ button, input, select {
   width: 12px;
 }
 .group[open] > summary::before { content: '▾ '; }
-.group-body { padding: 6px 10px 10px; }
+.group-body { padding: 4px 2px 12px; }
 
 .row {
   display: grid;
@@ -182,7 +213,7 @@ button, input, select {
 }
 .row input[type=range] {
   width: 100%;
-  accent-color: #4d7dd4;
+  accent-color: #9aa3b0;
 }
 .row .val {
   text-align: right;
@@ -191,8 +222,8 @@ button, input, select {
   font-size: 11px;
 }
 .row input[type=number] {
-  background: #0a0c11;
-  border: 1px solid #1d2028;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #e4e6ea;
   padding: 3px 6px;
   border-radius: 3px;
@@ -202,21 +233,21 @@ button, input, select {
   width: 100%;
   height: 22px;
   background: transparent;
-  border: 1px solid #1d2028;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 3px;
   padding: 0;
 }
 .row select {
-  background: #0a0c11;
-  border: 1px solid #1d2028;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #e4e6ea;
   padding: 3px 6px;
   border-radius: 3px;
   width: 100%;
 }
 .row input[type=text] {
-  background: #0a0c11;
-  border: 1px solid #1d2028;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #e4e6ea;
   padding: 3px 6px;
   border-radius: 3px;
@@ -228,32 +259,34 @@ button, input, select {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
-  margin-bottom: 8px;
 }
 .type-switch button {
   padding: 6px 4px;
-  background: #10141c;
-  border: 1px solid #1d2028;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #8a919b;
   border-radius: 3px;
   cursor: pointer;
   font-size: 11px;
   transition: all 0.1s;
 }
-.type-switch button:hover { border-color: #2d333f; color: #c9cdd4; }
+.type-switch button:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #c9cdd4;
+}
 .type-switch button.active {
-  background: #1c2536;
-  border-color: #4d7dd4;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.22);
   color: #e4e6ea;
 }
 
 /* ── Info panel ────────────────────────────────────────── */
 .info {
   margin-bottom: 8px;
-  padding: 8px 10px;
-  border: 1px solid #1d2028;
-  border-radius: 4px;
-  background: #10141c;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
 }
 .info h3 {
   margin: 0 0 6px;
@@ -281,14 +314,14 @@ button, input, select {
 }
 .resource-bar .bar {
   height: 6px;
-  background: #1a1e26;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 3px;
   overflow: hidden;
 }
 .resource-bar .bar > span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #4d7dd4, #8dc0ff);
+  background: linear-gradient(90deg, rgba(255,255,255,0.30), rgba(255,255,255,0.55));
 }
 .resource-bar .amt {
   text-align: right;
@@ -315,8 +348,8 @@ button, input, select {
   pointer-events: none;
   min-width: 180px;
   max-width: 240px;
-  background: rgba(12, 14, 20, 0.92);
-  border: 1px solid #2a2f3a;
+  background: rgba(10, 10, 12, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 4px;
   padding: 8px 10px;
   font-size: 11px;
@@ -339,7 +372,7 @@ button, input, select {
 }
 .tile-tooltip .tooltip-sep {
   height: 1px;
-  background: #1d2028;
+  background: rgba(255, 255, 255, 0.06);
   margin: 6px 0 4px;
 }
 

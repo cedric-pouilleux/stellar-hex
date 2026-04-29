@@ -1,15 +1,25 @@
 /**
- * View toggle for non-stellar bodies — encapsulates the surface /
- * atmosphere / shader switching logic that was previously inline in
- * `useBody`. Keeps the depth-flag, side-flip and visibility book-keeping
- * in one place so the body factory stays focused on assembly.
+ * View toggle for non-stellar bodies.
  *
- * Stars carry no meaningful view distinction and use the no-op stub from
- * `useStar`.
+ * Three mutually exclusive views drive every body:
+ *
+ *   - `'surface'`    : sol mesh visible (relief + liquid). Atmo board
+ *                      hidden, smooth sphere hidden (or shown as a
+ *                      transparent backdrop on gas giants whose smooth
+ *                      sphere plays the atmospheric silhouette). Atmo
+ *                      shell is kept on as a discreet halo (`setHaloMode`)
+ *                      so the sol keeps full visibility while the
+ *                      atmosphere's presence stays hinted at the rim.
+ *   - `'atmosphere'` : atmo board visible (resource grid). Sol mesh
+ *                      hidden, smooth sphere hidden, atmo shell hidden.
+ *   - `'shader'`     : non-interactive overview. Smooth sphere visible
+ *                      (when its strategy enables it), atmo halo shell
+ *                      overlaid in full (bands + clouds + tile paint).
+ *                      Sol mesh and atmo board both hidden.
  */
 
 import * as THREE from 'three'
-import type { InteractiveView } from '../layered/buildLayeredInteractiveMesh'
+import type { InteractiveView } from '../../types/bodyHandle.types'
 import type { PlanetSceneGraph } from './assemblePlanetSceneGraph'
 
 /** Public handle returned by {@link createPlanetViewSwitcher}. */
@@ -27,8 +37,8 @@ export function createPlanetViewSwitcher(graph: PlanetSceneGraph): PlanetViewSwi
   const {
     group, strategy,
     displayMesh, planetMaterial,
-    interactive, coreMesh,
-    atmoShell, liquidCorona,
+    interactive, atmoBoard,
+    atmoShell,
   } = graph
 
   const displayMaterial      = displayMesh.material as THREE.Material
@@ -40,31 +50,34 @@ export function createPlanetViewSwitcher(graph: PlanetSceneGraph): PlanetViewSwi
   const baseAtmoRenderOrd    = atmoShell?.mesh.renderOrder ?? 1
 
   function set(view: InteractiveView): void {
-    interactive.setView(view)
-    coreMesh.mesh.visible     = view === 'surface'
-    interactive.group.visible = view !== 'shader'
-
-    if ((view === 'shader' || view === 'surface') && atmoShell && atmoShell.mesh.parent !== group) {
-      group.add(atmoShell.mesh)
-    }
-
     const isSurface     = view === 'surface'
+    const isAtmosphere  = view === 'atmosphere'
     const isShader      = view === 'shader'
     const isGasBackdrop = isSurface && strategy.displayMeshIsAtmosphere
 
-    // Smooth sphere — visible in Shader view (all types) and as a backdrop
-    // for gas Sol view (depth flags off so the playable hex grid overdraws
-    // it). On rocky / metallic Sol view we hide it; the playable hex prisms
-    // already show the sol palette.
+    // Sol mesh — visible only in the surface view.
+    interactive.setVisible(isSurface)
+
+    // Atmo board — visible only in the atmosphere view.
+    atmoBoard?.setVisible(isAtmosphere)
+
+    // Atmo halo shell + liquid corona — visible alongside the smooth
+    // sphere on the shader overview. Hidden in the playable views.
+    if ((isShader || isSurface) && atmoShell && atmoShell.mesh.parent !== group) {
+      group.add(atmoShell.mesh)
+    }
+
+    // Smooth sphere — visible in shader view (all types) and as a backdrop
+    // for gas surface view (depth flags off so the playable sol grid
+    // overdraws it).
     displayMesh.visible        = isShader || isGasBackdrop
     displayMaterial.depthTest  = !isSurface && baseDisplayDepthTest
     displayMaterial.depthWrite = !isSurface && baseDisplayDepthW
     displayMesh.renderOrder    = isSurface ? -2 : baseDisplayRenderOrd
 
-    // Gas Sol backdrop: dim hard, flatten lighting, switch to BackSide so
-    // the user reads the inner curvature of the atmospheric dome wrapping
-    // the playable hex core. Setters are no-ops on shaders that don't
-    // consume the uniforms.
+    // Gas surface backdrop: dim hard, flatten lighting, switch to BackSide
+    // so the user reads the inner curvature of the atmospheric dome
+    // wrapping the playable hex core.
     planetMaterial.setViewDim(isGasBackdrop ? 0.05 : 1.0)
     planetMaterial.setFlatLighting(isGasBackdrop)
     if (strategy.displayMeshIsAtmosphere) {
@@ -76,12 +89,15 @@ export function createPlanetViewSwitcher(graph: PlanetSceneGraph): PlanetViewSwi
       }
     }
 
-    // Atmo shell — visible in Shader + Surface, hidden in Atmosphere view.
-    // Side flips per view: FrontSide in Shader so the shell reads as a
-    // translucent halo overlaid on the smooth sphere, BackSide in Sol so
-    // the back-face depth pushes it behind the playable hex prisms.
+    // Atmo halo shell — visible in shader + surface, hidden in atmosphere
+    // view. Side flips per view: FrontSide in shader so the shell reads
+    // as a translucent halo overlaid on the smooth sphere, BackSide in
+    // surface so the back-face depth pushes it behind the playable hex
+    // prisms. Halo mode kicks in for surface so the playable sol keeps
+    // full colour fidelity (no band/cloud bleed onto the rim).
     if (atmoShell && atmoMaterial) {
-      atmoShell.setVisible(view !== 'atmosphere')
+      atmoShell.setVisible(!isAtmosphere)
+      atmoShell.setHaloMode(isSurface)
       atmoMaterial.depthTest     = baseAtmoDepthTest
       atmoMaterial.depthWrite    = false
       atmoShell.mesh.renderOrder = baseAtmoRenderOrd
@@ -91,19 +107,9 @@ export function createPlanetViewSwitcher(graph: PlanetSceneGraph): PlanetViewSwi
         sm.side        = nextSide
         sm.needsUpdate = true
       }
-      // Sol view keeps the dome look uniformly lit; Shader view shades
-      // the halo with the sun direction so the user sees a proper
-      // day / night terminator.
       atmoShell.setFlatLighting(!isShader)
     } else {
       atmoShell?.setVisible(false)
-    }
-
-    // Liquid corona — visible alongside the atmoShell, hidden in
-    // Atmosphere view. Same flat-lighting toggle as atmoShell.
-    if (liquidCorona) {
-      liquidCorona.setVisible(view !== 'atmosphere')
-      liquidCorona.setFlatLighting(!isShader)
     }
   }
 

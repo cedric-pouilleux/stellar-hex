@@ -4,7 +4,6 @@ import {
   assignResourceMix,
   classifyBodyType,
   phaseWeights,
-  extractGasVolatiles,
   pickSurfaceLiquid,
   partitionPhases,
   canRetainAtmosphere,
@@ -138,35 +137,6 @@ describe('pickSurfaceLiquid', () => {
     // At 165 K: H₂O is solid (< 273), CH₄ is gas (> 112), NH₃ is solid (< 195).
     // No volatile is in liquid phase at this temperature → undefined.
     expect(liq).toBeUndefined()
-  })
-})
-
-// ── extractGasVolatiles ───────────────────────────────────────────
-
-describe('extractGasVolatiles', () => {
-  it('Jupiter → H₂He + CH₄ dominate the gas bucket and re-normalise to 1', () => {
-    const mix = assignResourceMix(JUPITER)
-    const gas = extractGasVolatiles(mix, T_avgK(JUPITER))
-    const sum = Object.values(gas).reduce((s, v) => s + v, 0)
-    expect(sum).toBeCloseTo(1, 6)
-    expect(gas.h2he ?? 0).toBeGreaterThan(0.5)  // dominant gas-giant volatile
-  })
-
-  it('Earth → gas bucket is N₂ + CO₂ + H₂O (all in gas phase at 15 °C)', () => {
-    const mix = assignResourceMix(EARTH)
-    const gas = extractGasVolatiles(mix, T_avgK(EARTH))
-    // At 288 K: h2o > boilK? No — boilK is 373. So h2o is LIQUID, not in this bucket.
-    //          n2 is gas (77 K boil). co2 is gas (sublimates at 195 K).
-    expect(gas.h2o).toBeUndefined()
-    expect(gas.n2 ?? 0).toBeGreaterThan(0)
-    expect(gas.co2 ?? 0).toBeGreaterThan(0)
-  })
-
-  it('returns {} when no volatile is gaseous at the given temperature', () => {
-    // A hypothetical ultra-cold body where even H₂He would be solid — 1 K.
-    const mix = assignResourceMix({ tempMin: -272, tempMax: -272, radius: 1, mass: 1 })
-    const gas = extractGasVolatiles(mix, 1)
-    expect(Object.keys(gas)).toHaveLength(0)
   })
 })
 

@@ -6,14 +6,17 @@
  *  1. Shader / Hexa — which render pane is active (topbar-level previously).
  *  2. Sol / Atmosphère — layered mesh view (only meaningful in Hexa pane).
  *
- * The atmosphere toggle auto-hides on stars (no atmo band) and on the
- * Shader pane (smooth sphere ignores the view flag).
+ * The atmosphere toggle auto-hides on stars and on bodies configured
+ * without an atmosphere — same contract as `hasAtmosphere(config)` on
+ * the lib side, so the UI switch and the lib-side render decisions
+ * stay in lockstep.
  */
 import { computed } from 'vue'
+import { hasAtmosphere } from '@lib'
 import { bodyConfig, activePane } from '../lib/state'
 import { viewMode } from '../lib/viewMode'
 
-const canHaveAtmosphere = computed(() => bodyConfig.type !== 'star')
+const canHaveAtmosphere = computed(() => hasAtmosphere(bodyConfig))
 const showAtmoToggle    = computed(() =>
   activePane.value === 'hexa' && canHaveAtmosphere.value,
 )

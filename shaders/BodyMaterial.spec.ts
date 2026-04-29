@@ -73,6 +73,31 @@ describe('BodyMaterial palette uniforms', () => {
   })
 })
 
+describe('BodyMaterial terrain archetype uniform', () => {
+  it('exposes uTerrainArchetype on rocky and propagates setParams updates', () => {
+    const mat = new BodyMaterial('rocky')
+    expect(mat.material.uniforms.uTerrainArchetype.value).toBe(0)
+    mat.setParams({ terrainArchetype: 2 })
+    expect(mat.material.uniforms.uTerrainArchetype.value).toBe(2)
+    mat.dispose()
+  })
+
+  it('exposes uTerrainArchetype on metallic and accepts the hybrid index', () => {
+    const mat = new BodyMaterial('metallic', { terrainArchetype: 3 })
+    expect(mat.material.uniforms.uTerrainArchetype.value).toBe(3)
+    mat.dispose()
+  })
+
+  it('falls back to 0 on types without the param (gas, star) so body.vert stays valid', () => {
+    const gas  = new BodyMaterial('gaseous')
+    const star = new BodyMaterial('star')
+    expect(gas.material.uniforms.uTerrainArchetype.value).toBe(0)
+    expect(star.material.uniforms.uTerrainArchetype.value).toBe(0)
+    gas.dispose()
+    star.dispose()
+  })
+})
+
 describe('BodyMaterial setSeaLevel', () => {
   const liquid = {
     permTexture: new THREE.DataTexture(new Uint8Array(512), 256, 1),

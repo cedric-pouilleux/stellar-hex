@@ -36,6 +36,19 @@ export const GAS_PATTERN_LABEL: Record<GasPatternKind, string> = {
 }
 
 /**
+ * Compact labels (one word) — used in the ResourceControls per-row pattern
+ * dropdown where horizontal space is tight. The full {@link GAS_PATTERN_LABEL}
+ * remains available as the option's `title` tooltip.
+ */
+export const GAS_PATTERN_SHORT_LABEL: Record<GasPatternKind, string> = {
+  cluster:  'Cluster',
+  band:     'Band',
+  vortex:   'Vortex',
+  scatter:  'Scatter',
+  gradient: 'Gradient',
+}
+
+/**
  * Default pattern per volatile — handcrafted so each gas reads as a familiar
  * planetary archetype out of the box. The user can override any of these via
  * the playground UI without touching the params (only the kind switches).
@@ -70,17 +83,21 @@ const KIND_DEFAULTS: { [K in GasPatternKind]: Extract<DistributionPattern, { kin
 }
 
 /**
- * Resolves the effective pattern for a volatile — falls through in this order:
+ * Resolves the effective pattern for a gas id — falls through in this order:
  *   1. Caller-supplied override (kind only) → uses {@link KIND_DEFAULTS} for the rest.
  *   2. Per-volatile default in {@link DEFAULT_GAS_PATTERN}.
+ *   3. {@link KIND_DEFAULTS.scatter} fallback when the id is unknown
+ *      (custom user-added atmo resource that has no entry in the volatile
+ *      catalogue). Lets the gas distribution accept arbitrary ids without
+ *      throwing.
  */
 export function resolveGasPattern(
-  id:        VolatileId,
-  overrides: Partial<Record<VolatileId, GasPatternKind>> = {},
+  id:        string,
+  overrides: Partial<Record<string, GasPatternKind>> = {},
 ): DistributionPattern {
   const overrideKind = overrides[id]
   if (overrideKind !== undefined) return KIND_DEFAULTS[overrideKind]
-  return DEFAULT_GAS_PATTERN[id]
+  return DEFAULT_GAS_PATTERN[id as VolatileId] ?? KIND_DEFAULTS.scatter
 }
 
 /**
@@ -98,20 +115,24 @@ export function patternForKind(kind: GasPatternKind): DistributionPattern {
 /** Input for {@link assignGaseousTiles}. */
 export interface AssignGaseousTilesInput {
   tiles:     readonly PatternTile[]
-  /** Normalised volatile gas mix — values are shares of the total, summing to ≤ 1. */
-  gasMix:    Partial<Record<VolatileId, number>>
-  /** Per-volatile pattern-kind override (UI-driven). */
-  overrides?: Partial<Record<VolatileId, GasPatternKind>>
-  /** Seed key — typically the body name; mixed with volatile ids for per-gas randomness. */
+  /**
+   * Normalised gas mix — values are shares of the total, summing to ≤ 1.
+   * Keys are gas resource ids; catalogued volatiles use {@link VolatileId}
+   * literals, custom user-added atmo resources use their generated id.
+   */
+  gasMix:    Partial<Record<string, number>>
+  /** Per-gas pattern-kind override (UI-driven). */
+  overrides?: Partial<Record<string, GasPatternKind>>
+  /** Seed key — typically the body name; mixed with gas ids for per-gas randomness. */
   hashKey:   string
   /** Body radius, forwarded to the pattern evaluator. */
   radius:    number
   /**
-   * Per-volatile weight in [0, 1] applied to the pattern peak, so a small
-   * weight makes the gas lose pattern competition against its neighbours.
-   * Missing entries default to `1` (no scaling).
+   * Per-gas weight in [0, 1] applied to the pattern peak, so a small weight
+   * makes the gas lose pattern competition against its neighbours. Missing
+   * entries default to `1` (no scaling).
    */
-  weights?:  Partial<Record<VolatileId, number>>
+  weights?:  Partial<Record<string, number>>
   /**
    * Minimum pattern intensity required for a tile to "belong" to a gas.
    * Tiles below this floor fall back to a share-weighted stochastic pick so
@@ -135,22 +156,22 @@ export interface AssignGaseousTilesInput {
  * yields the same map. Suitable for direct consumption by the resource
  * distribution pipeline.
  */
-export function assignGaseousTiles(input: AssignGaseousTilesInput): Map<number, VolatileId> {
-  const out: Map<number, VolatileId> = new Map()
+export function assignGaseousTiles(input: AssignGaseousTilesInput): Map<number, string> {
+  const out: Map<number, string> = new Map()
 
   // Filter to gases with a non-zero share — anything else cannot win tiles
   // and would only pollute the fallback distribution.
-  const gasIds = (Object.keys(input.gasMix) as VolatileId[])
+  const gasIds = Object.keys(input.gasMix)
     .filter(id => (input.gasMix[id] ?? 0) > 0)
   if (gasIds.length === 0) return out
 
   const overrides    = input.overrides ?? {}
   const minIntensity = input.minWinnerIntensity ?? 0.12
 
-  // Evaluate each volatile's pattern ONCE, with threshold forced to 0 so every
+  // Evaluate each gas pattern ONCE, with threshold forced to 0 so every
   // tile receives an intensity sample. The original threshold would otherwise
   // gate-out low-intensity tiles, leaving "holes" that break winner-takes-all.
-  const layers = new Map<VolatileId, Map<number, number>>()
+  const layers = new Map<string, Map<number, number>>()
   for (const id of gasIds) {
     const base    = resolveGasPattern(id, overrides)
     const weight  = input.weights?.[id] ?? 1
@@ -169,7 +190,7 @@ export function assignGaseousTiles(input: AssignGaseousTilesInput): Map<number, 
   const shareTotal = gasIds.reduce((s, id) => s + (input.gasMix[id] ?? 0), 0) || 1
 
   for (const tile of input.tiles) {
-    let winner: VolatileId | undefined
+    let winner: string | undefined
     let bestIntensity = 0
 
     for (const [id, layer] of layers) {
@@ -190,7 +211,7 @@ export function assignGaseousTiles(input: AssignGaseousTilesInput): Map<number, 
     // trace gases get a proportional scattering.
     const h = hash01(input.hashKey + ':fallback', tile.id)
     let cum = 0
-    let fallback: VolatileId = gasIds[0]
+    let fallback: string = gasIds[0]
     for (const id of gasIds) {
       cum += (input.gasMix[id] ?? 0) / shareTotal
       if (h < cum) { fallback = id; break }

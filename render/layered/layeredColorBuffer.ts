@@ -1,18 +1,15 @@
 /**
- * Color buffer manager for the layered interactive mesh.
+ * Color buffer manager for the sol interactive mesh.
  *
- * Owns the geometry's `color` attribute and exposes the three primitives
- * the orchestrator needs to drive per-tile tinting:
+ * Owns the geometry's `color` attribute and exposes the primitives the
+ * orchestrator needs to drive per-tile tinting:
  *
- *   - `writeTileColor(tileId, rgb)`     — stamp on both sol + atmo bands
- *     (used by the unified resource overlays where the atmo band reads
- *     the same colour as the sol prism so the overlay survives the
- *     view toggle).
- *   - `applyTileOverlay(layer, colors)` — stamp on a single band
- *     (sol-only resource overlays, atmo-only gas tinting…).
- *   - `paintTile(tileId, rgb)` (alias of `writeTileColor` semantics, kept
- *     for the sea-level repaint path that pre-resolves a {@link TileVisual}
- *     and writes its r/g/b into both bands).
+ *   - `writeTileColor(tileId, rgb)` — stamp every vertex of a tile.
+ *   - `applyTileOverlay(colors)`    — bulk overlay (one pass over the map).
+ *   - `paintTile(tileId, rgb)`      — alias of `writeTileColor`, exposed
+ *     separately because the sea-level repaint path resolves a full
+ *     `TileVisual` and only writes the colour channel; keeping the names
+ *     distinct makes the call sites easy to read.
  *
  * Each method flips `needsUpdate` itself so the orchestrator does not have
  * to track the dirty flag — one attribute, one source of truth.
@@ -20,48 +17,31 @@
 
 import * as THREE from 'three'
 import type { LayeredTileRange } from './buildLayeredMesh'
-import type { InteractiveLayer } from './buildLayeredInteractiveMesh'
 
 /** Plain RGB triple — kept local to avoid importing the public `RGB` type. */
 interface RGB { r: number; g: number; b: number }
 
-/** Public surface for the layered color buffer. */
+/** Public surface for the sol color buffer. */
 export interface LayeredColorBuffer {
-  /**
-   * Stamps `rgb` on every vertex of a tile's **sol** band only. The atmo
-   * band keeps its own colour buffer (empty by default → falls back to the
-   * shader's uniform tint, painted explicitly via {@link applyTileOverlay}
-   * `('atmo', …)` when gameplay needs per-tile atmospheric resource hues).
-   * Mixing the two would leak sol-driven shades (e.g. the dark band-0
-   * colour on mined tiles) into the playable atmo grid as black blotches.
-   * Marks the attribute dirty for the next render.
-   */
+  /** Stamps `rgb` on every vertex of a tile. Marks dirty for the next render. */
   writeTileColor(tileId: number, rgb: RGB): void
   /**
-   * Stamps per-tile colours on a single band (sol or atmo). Lets overlay
-   * renderers tint one layer without touching the other. Marks dirty
-   * once at the end of the batch — pass an empty map to no-op cleanly.
+   * Stamps per-tile colours from a map. Marks dirty once at the end of the
+   * batch — pass an empty map to no-op cleanly.
    */
-  applyTileOverlay(layer: InteractiveLayer, colors: Map<number, RGB>): void
-  /**
-   * Identical effect to {@link writeTileColor} but exposed as a separate
-   * entry point because the sea-level repaint path resolves a full
-   * `TileVisual` (carrying r/g/b plus PBR metadata) and only writes the
-   * colour channel. Keeping the two named callers makes the intent of
-   * each call site obvious.
-   */
+  applyTileOverlay(colors: Map<number, RGB>): void
+  /** Identical effect to {@link writeTileColor} — exposed under a separate name for the sea-level repaint path. */
   paintTile(tileId: number, rgb: RGB): void
 }
 
 /**
- * Builds the color buffer manager.
+ * Builds the color buffer manager. Allocates the `Float32Array` of size
+ * `vertCount × 3`, attaches it to the geometry as the `color` attribute,
+ * runs the initial fill from the supplied `tileVisuals`, and returns the
+ * runtime helpers.
  *
- * Allocates the `Float32Array` of size `vertCount × 3`, attaches it to
- * the geometry as the `color` attribute, runs the initial fill from the
- * supplied `tileVisuals` map, and returns the runtime helpers.
- *
- * @param geometry    - Layered geometry already carrying position/normal/aSolHeight.
- * @param tileRange   - Per-tile sol + atmo vertex ranges.
+ * @param geometry    - Sol geometry already carrying position/normal/aSolHeight.
+ * @param tileRange   - Per-tile vertex ranges in the merged buffer.
  * @param tileVisuals - Initial tile-visual cache (already populated by the orchestrator).
  */
 export function buildLayeredColorBuffer(
@@ -72,14 +52,10 @@ export function buildLayeredColorBuffer(
   const vertCount = geometry.getAttribute('position').count
   const colors    = new Float32Array(vertCount * 3)
 
-  // ── Initial fill ────────────────────────────────────────────────
-  // Sol-only — the atmo band starts at (0, 0, 0) so the atmo shader falls
-  // back to its uniform tint until the caller paints atmospheric
-  // resources explicitly via `applyTileOverlay('atmo', …)`.
   for (const [tileId, vis] of tileVisuals) {
     const range = tileRange.get(tileId)
     if (!range) continue
-    fillRange(colors, range.sol.start, range.sol.count, vis)
+    fillRange(colors, range.start, range.count, vis)
   }
 
   const colorAttr = new THREE.Float32BufferAttribute(colors, 3)
@@ -88,17 +64,16 @@ export function buildLayeredColorBuffer(
   function writeTileColor(tileId: number, rgb: RGB): void {
     const range = tileRange.get(tileId)
     if (!range) return
-    setRangeRGB(colorAttr, range.sol.start, range.sol.count, rgb)
+    setRangeRGB(colorAttr, range.start, range.count, rgb)
     colorAttr.needsUpdate = true
   }
 
-  function applyTileOverlay(layer: InteractiveLayer, perTile: Map<number, RGB>): void {
+  function applyTileOverlay(perTile: Map<number, RGB>): void {
     if (perTile.size === 0) return
     for (const [tileId, rgb] of perTile) {
       const range = tileRange.get(tileId)
       if (!range) continue
-      const slice = layer === 'sol' ? range.sol : range.atmo
-      setRangeRGB(colorAttr, slice.start, slice.count, rgb)
+      setRangeRGB(colorAttr, range.start, range.count, rgb)
     }
     colorAttr.needsUpdate = true
   }
@@ -112,7 +87,7 @@ export function buildLayeredColorBuffer(
 
 // ── Local helpers ────────────────────────────────────────────────────
 
-/** Fills `vertCount * 3` floats starting at `start * 3` with the same RGB. */
+/** Fills `count * 3` floats starting at `start * 3` with the same RGB. */
 function fillRange(
   buf:   Float32Array,
   start: number,
@@ -126,7 +101,7 @@ function fillRange(
   }
 }
 
-/** Writes `rgb` over a vertex slice of a `BufferAttribute` (no dirty flag — caller flips once). */
+/** Writes `rgb` over a vertex slice of a `BufferAttribute`. */
 function setRangeRGB(
   attr:  THREE.BufferAttribute,
   start: number,

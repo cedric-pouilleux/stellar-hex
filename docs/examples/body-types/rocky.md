@@ -30,11 +30,11 @@ La lib est **agnostique du climat** : elle ne lit aucun champ de température et
 |------|------|-------------|
 | `type` | `'rocky'` | Discriminant obligatoire |
 | `name` | `string` | Seed déterministe — même nom = même planète |
-| `radius` | `number` | Rayon visuel (unités monde) |
+| `radius` | `number` | Rayon de la silhouette totale (sol + atmo, unités monde) |
 | `liquidState` | `'liquid' \| 'frozen' \| 'none'` | État physique du liquide de surface (défaut `'none'`) |
 | `liquidCoverage` | `number` 0–1 | Fraction initiale de tuiles immergées (défaut `0.5`) |
 | `liquidColor` | `ColorInput` | Couleur opaque du liquide — requise si `liquidState !== 'none'` |
-| `atmosphereThickness` | `number` 0–1 | Épaisseur radiale de l'atmo (fraction du rayon) |
+| `atmosphereThickness` | `number` 0–1 | Fraction radiale de `radius` occupée par l'atmo — sol = `radius × (1 - thickness)` |
 | `atmosphereOpacity` | `number` 0–1 | Opacité de l'atmo en vue shader |
 | `coreRadiusRatio` | `number` 0–1 | Rayon du noyau interne (override) |
 | `mass` | `number` | Masse en M⊕ — métadonnée |

@@ -7,11 +7,13 @@ import BodyControls       from './components/BodyControls.vue'
 import ResourceControls   from './components/ResourceControls.vue'
 import PaneToggles        from './components/PaneToggles.vue'
 import DigControls        from './components/DigControls.vue'
-import { BODY_TYPES, generateBodyVariation, configToLibParams, type LibBodyType } from '@lib'
+import HoverCursorControls from './components/HoverCursorControls.vue'
+import { configToLibParams } from '@lib'
 import {
   bodyType, bodyConfig, shaderParams, tileSize,
-  rebuildKey, activePane, resourceUIState, coronaHeadroom,
-  sphereDetail, shaderQuality,
+  rebuildKey, activePane, resourceUIState, customResources,
+  sphereDetail, shaderQuality, playgroundFx, buildPlaygroundVariation,
+  resetShaderParams, toLibBodyConfig,
 } from './lib/state'
 import { deriveTemperatureAnchors, deriveLavaColor } from './lib/temperaturePalette'
 import { deriveMetallicBands } from './lib/metallicCatalog'
@@ -28,14 +30,14 @@ import { deriveMetallicBands } from './lib/metallicCatalog'
 // glacial) before any resource pattern paints over it. Resource overlay is
 // applied later by the paint pipeline.
 function applyTemperatureAnchors() {
-  if (bodyConfig.type !== 'rocky') return
+  if (bodyConfig.surfaceLook !== 'terrain') return
   const { colorLow, colorHigh } = deriveTemperatureAnchors(bodyConfig)
   bodyConfig.terrainColorLow  = colorLow
   bodyConfig.terrainColorHigh = colorHigh
   // Lava colour is also temperature-driven — kept caller-owned so the lib
-  // ships no chemistry. Only matters when `hasLava` is on, but the cost
-  // of always assigning is negligible.
-  bodyConfig.lavaColor = deriveLavaColor(bodyConfig)
+  // ships no chemistry. Stored on `playgroundFx` (the lib reads it from the
+  // variation, not the config). Always assigning is cheap.
+  playgroundFx.lavaColor = deriveLavaColor(bodyConfig)
 }
 
 // Metallic bands cache — `deriveMetallicBands` rebuilds a fresh array of
@@ -51,7 +53,7 @@ let lastMetallicSig: string | null = null
 // from the temperature-keyed composition catalogue — same contract as the
 // rocky anchors above, but 4 stops + material ladder + volcanic emissive.
 function applyMetallicBands() {
-  if (bodyConfig.type !== 'metallic') return
+  if (bodyConfig.surfaceLook !== 'metallic') return
   const sig = `${bodyConfig.temperatureMin}|${bodyConfig.temperatureMax}`
   if (sig === lastMetallicSig && bodyConfig.metallicBands) return
   lastMetallicSig = sig
@@ -64,8 +66,9 @@ function applyMetallicBands() {
 function deriveShaderParams() {
   applyTemperatureAnchors()
   applyMetallicBands()
-  const variation = generateBodyVariation(bodyConfig)
-  return configToLibParams(bodyConfig, variation) as Record<string, number | string | number[] | boolean>
+  const libConfig = toLibBodyConfig(bodyConfig)
+  const variation = buildPlaygroundVariation(libConfig)
+  return configToLibParams(libConfig, variation) as Record<string, number | string | number[] | boolean>
 }
 
 // Reactive churn control: `shaderParams` feeds both `ShaderControls` and a
@@ -73,9 +76,15 @@ function deriveShaderParams() {
 // delete-then-reassign on every slider tick fires O(N) reactive updates per
 // mousemove, which dominates the drag-time cost. We instead mutate only keys
 // whose value actually changed and drop stale ones.
+//
+// Backfill with `resetShaderParams(type)` so UI-only knobs (corona*, storm*)
+// that are not derived from the physical config still get a default on every
+// type switch — otherwise `ShaderControls` would read `undefined` and crash
+// on `toFixed`.
 function resyncShaderParams() {
-  const fresh  = deriveShaderParams()
-  const target = shaderParams as Record<string, unknown>
+  const fromConfig = deriveShaderParams()
+  const fresh      = { ...resetShaderParams(bodyType.value), ...fromConfig } as Record<string, unknown>
+  const target     = shaderParams as Record<string, unknown>
 
   for (const k of Object.keys(target)) {
     if (!(k in fresh)) delete target[k]
@@ -111,29 +120,23 @@ const autoSync = ref(true)
 // Initial sync on mount.
 resyncShaderParams()
 
-// ── Type switch ───────────────────────────────────────────────
-// Also triggers a physics→shader resync so the left pane picks the correct
-// param schema (shader keys differ per type) already populated with derived
-// values instead of raw defaults.
-function setType(t: LibBodyType) {
-  if (bodyType.value === t) return
-  bodyType.value  = t
-  bodyConfig.type = t
-  resyncShaderParams()
-  rebuildKey.value++
-}
-
 // Re-derive on every BodyConfig mutation so the shader preview tracks the
 // physical config when auto-sync is enabled. Manual slider tweaks survive
 // until the next config change. Coalesced via rAF so rapid drags do not
 // re-run the full derivation at mousemove frequency.
 watch(bodyConfig, scheduleResync, { deep: true })
+// Type switches must resync **synchronously** so the new ShaderControls
+// render finds the matching keys in `shaderParams`. Going through the rAF
+// queue leaves a one-frame gap where the panel reads stale keys (rocky's
+// `roughness` while displaying gaseous controls) and crashes on undefined.
+watch(bodyType, resyncShaderParams)
 
 // Liquid fields (`liquidState`, `liquidColor`) are user-driven through
-// `LiquidControls`. Substance identity lives in `playgroundLibMeta`. Non-rocky
-// bodies drop any stale liquid values so the lib skips the ocean palette branch.
+// `LiquidControls`. Substance identity lives in `playgroundLibMeta`. Stars
+// drop any stale liquid values so the lib skips the ocean palette branch
+// (rocky / gas / metallic all honour `liquidState` now).
 watch(() => bodyConfig.type, (t) => {
-  if (t !== 'rocky') {
+  if (t === 'star') {
     bodyConfig.liquidState = 'none'
     bodyConfig.liquidColor = undefined
   }
@@ -145,12 +148,13 @@ watch(() => bodyConfig.type, (t) => {
 // `useBody` instance.
 watch(() => bodyConfig.type,                 () => rebuildKey.value++)
 watch(() => bodyConfig.hasRings,             () => rebuildKey.value++)
-watch(() => bodyConfig.hasCracks,            () => rebuildKey.value++)
-watch(() => bodyConfig.hasLava,              () => rebuildKey.value++)
+watch(playgroundFx,                          () => rebuildKey.value++, { deep: true })
 watch(() => bodyConfig.radius,               () => rebuildKey.value++)
 watch(() => bodyConfig.name,                 () => rebuildKey.value++)
 // Atmosphere / cloud shells depend on these fields at attach time — the shells
 // are built from scratch on rebuild, so changes must bump rebuildKey to flow.
+// (Halo colour now lives on the shader params and goes through `setParams`
+// live — no rebuild needed.)
 watch(() => bodyConfig.atmosphereThickness,  () => rebuildKey.value++)
 watch(() => bodyConfig.liquidState,          () => rebuildKey.value++)
 watch(() => bodyConfig.liquidColor,          () => rebuildKey.value++)
@@ -168,6 +172,11 @@ watch(() => bodyConfig.noiseLacunarity,      () => rebuildKey.value++)
 watch(() => bodyConfig.noisePower,           () => rebuildKey.value++)
 watch(() => bodyConfig.noiseRidge,           () => rebuildKey.value++)
 watch(() => bodyConfig.reliefFlatness,       () => rebuildKey.value++)
+// Continent layer affects tile classification (rank-based bands), so the
+// sim must be rebuilt for both the hex map and the smooth-sphere shader to
+// pick up the new continent layout.
+watch(() => bodyConfig.continentAmount,      () => rebuildKey.value++)
+watch(() => bodyConfig.continentScale,       () => rebuildKey.value++)
 // Terrain colour overrides feed the palette at build time — changing them
 // must rebuild so the gray ramp is regenerated with the new anchors.
 watch(() => bodyConfig.terrainColorLow,      () => rebuildKey.value++)
@@ -177,10 +186,9 @@ watch(() => bodyConfig.metallicBands,        () => rebuildKey.value++)
 // a new colour all affect the tile distribution / paint, so every mutation
 // triggers a full rebuild to flush the new state through both panes.
 watch(resourceUIState,                       () => rebuildKey.value++, { deep: true })
-
-// `coronaHeadroom` feeds `buildAtmoShell` at construction time, so
-// adjusting it requires a full rebuild.
-watch(coronaHeadroom,                        () => rebuildKey.value++)
+// Custom (user-added) catalogue mutations — the spec list itself drives the
+// distribution, so add/remove must rebuild even when no UI-state field moves.
+watch(customResources,                       () => rebuildKey.value++, { deep: true })
 
 // `sphereDetail` feeds every spherical mesh at construction time
 // (icosphere `detail` is baked into the BufferGeometry), so flipping the
@@ -192,47 +200,59 @@ function onShaderUpdate(key: string, value: number | string | number[] | boolean
 }
 
 const warning = computed(() => {
-  if (bodyConfig.type === 'gaseous' && !bodyConfig.bandColors) {
+  if (bodyConfig.surfaceLook === 'bands' && !bodyConfig.bandColors) {
     return 'Set a gas composition below to unlock the real gas giant palette.'
   }
   return null
 })
 
-// ── Feature applicability (per body type) ────────────────────────
-// Whether each optional feature makes sense for the current body type.
+// ── Feature applicability (per surface look) ────────────────────
+// Whether each optional feature makes sense for the current surface look.
 // The lib no longer enforces these rules — the playground decides which
 // feature toggles to expose so the UI only shows what the caller can apply.
-const canHaveCracks     = computed(() => bodyConfig.type === 'rocky' || bodyConfig.type === 'metallic')
-const canHaveLava       = computed(() => bodyConfig.type === 'rocky' || bodyConfig.type === 'metallic')
+const isPlanet          = computed(() => bodyConfig.type !== 'star')
+const canHaveCracks     = computed(() => bodyConfig.surfaceLook === 'terrain' || bodyConfig.surfaceLook === 'metallic')
+const canHaveLava       = computed(() => bodyConfig.surfaceLook === 'terrain' || bodyConfig.surfaceLook === 'metallic')
+/**
+ * Halo controls live in the Shader sidebar (purely visual on the smooth
+ * sphere). Visible on rocky / metallic — gas bodies don't mount an atmo
+ * shell (their smooth sphere already plays the role of atmosphere).
+ */
+const hasAtmoShell      = computed(() =>
+  isPlanet.value
+  && (bodyConfig.surfaceLook ?? 'terrain') !== 'bands'
+  && (bodyConfig.atmosphereThickness ?? 0) > 0,
+)
 
 function setBody<K extends keyof typeof bodyConfig>(key: K, value: (typeof bodyConfig)[K]) {
   ;(bodyConfig as any)[key] = value
 }
 
 /**
- * Shader groups gated by a Body checkbox. Kept in sync with the group
- * labels declared in `BODY_GROUPS` (shaders/params.ts).
+ * Shader groups gated by a playground-side fx toggle. Kept in sync with
+ * the group labels declared in `BODY_GROUP_LABELS` (`paramLabels.ts`).
+ *
+ * The Colors group is exposed on every body type — rocky / metallic
+ * now run a 4-stop `proceduralPalette` over the noise field (mixed at
+ * 30 % with the per-tile palette), so the sliders contribute a visible
+ * tint shift instead of being inert.
  */
 const hiddenShaderGroups = computed(() => {
   const hidden: string[] = []
-  if (!bodyConfig.hasCracks) hidden.push('Fissures')
-  if (!bodyConfig.hasLava)   hidden.push('Lave')
+  if (!playgroundFx.cracksEnabled) hidden.push('Cracks')
+  if (!playgroundFx.lavaEnabled)   hidden.push('Lava')
+  // Atmo controls are no-ops when the body has no shell — hide the panel
+  // entirely so the user doesn't see inert sliders.
+  if (!hasAtmoShell.value)         hidden.push('Atmosphere')
   return hidden
 })
 </script>
 
 <template>
-  <div class="layout" :class="{ 'has-shader-pane': activePane === 'shader' }">
+  <div class="layout" :class="{ 'has-shader-pane': activePane === 'shader', 'is-star': !isPlanet }">
     <div class="topbar">
       <strong>stellar-hex</strong>
       <span>playground</span>
-      <div class="type-switch" style="margin:0; flex: 0 0 auto;">
-        <button
-          v-for="t in BODY_TYPES" :key="t.id"
-          :class="{ active: bodyType === t.id }"
-          @click="setType(t.id)"
-        >{{ t.icon }} {{ t.label }}</button>
-      </div>
       <div class="spacer"></div>
       <div class="pill" style="display:flex; align-items:center; gap:4px; padding:2px 6px;" title="Détail des sphères (smooth sphere, océan, halos, cœur, effets). HD = +1 subdivision (≈ 4× tris), Ultra = +2 (≈ 16× tris).">
         <span style="opacity:0.7; margin-right:2px;">Sphères</span>
@@ -266,8 +286,10 @@ const hiddenShaderGroups = computed(() => {
       <span class="pill">Drag: orbit · Scroll: zoom · Hover a tile for details</span>
     </div>
 
-    <!-- LEFT sidebar: resources catalogue (always visible, left-most). -->
-    <aside class="panel panel-resources">
+    <!-- LEFT sidebar: resources catalogue. Hidden for stars — the
+         resource pipeline targets a hex sol (paint overlay, distribution,
+         dig), which stars do not expose. -->
+    <aside v-if="isPlanet" class="panel panel-resources">
       <h2>Resources</h2>
       <ResourceControls />
     </aside>
@@ -281,7 +303,7 @@ const hiddenShaderGroups = computed(() => {
       </p>
 
       <!-- Feature toggles — caller-side rendering decisions (no longer in lib). -->
-      <details class="group" v-if="canHaveCracks || canHaveLava" open>
+      <details class="group" v-if="canHaveCracks || canHaveLava">
         <summary>Features</summary>
         <div class="group-body">
           <div v-if="canHaveCracks" class="row" style="grid-template-columns: 110px 1fr auto;">
@@ -289,8 +311,8 @@ const hiddenShaderGroups = computed(() => {
             <span></span>
             <input
               type="checkbox"
-              :checked="bodyConfig.hasCracks ?? false"
-              @change="setBody('hasCracks', ($event.target as HTMLInputElement).checked)"
+              :checked="playgroundFx.cracksEnabled"
+              @change="playgroundFx.cracksEnabled = ($event.target as HTMLInputElement).checked"
             />
           </div>
           <div v-if="canHaveLava" class="row" style="grid-template-columns: 110px 1fr auto;">
@@ -298,8 +320,8 @@ const hiddenShaderGroups = computed(() => {
             <span></span>
             <input
               type="checkbox"
-              :checked="bodyConfig.hasLava ?? false"
-              @change="setBody('hasLava', ($event.target as HTMLInputElement).checked)"
+              :checked="playgroundFx.lavaEnabled"
+              @change="playgroundFx.lavaEnabled = ($event.target as HTMLInputElement).checked"
             />
           </div>
         </div>
@@ -336,8 +358,17 @@ const hiddenShaderGroups = computed(() => {
     <aside class="panel panel-body">
       <div v-if="warning" class="warn">{{ warning }}</div>
       <h2>Body parameters</h2>
-      <DigControls />
+      <!-- Dig only applies to planetary hex sols — stars expose no
+           `updateTileSolHeight`, so the slider would be a dead control. -->
+      <DigControls v-if="isPlanet" />
       <BodyControls :config="bodyConfig" />
+      <!-- Hover cursor — live tuning of the ring / emissive / column
+           primitives. Only meaningful in hex mode (the cursor is wired
+           into the hex pane's pointer state). -->
+      <details v-if="activePane === 'hexa'" class="group">
+        <summary>Hover cursor</summary>
+        <HoverCursorControls />
+      </details>
     </aside>
   </div>
 </template>

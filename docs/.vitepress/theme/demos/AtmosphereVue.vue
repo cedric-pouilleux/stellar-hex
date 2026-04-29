@@ -11,7 +11,7 @@ import OrbitControlsBridge from './OrbitControlsBridge.vue'
  */
 
 const config: BodyConfig = {
-  type:                'rocky',
+  type:                'planetary', surfaceLook: 'terrain',
   name:                'atmo-demo',
   radius:               1,
   rotationSpeed:        0.005,

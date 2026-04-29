@@ -24,11 +24,11 @@ Corps entièrement gazeux à bandes latitudinales procédurales. Pas de relief s
 | Prop | Type | Description |
 |------|------|-------------|
 | `type` | `'gaseous'` | Discriminant obligatoire |
-| `name` / `radius` | `string` / `number` | Identité + rayon visuel |
+| `name` / `radius` | `string` / `number` | Identité + rayon de la silhouette totale (gaz couvre tout) |
 | `rotationSpeed` | `number` | Vitesse de rotation (rad/s) |
 | `axialTilt` | `number` | Inclinaison de l'axe (rad) |
-| `atmosphereThickness` | `number` 0–1 | Fraction radiale de l'enveloppe atmo (défaut typique géante : `0.6`) |
-| `coreRadiusRatio` | `number` 0–1 | Rayon noyau / rayon visuel (défaut `0.55`) |
+| `atmosphereThickness` | `number` 0–1 | Fraction radiale de `radius` occupée par l'enveloppe gazeuse — défaut typique géante : `0.6` |
+| `coreRadiusRatio` | `number` 0–1 | Rayon noyau / `radius` (silhouette totale) — défaut `0.55` |
 | `gasMassFraction` | `number` 0–1 | Fraction massique de l'enveloppe — alternative à `coreRadiusRatio` (cf. [Noyau & coquilles](/examples/core/core-and-shells)) |
 | `bandColors` | `{ colorA, colorB, colorC, colorD }` | Quatre stops de la palette de bandes (clair → foncé → accent → secondaire) |
 | `hasRings` | `boolean` | Active un système d'anneaux (déterministe depuis le seed) |

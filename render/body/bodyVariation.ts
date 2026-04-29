@@ -36,7 +36,11 @@ export interface BodyVariation {
   luminance:        number   // 0.80–1.20
 
   // ── Rocky / Metallic: cracks ────────────────────────────────────────
-  /** 0–1 lerp factor between crackAmount min and max (when hasCracks=true). */
+  /**
+   * 0–1 lerp factor between the shader's `crackAmount` min / max. `0` disables
+   * the effect entirely — the caller (game logic) pushes a value > 0 when it
+   * wants the planet to display crust fractures. Default `0`.
+   */
   crackIntensity: number   // 0..1
   crackWidth:     number   // rocky: 0.10–0.50 / metallic: 0.10–0.40
   crackScale:     number   // rocky: 1.00–4.00 / metallic: 1.60–5.00
@@ -49,10 +53,16 @@ export interface BodyVariation {
   metalness:      number   // 0.0–1.0
 
   // ── Rocky / Metallic: lava ──────────────────────────────────────────
+  /**
+   * Lava intensity in `[0, 1]`. `0` disables the lava layer; the caller pushes
+   * a value > 0 when it wants the planet to display molten flows. Default `0`.
+   */
   lavaIntensity:  number
   lavaEmissive:   number   // 0.80–2.80
   lavaScale:      number   // 0.30–2.50
   lavaWidth:      number   // 0.02–0.30
+  /** Lava tint (#hex). Defaults to a neutral dark red; caller overrides for hotter / cooler looks. */
+  lavaColor:      string
 
   // ── Gas: band structure ────────────────────────────────────────────
   gasBandSharpness: number   // 0.10–0.65
@@ -96,6 +106,12 @@ const CRACK_COLOR_RANGE: ColorRange = [[0x00, 0x00, 0x00], [0xff, 0xff, 0xff]]
 // haze override `variation.gasCloudColor` directly after `generateBodyVariation`.
 const GAS_CLOUD_DEFAULT_RANGE: ColorRange = [[0xd0, 0xb8, 0x90], [0xf0, 0xe0, 0xc0]]
 
+// Neutral lava tint — applied when neither the seeded variation nor the
+// caller pushes a `lavaColor` override. Matches the legacy default used in
+// `bodyColorDeriver` so a body that activates lava without overriding the
+// colour reads as a generic dark-red molten flow.
+const DEFAULT_LAVA_COLOR = '#cc2200'
+
 /**
  * Generate complete deterministic visual variation for a planet.
  * Every shader parameter consumed by the procedural materials is covered.
@@ -110,7 +126,7 @@ const GAS_CLOUD_DEFAULT_RANGE: ColorRange = [[0xd0, 0xb8, 0x90], [0xf0, 0xe0, 0x
 export function generateBodyVariation(config: BodyConfig): BodyVariation {
   const rng     = seededPrng('var:' + config.name)
   const r       = (min: number, max: number) => min + rng() * (max - min)
-  const ranges  = strategyFor(config.type).variationRanges
+  const ranges  = strategyFor(config).variationRanges
 
   const cloudColor = randomColor(rng, GAS_CLOUD_DEFAULT_RANGE)
 
@@ -129,8 +145,9 @@ export function generateBodyVariation(config: BodyConfig): BodyVariation {
     colorMix:         rng(),
     luminance:        r(0.80, 1.20),
 
-    // Cracks — per-type ranges live on the body strategy.
-    crackIntensity: rng(),  // 0–1 lerp factor between crackAmount min and max
+    // Cracks — disabled by default (intensity 0). Caller pushes a value > 0
+    // to display crust fractures. Per-type ranges live on the body strategy.
+    crackIntensity: 0,
     crackWidth:     r(ranges.crackWidth[0], ranges.crackWidth[1]),
     crackScale:     r(ranges.crackScale[0], ranges.crackScale[1]),
     crackDepth:     r(0.50, 1.00),
@@ -140,11 +157,13 @@ export function generateBodyVariation(config: BodyConfig): BodyVariation {
     // Metallic surface purity
     metalness:      rng(),
 
-    // Lava — per-type scale range lives on the body strategy.
-    lavaIntensity:  r(0.20, 1.00),
+    // Lava — disabled by default (intensity 0). Caller pushes a value > 0
+    // and optionally overrides `lavaColor` for hotter / cooler tones.
+    lavaIntensity:  0,
     lavaEmissive:   r(0.80, 2.80),
     lavaScale:      r(ranges.lavaScale[0], ranges.lavaScale[1]),
     lavaWidth:      r(0.02, 0.30),
+    lavaColor:      DEFAULT_LAVA_COLOR,
 
     // Gas band structure
     gasBandSharpness: r(0.10, 0.65),

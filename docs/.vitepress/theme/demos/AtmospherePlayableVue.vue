@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted } from 'vue'
 import { TresCanvas } from '@tresjs/core'
 import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
@@ -6,16 +6,16 @@ import type { BodyConfig, RenderableBody } from '@cedric-pouilleux/stellar-hex/s
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
- * Vue / TresJS — playable atmosphere band.
+ * Vue / TresJS â€” playable atmosphere band.
  *
  * <Body> is mounted with `interactive: true`; the view is switched to
  * 'atmosphere' on mount so the demo opens directly on the atmo band.
- * For raycasting / paint, see the Three.js tab — the same setup needs a
+ * For raycasting / paint, see the Three.js tab â€” the same setup needs a
  * helper component running inside <TresCanvas> (see HexRaycaster).
  */
 
 const config: BodyConfig = {
-  type:                'rocky',
+  type:                'planetary', surfaceLook: 'terrain',
   name:                'atmo-playable',
   radius:               1,
   rotationSpeed:        0,

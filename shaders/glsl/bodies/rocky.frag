@@ -5,12 +5,18 @@ uniform float uSeed;
 uniform vec3  uNoiseSeed;   // per-planet domain offset (from body variation)
 uniform float uNoiseFreq;   // global terrain frequency multiplier
 uniform float uRoughness;
+uniform float uTurbulence;
+/** Terrain archetype index — 0 smooth, 1 ridged, 2 billow, 3 hybrid. Same uniform as `body.vert`. */
+uniform float uTerrainArchetype;
 uniform float uCraterDensity;
 uniform float uCraterCount;
 uniform float uCraterDepth;
 uniform float uHeightScale;
 uniform vec3  uColorA;
 uniform vec3  uColorB;
+uniform float uColorMix;
+uniform vec3  uCraterColor;
+uniform float uCraterColorMix;
 
 // Optional palette lookup — when uPaletteCount > 0, the shader samples colours
 // from an externally-provided palette (same source as the hex tile palette) so
@@ -31,10 +37,11 @@ uniform float uLavaAmount;
 uniform vec3  uLavaColor;
 uniform float uLavaEmissive;
 
-// Vagues
-uniform float uWaveAmount;
-uniform vec3  uWaveColor;
-uniform float uWaveScale;
+// Note: `uWaveAmount/uWaveColor/uWaveScale` used to drive a surface-level
+// wave layer here. The cloud cover migrated to the atmo shell mesh
+// (`buildAtmoShell`); the playground forwards the `wave*` shader sliders
+// onto the atmo shell uniforms (cloudAmount / cloudColor / cloudScale)
+// directly, so this fragment shader no longer reads them.
 
 // Lighting
 uniform vec3  uLightColor;
@@ -57,6 +64,15 @@ varying vec3  vVertexColor;
 #ifdef USE_LIQUID_MASK
 #include ../lib/liquidMask.glsl
 #endif
+
+// 2-stop procedural palette — `colorA` (foncée) for low-noise zones,
+// `colorB` (claire) for high-noise zones, smooth interpolation between.
+// Crater tinting lives on a separate channel (`uCraterColor` +
+// `uCraterColorMix`) so noise-driven hue and impact shadows can be
+// dialled independently.
+vec3 proceduralPalette(float t) {
+  return mix(uColorA, uColorB, clamp(t, 0.0, 1.0));
+}
 
 // Crater shape function (inverted quartic profile)
 float craterShape(float d, float r) {
@@ -104,11 +120,35 @@ float craterField(vec3 p, float density, float depth) {
 void main() {
   vec3 p = vPosition * uNoiseFreq + uNoiseSeed * 0.01;
 
-  // Base terrain using warped FBM
-  float terrain = warpedFBM(p * 2.5, 0.4 * uRoughness);
+  // Optional domain-warp turbulence — perturbs the sampling position with
+  // a static fbm so terrain noise reads as "boiling" rather than the
+  // regular warpedFBM grid. `uTurbulence == 0` short-circuits the cost.
+  if (uTurbulence > 0.001) {
+    float warpA = fbm(p * 1.8);
+    float warpB = fbm(p * 2.5 + vec3(3.7, 1.4, 8.5));
+    float warpC = fbm(p * 2.0 + vec3(7.6, 2.3, 4.8));
+    p += (vec3(warpA, warpB, warpC) - 0.5) * uTurbulence * 0.6;
+  }
 
-  // Craters
-  float craters = craterField(p, uCraterDensity, uCraterDepth);
+  // Base terrain — warped FBM with the planet's chosen archetype
+  // (smooth / ridged / billow / hybrid). Drives both the height field
+  // here and the geometry displacement in `body.vert`.
+  //
+  // Warp amplitude is derived from `uSeed` so each planet shows a
+  // distinct "tortuosity" signature (calm vs chaotic terrain) even at
+  // identical roughness — `hash1` gives a deterministic value in
+  // [0, 1] that we remap to [0.2, 0.8] × uRoughness.
+  float warpFactor = mix(0.2, 0.8, hash1(uSeed * 0.013));
+  float terrain    = warpedFBMArchetype(p * 2.5, warpFactor * uRoughness, uTerrainArchetype);
+
+  // Craters — sampled in a coordinate space that **ignores** `uNoiseFreq`
+  // and `uTurbulence`. Craters are geological impacts, not a grain of
+  // the noise field; tying their layout to the global noise frequency
+  // would shrink / shift them every time the user adjusts the surface
+  // grain or boils the terrain, which reads as a bug. The seed offset
+  // is preserved so each body keeps a distinct, deterministic field.
+  vec3 pCrater = vPosition + uNoiseSeed * 0.01;
+  float craters = craterField(pCrater, uCraterDensity, uCraterDepth);
 
   // Final height
   float height = clamp(terrain + craters * uCraterDensity, 0.0, 1.0);
@@ -131,18 +171,31 @@ void main() {
   // barycentric interpolation smooths the shoreline transition. The legacy
   // `samplePalette` fallback covers bodies without a palette (non-rocky or
   // unconfigured).
+  // Palette field — sampled on a noise track that **only** depends on
+  // `uNoiseFreq` (not on the height which carries cratères + roughness).
+  // Means moving `noiseFreq` actually shifts the colour pattern visibly,
+  // and the cratère-induced height bumps stop dragging the palette stops
+  // around them. `paletteSample` lives in `[0, 1]`.
+  float paletteSample = clamp(fbm(p * 1.6) * 0.7 + fbm(p * 3.2 + vec3(5.1, 2.7, 8.3)) * 0.3, 0.0, 1.0);
+  vec3 procColor = proceduralPalette(paletteSample);
   vec3 baseColor;
   if (uPaletteCount > 0) {
-    baseColor = vVertexColor;
+    // Per-tile palette is the source of truth — overlay the procedural
+    // tint with strength `uColorMix`. `0` keeps the geological colours
+    // intact, `1` lets the procedural palette dominate.
+    baseColor = mix(vVertexColor, procColor * vVertexColor * 1.3, uColorMix);
   } else {
-    baseColor = mix(uColorA, uColorB, smoothstep(0.2, 0.8, height)) * vVertexColor;
+    baseColor = procColor * vVertexColor;
   }
 
-  // Crater floor (darker). Uses the base palette's darkest entry as crater
-  // shadow tint when the palette is active, otherwise uColorA * 0.5.
-  float craterMask = clamp(-craters * uCraterDensity, 0.0, 1.0);
-  vec3  craterTint = uPaletteCount > 0 ? uPaletteColors[0] * 0.5 : uColorA * 0.5;
-  baseColor = mix(baseColor, craterTint, craterMask * uCraterDepth);
+  // Crater colour overlay — dedicated `uCraterColor` (slider) tinted onto
+  // the crater floor by `uCraterMask × uCraterColorMix`. Independent from
+  // the procedural palette so the user can pick a distinct hue for impact
+  // craters (e.g. dark basaltic black on a brown rocky planet).
+  // Gated by `landMask` so submerged tiles never show crater shadows
+  // under the liquid surface — same exclusion as cracks / lava just below.
+  float craterMask = clamp(-craters * uCraterDensity, 0.0, 1.0) * landMask;
+  baseColor = mix(baseColor, uCraterColor, craterMask * uCraterColorMix);
 
   // ── Lava ─────────────────────────────────────────────────────
   // Applied BEFORE cracks so fissures stay visible when both effects are

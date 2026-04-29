@@ -50,17 +50,22 @@ export interface LayeredTileVisuals {
 }
 
 /**
- * Builds the tile-visual pipeline for a layered mesh. Submerged tiles keep
- * their palette colour — the translucent liquid sphere alone provides the
- * underwater tint, since pre-tinting the cap stacked two blue layers and
- * produced a hard hue jump as tiles flipped across the waterline.
+ * Builds the tile-visual pipeline for a layered mesh. Submerged tiles
+ * keep their palette colour — the translucent liquid hex shell sitting
+ * over them provides the underwater tint, and pre-tinting the cap on
+ * top of the shell stacked two blue layers and produced a hard hue
+ * jump when a tile flipped across the waterline. Callers that need an
+ * ocean overlay (e.g. game-side biome paint) drive it through
+ * `applyTileOverlay` with their own classification rules.
  */
 export function buildLayeredTileVisuals(
   sim:    BodySimulation,
   levels: TerrainLevel[],
 ): LayeredTileVisuals {
   const hasLiquidSurface = hasSurfaceLiquid(sim.config)
-  const surfaceIsLiquid  = hasLiquidSurface && sim.config.liquidState === 'liquid'
+  const surfaceIsLiquid  = hasLiquidSurface
+    && sim.config.type === 'planetary'
+    && sim.config.liquidState === 'liquid'
 
   const tileLevel  = new Map<number, TerrainLevel>()
   const tileVisual = new Map<number, TileVisual>()

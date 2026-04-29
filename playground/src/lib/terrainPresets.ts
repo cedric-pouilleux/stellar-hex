@@ -1,4 +1,4 @@
-import type { BodyConfig } from '@lib'
+import type { BodyNoiseProfile } from '@lib'
 
 /**
  * Canonical terrain-noise preset identifiers. Kept as a union so callers
@@ -128,7 +128,7 @@ export const TERRAIN_PRESETS: readonly TerrainPreset[] = [
   },
 ] as const
 
-/** Default values the lib falls back to when a knob is omitted on `BodyConfig`. */
+/** Default values the lib falls back to when a knob is omitted on `BodyNoiseProfile`. */
 const NOISE_DEFAULTS = {
   scale:       1.4,
   octaves:     1,
@@ -140,12 +140,12 @@ const NOISE_DEFAULTS = {
 
 /**
  * Writes the five fBm knobs of `preset` onto `config` in place. The mutation
- * is intentionally direct (no deep clone) so a Vue reactive `BodyConfig`
+ * is intentionally direct (no deep clone) so a Vue reactive `BodyNoiseProfile`
  * picks up each field change through its own watchers — the playground
  * bumps `rebuildKey` through those watchers, which keeps the preset
  * application consistent with any other slider tweak.
  */
-export function applyTerrainPreset(config: BodyConfig, preset: TerrainPreset): void {
+export function applyTerrainPreset(config: BodyNoiseProfile, preset: TerrainPreset): void {
   config.noiseScale       = preset.noiseScale
   config.noiseOctaves     = preset.noiseOctaves
   config.noisePersistence = preset.noisePersistence
@@ -162,9 +162,9 @@ export function applyTerrainPreset(config: BodyConfig, preset: TerrainPreset): v
  * Omitted fields on `config` are compared against the lib's own defaults
  * (`noiseScale = 1.4`, `noiseOctaves = 1`, `noisePersistence = 0.5`,
  * `noiseLacunarity = 2.0`, `noiseRidge = 0`, `reliefFlatness = 0`) so a
- * freshly-constructed `BodyConfig` still resolves to a preset when one matches.
+ * freshly-constructed `BodyNoiseProfile` still resolves to a preset when one matches.
  */
-export function findMatchingPreset(config: BodyConfig): TerrainPresetId | null {
+export function findMatchingPreset(config: BodyNoiseProfile): TerrainPresetId | null {
   const scale       = config.noiseScale       ?? NOISE_DEFAULTS.scale
   const octaves     = config.noiseOctaves     ?? NOISE_DEFAULTS.octaves
   const persistence = config.noisePersistence ?? NOISE_DEFAULTS.persistence

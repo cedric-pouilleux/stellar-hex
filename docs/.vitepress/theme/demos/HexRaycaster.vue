@@ -26,7 +26,9 @@ const { onBeforeRender } = useRenderLoop()
 onBeforeRender(() => {
   if (!camera.value) return
   raycaster.setFromCamera(pointer, camera.value as THREE.Camera)
-  const id = props.body.interactive?.queryHover(raycaster) ?? null
+  const ref = props.body.interactive?.queryHover(raycaster) ?? null
+  // Hover ring is sol-only — atmo hits don't propagate as a hovered tile id.
+  const id  = ref && ref.layer === 'sol' ? ref.tileId : null
   if (id !== lastId) { lastId = id; emit('hover', id) }
 })
 </script>

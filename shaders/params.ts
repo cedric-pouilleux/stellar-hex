@@ -1,13 +1,15 @@
 /**
- * Type + parameter definitions for the planet-shaders library.
+ * Type + parameter schema for the planet-shaders library.
  *
- * Each parameter follows one of these schemas:
- *   - Numeric slider : `{ label, min, max, step, default }`
- *   - Color          : `{ label, type: 'color', default }` — default is a #hex string
- *   - Select         : `{ label, type: 'select', options, default }` — default is an index
+ * Each parameter is a {@link ParamDef} carrying its **type, range and
+ * default** — the schema needed to drive shader uniforms and to back
+ * a control panel. Display strings (labels, group names, select-option
+ * names, type icons) are deliberately absent: they are i18n / UI
+ * concerns owned by the caller. A reference dictionary lives in the
+ * playground (`playground/src/lib/paramLabels.ts`).
  *
- * Numeric `min/max/step` come from `shaderRanges.ts` (single source of truth).
- * `BODY_GROUPS` groups keys for UI display — it has no effect on the shaders.
+ * Numeric `min/max/step` come from `shaderRanges.ts` (single source of
+ * truth across shader code, schema and tests).
  */
 
 import { SHADER_RANGES } from './shaderRanges'
@@ -22,44 +24,35 @@ import { SHADER_RANGES } from './shaderRanges'
 export type LibBodyType = 'rocky' | 'gaseous' | 'metallic' | 'star'
 
 /**
- * Definition of a single shader parameter — a slider (numeric + bounds),
- * a colour picker (`type: 'color'`) or a dropdown (`type: 'select'` with
- * `options`). Consumed by UI panels to render the right control.
+ * Definition of a single shader parameter — either a numeric slider
+ * (`min/max/step`), a colour picker (`type: 'color'`) or an enum select
+ * (`type: 'select'` + `optionCount`). Display strings (`label`, option
+ * names) are NOT carried by the schema; callers map `paramKey` to a
+ * label of their choosing.
  */
 export interface ParamDef {
-  label:    string
   type?:    'color' | 'select'
   min?:     number
   max?:     number
   step?:    number
   default:  number | string | number[]
-  options?: string[]
+  /**
+   * Number of valid options for a `type: 'select'` parameter. The shader
+   * receives the selected index in `[0, optionCount - 1]`. Caller-side
+   * UIs map each index to a display string (see playground's
+   * `SELECT_OPTION_LABELS`).
+   */
+  optionCount?: number
 }
 
 /**
  * Full shader-parameter catalogue keyed by body type. Each body type maps
- * to a flat record of `paramName → {@link ParamDef}`. Exposed as the
- * authoritative schema for any external control panel.
+ * to a flat record of `paramName → {@link ParamDef}`. Authoritative
+ * schema for any external control panel.
  */
 export type BodyParamsMap = Record<LibBodyType, Record<string, ParamDef>>
 
 const R = SHADER_RANGES
-
-// ── Available types ───────────────────────────────────────────────────────────
-
-/**
- * User-facing catalogue of supported body types — used to populate UI
- * selectors. The `id` field is the source of truth; `label`/`icon` are
- * cosmetic.
- */
-export const BODY_TYPES: Array<{ id: LibBodyType; label: string; icon: string }> = [
-  { id: 'rocky',    label: 'Rocheuse',   icon: '🪨' },
-  { id: 'gaseous',  label: 'Gazeuse',    icon: '🟠' },
-  { id: 'metallic', label: 'Métallique', icon: '🔮' },
-  { id: 'star',     label: 'Étoile',     icon: '⭐' },
-]
-
-// ── Parameters by type ────────────────────────────────────────────────────────
 
 /**
  * Shader parameter catalogue for every supported body type. The
@@ -70,127 +63,124 @@ export const BODY_PARAMS: BodyParamsMap = {
 
   // Rocky planet: FBM terrain, craters, cracks, lava, clouds
   rocky: {
-    seed:           { label: 'Seed',              ...R.rocky.seed,          default: 42 },
-    noiseSeed:      { label: 'Noise seed',        default: [0, 0, 0] },
-    noiseFreq:      { label: 'Noise freq',        ...R.rocky.noiseFreq,     default: 1.0 },
-    roughness:      { label: 'Rugosité terrain',  ...R.rocky.roughness,     default: 0.7 },
-    craterDensity:  { label: 'Densité cratères',  ...R.rocky.craterDensity, default: 1.2 },
-    craterCount:    { label: 'Nombre cratères',   ...R.rocky.craterCount,   default: 5   },
-    heightScale:    { label: 'Relief',            ...R.rocky.heightScale,   default: 0.6 },
-    colorA:         { label: 'Couleur foncée',    type: 'color',            default: '#5c3d2e' },
-    colorB:         { label: 'Couleur claire',    type: 'color',            default: '#b08060' },
-    crackAmount:    { label: 'Fissures',          ...R.rocky.crackAmount,   default: 0.50 },
-    crackScale:     { label: 'Échelle fissures',  ...R.rocky.crackScale,    default: 2.0  },
-    crackWidth:     { label: 'Largeur fissures',  ...R.rocky.crackWidth,    default: 0.20 },
-    crackDepth:     { label: 'Prof. fissures',    ...R.rocky.crackDepth,    default: 0.70 },
-    crackColor:     { label: 'Couleur fissures',  type: 'color',            default: '#1a0f08' },
-    crackBlend:     { label: 'Mode fusion fiss.', type: 'select', options: ['Mix', 'Screen', 'Overlay', 'Add', 'Soft Light'], default: 0 },
-    lavaAmount:     { label: 'Lave',              ...R.rocky.lavaAmount,    default: 0.0 },
-    lavaColor:      { label: 'Couleur lave',      type: 'color',            default: '#ff3300' },
-    lavaEmissive:   { label: 'Émission lave',     ...R.rocky.lavaEmissive,  default: 1.5 },
-    waveAmount:     { label: 'Vagues',            ...R.rocky.waveAmount,    default: 0.0 },
-    waveColor:      { label: 'Couleur vagues',    type: 'color',            default: '#d0d8e8' },
-    waveScale:      { label: 'Échelle vagues',    ...R.rocky.waveScale,     default: 1.2 },
+    seed:           { ...R.rocky.seed,          default: 42 },
+    noiseSeed:      { default: [0, 0, 0] },
+    noiseFreq:      { ...R.rocky.noiseFreq,     default: 1.0 },
+    terrainArchetype: { type: 'select', optionCount: 4, default: 0 },
+    roughness:      { ...R.rocky.roughness,     default: 0.7 },
+    turbulence:     { ...R.rocky.turbulence,    default: 0   },
+    craterDensity:  { ...R.rocky.craterDensity, default: 1.2 },
+    craterCount:    { ...R.rocky.craterCount,   default: 5   },
+    heightScale:    { ...R.rocky.heightScale,   default: 0.6 },
+    colorA:         { type: 'color',            default: '#5c3d2e' },
+    colorB:         { type: 'color',            default: '#b08060' },
+    colorMix:       { ...R.rocky.colorMix,      default: 0.30 },
+    craterColor:    { type: 'color',            default: '#2a1810' },
+    craterColorMix: { ...R.rocky.craterColorMix, default: 0.50 },
+    crackAmount:    { ...R.rocky.crackAmount,   default: 0.50 },
+    crackScale:     { ...R.rocky.crackScale,    default: 2.0  },
+    crackWidth:     { ...R.rocky.crackWidth,    default: 0.20 },
+    crackDepth:     { ...R.rocky.crackDepth,    default: 0.70 },
+    crackColor:     { type: 'color',            default: '#1a0f08' },
+    crackBlend:     { type: 'select', optionCount: 5, default: 0 },
+    lavaAmount:     { ...R.rocky.lavaAmount,    default: 0.0 },
+    lavaColor:      { type: 'color',            default: '#ff3300' },
+    lavaEmissive:   { ...R.rocky.lavaEmissive,  default: 1.5 },
+    waveAmount:     { ...R.rocky.waveAmount,    default: 0.0 },
+    waveColor:      { type: 'color',            default: '#d0d8e8' },
+    waveScale:      { ...R.rocky.waveScale,     default: 1.2 },
+    waveSpeed:      { min: 0, max: 3, step: 0.05, default: 1.0 },
+    // Cloud pattern preset — combines `bandiness`, `turbulence`, `storms`
+    // and `bandFreq` of the atmo shell in one click. Forwarded
+    // playground-side. Indices map (in order) to: dispersed, cyclones,
+    // veil — caller-owned labels.
+    cloudPattern:   { type: 'select', optionCount: 3, default: 0 },
+    // Atmosphere — atmo-shell uniforms forwarded live (no rebuild):
+    //   tint     → atmoShell.setParams({ tint })
+    //   opacity  → atmoShell.setOpacity()
+    //   colorMix → atmoShell.setParams({ tileColorMix })
+    atmoTint:       { type: 'color',            default: '#aaccff' },
+    atmoOpacity:    { min: 0, max: 1, step: 0.01, default: 0.45 },
+    atmoColorMix:   { min: 0, max: 1, step: 0.01, default: 0.85 },
   },
 
   // Gas giant: latitudinal bands, turbulence, deep spots, clouds
   gaseous: {
-    seed:              { label: 'Seed',               ...R.gaseous.seed,          default: 123 },
-    noiseSeed:         { label: 'Noise seed',         default: [0, 0, 0] },
-    noiseFreq:         { label: 'Noise freq',         ...R.gaseous.noiseFreq,     default: 1.0 },
+    seed:              { ...R.gaseous.seed,          default: 123 },
+    noiseSeed:         { default: [0, 0, 0] },
+    noiseFreq:         { ...R.gaseous.noiseFreq,     default: 1.0 },
     // Bands
-    bandCount:         { label: 'Nb bandes',          ...R.gaseous.bandCount,     default: 8 },
-    bandSharpness:     { label: 'Netteté bandes',     ...R.gaseous.bandSharpness, default: 0.3 },
-    bandWarp:          { label: 'Ondulation bandes',  ...R.gaseous.bandWarp,      default: 0.3 },
-    turbulence:        { label: 'Turbulence',         ...R.gaseous.turbulence,    default: 0.5 },
-    cloudDetail:       { label: 'Détail nuages',      ...R.gaseous.cloudDetail,   default: 0.4 },
-    jetStream:         { label: 'Courants-jets',      ...R.gaseous.jetStream,     default: 0.4 },
+    bandCount:         { ...R.gaseous.bandCount,     default: 8 },
+    bandSharpness:     { ...R.gaseous.bandSharpness, default: 0.3 },
+    bandWarp:          { ...R.gaseous.bandWarp,      default: 0.3 },
+    turbulence:        { ...R.gaseous.turbulence,    default: 0.5 },
+    cloudDetail:       { ...R.gaseous.cloudDetail,   default: 0.4 },
+    jetStream:         { ...R.gaseous.jetStream,     default: 0.4 },
     // Palette
-    colorA:            { label: 'Bande claire',       type: 'color',              default: '#e8c090' },
-    colorB:            { label: 'Bande foncée',       type: 'color',              default: '#a05030' },
-    colorC:            { label: 'Accent / tempête',   type: 'color',              default: '#d4844a' },
-    colorD:            { label: 'Bande interméd.',    type: 'color',              default: '#c8784a' },
-    animSpeed:         { label: 'Vitesse rotation',   ...R.gaseous.animSpeed,     default: 0.3 },
+    colorA:            { type: 'color',              default: '#e8c090' },
+    colorB:            { type: 'color',              default: '#a05030' },
+    colorC:            { type: 'color',              default: '#d4844a' },
+    colorD:            { type: 'color',              default: '#c8784a' },
+    animSpeed:         { ...R.gaseous.animSpeed,     default: 0.3 },
     // High-altitude clouds
-    cloudAmount:       { label: 'Nuages',             ...R.gaseous.cloudAmount,   default: 0.0 },
-    cloudColor:        { label: 'Couleur nuages',     type: 'color',              default: '#e8eaf0' },
-    cloudBlend:        { label: 'Mode fusion nuages', type: 'select', options: ['Mix', 'Screen', 'Overlay', 'Add', 'Soft Light'], default: 0 },
+    cloudAmount:       { ...R.gaseous.cloudAmount,   default: 0.0 },
+    cloudColor:        { type: 'color',              default: '#e8eaf0' },
+    cloudBlend:        { type: 'select', optionCount: 5, default: 0 },
     // Inner corona — additive fresnel glow at the silhouette.
-    coronaStrength:    { label: 'Intensité couronne', min: 0, max: 2, step: 0.05, default: 0.6 },
-    coronaColor:       { label: 'Couleur couronne',   type: 'color',              default: '#ffd9a8' },
+    coronaStrength:    { min: 0, max: 2, step: 0.05, default: 0.6 },
+    coronaColor:       { type: 'color',              default: '#ffd9a8' },
+    // Storms — 3 deterministic vortices. Position hashed from `seed`;
+    // colour / size / eye intensity driven by sliders.
+    stormStrength:     { ...R.gaseous.stormStrength,    default: 0.0 },
+    stormColor:        { type: 'color',                 default: '#f0a060' },
+    stormSize:         { ...R.gaseous.stormSize,        default: 1.0 },
+    stormEyeStrength:  { ...R.gaseous.stormEyeStrength, default: 0.35 },
   },
 
   // Metallic planet: procedural patterns, PBR reflections, cracks
   metallic: {
-    noiseSeed:    { label: 'Noise seed',       default: [0, 0, 0] },
-    noiseFreq:    { label: 'Noise freq',       ...R.metallic.noiseFreq,    default: 1.0 },
-    metalness:    { label: 'Métalicité',       ...R.metallic.metalness,    default: 0.9 },
-    roughness:    { label: 'Rugosité',         ...R.metallic.roughness,    default: 0.65 },
-    colorA:       { label: 'Métal (base)',     type: 'color',              default: '#1a1a20' },
-    colorB:       { label: 'Métal (accent)',   type: 'color',              default: '#606880' },
-    crackAmount:  { label: 'Fissures',         ...R.metallic.crackAmount,  default: 0.50 },
-    crackScale:   { label: 'Échelle fissures', ...R.metallic.crackScale,   default: 2.0 },
-    crackWidth:   { label: 'Largeur fissures', ...R.metallic.crackWidth,   default: 0.15 },
-    crackDepth:   { label: 'Prof. fissures',   ...R.metallic.crackDepth,   default: 0.7 },
-    crackColor:   { label: 'Couleur fissures', type: 'color',              default: '#606880' },
-    crackBlend:   { label: 'Mode fusion fiss.',type: 'select', options: ['Mix', 'Screen', 'Overlay', 'Add', 'Soft Light'], default: 0 },
-    lavaAmount:   { label: 'Lave',             ...R.metallic.lavaAmount,   default: 0.20 },
-    lavaScale:    { label: 'Échelle lave',     ...R.metallic.lavaScale,    default: 0.60 },
-    lavaWidth:    { label: 'Largeur canaux',   ...R.metallic.lavaWidth,    default: 0.08 },
-    lavaColor:    { label: 'Couleur lave',     type: 'color',              default: '#ff6600' },
-    lavaEmissive: { label: 'Émission lave',    ...R.metallic.lavaEmissive, default: 1.5 },
+    noiseSeed:    { default: [0, 0, 0] },
+    noiseFreq:    { ...R.metallic.noiseFreq,    default: 1.0 },
+    terrainArchetype: { type: 'select', optionCount: 4, default: 0 },
+    metalness:    { ...R.metallic.metalness,    default: 0.9 },
+    roughness:    { ...R.metallic.roughness,    default: 0.65 },
+    turbulence:   { ...R.metallic.turbulence,   default: 0    },
+    colorA:         { type: 'color',                default: '#1a1a20' },
+    colorB:         { type: 'color',                default: '#606880' },
+    colorMix:       { ...R.metallic.colorMix,       default: 0.30 },
+    craterDensity:  { ...R.metallic.craterDensity,  default: 1.2 },
+    craterCount:    { ...R.metallic.craterCount,    default: 5   },
+    craterColor:    { type: 'color',                default: '#0a0a10' },
+    craterColorMix: { ...R.metallic.craterColorMix, default: 0.50 },
+    crackAmount:  { ...R.metallic.crackAmount,  default: 0.50 },
+    crackScale:   { ...R.metallic.crackScale,   default: 2.0 },
+    crackWidth:   { ...R.metallic.crackWidth,   default: 0.15 },
+    crackDepth:   { ...R.metallic.crackDepth,   default: 0.7 },
+    crackColor:   { type: 'color',              default: '#606880' },
+    crackBlend:   { type: 'select', optionCount: 5, default: 0 },
+    lavaAmount:   { ...R.metallic.lavaAmount,   default: 0.20 },
+    lavaScale:    { ...R.metallic.lavaScale,    default: 0.60 },
+    lavaWidth:    { ...R.metallic.lavaWidth,    default: 0.08 },
+    lavaColor:    { type: 'color',              default: '#ff6600' },
+    lavaEmissive: { ...R.metallic.lavaEmissive, default: 1.5 },
+    // Atmosphere — same as rocky, forwarded live to the atmo shell.
+    atmoTint:     { type: 'color',              default: '#aaccff' },
+    atmoOpacity:  { min: 0, max: 1, step: 0.01, default: 0.30 },
+    atmoColorMix: { min: 0, max: 1, step: 0.01, default: 0.85 },
   },
 
   // Star: convective granulation, corona, pulsation, spectral temperature
   star: {
-    seed:                { label: 'Seed',                ...R.star.seed,                default: 1 },
-    temperature:         { label: 'Température (K)',     ...R.star.temperature,         default: 5778 },
-    animSpeed:           { label: 'Vitesse',             ...R.star.animSpeed,           default: 1.0 },
-    convectionScale:     { label: 'Échelle granulation', ...R.star.convectionScale,     default: 1.5 },
-    granulationContrast: { label: 'Contraste granul.',   ...R.star.granulationContrast, default: 0.65 },
-    cloudAmount:         { label: 'Couche nuageuse',     ...R.star.cloudAmount,         default: 0.55 },
-    cloudBlend:          { label: 'Fusion nuages',       type: 'select', options: ['Mix', 'Screen', 'Overlay', 'Add', 'Soft Light'], default: 2 },
-    coronaSize:          { label: 'Corona',              ...R.star.coronaSize,          default: 0.15 },
-    pulsation:           { label: 'Pulsation',           ...R.star.pulsation,           default: 0.3 },
+    seed:                { ...R.star.seed,                default: 1 },
+    temperature:         { ...R.star.temperature,         default: 5778 },
+    animSpeed:           { ...R.star.animSpeed,           default: 1.0 },
+    convectionScale:     { ...R.star.convectionScale,     default: 1.5 },
+    granulationContrast: { ...R.star.granulationContrast, default: 0.65 },
+    cloudAmount:         { ...R.star.cloudAmount,         default: 0.55 },
+    cloudBlend:          { type: 'select', optionCount: 5, default: 2 },
+    coronaSize:          { ...R.star.coronaSize,          default: 0.15 },
+    pulsation:           { ...R.star.pulsation,           default: 0.3 },
   },
-}
-
-// ── UI groups ─────────────────────────────────────────────────────────────────
-// Used by `ControlPanel` to organise sliders into collapsible sections.
-// Has no effect on GLSL uniforms.
-
-/**
- * UI-only grouping of parameter keys into collapsible sections per body
- * type. Consumed by control-panel components to organise sliders; has
- * no effect on GLSL uniforms.
- */
-export const BODY_GROUPS: Record<LibBodyType, Array<{ label: string; keys: string[] }>> = {
-  rocky: [
-    { label: 'Terrain',  keys: ['seed', 'noiseFreq', 'roughness', 'heightScale'] },
-    { label: 'Cratères', keys: ['craterDensity', 'craterCount'] },
-    { label: 'Couleurs', keys: ['colorA', 'colorB'] },
-    { label: 'Fissures', keys: ['crackAmount', 'crackScale', 'crackWidth', 'crackDepth', 'crackColor', 'crackBlend'] },
-    { label: 'Lave',     keys: ['lavaAmount', 'lavaColor', 'lavaEmissive'] },
-    { label: 'Turbulence', keys: ['waveAmount', 'waveColor', 'waveScale'] },
-  ],
-  gaseous: [
-    { label: 'Base',     keys: ['seed', 'noiseFreq'] },
-    { label: 'Bandes',   keys: ['bandCount', 'bandSharpness', 'bandWarp', 'turbulence', 'cloudDetail', 'jetStream'] },
-    { label: 'Couleurs', keys: ['colorA', 'colorB', 'colorC', 'colorD'] },
-    { label: 'Nuages',   keys: ['cloudAmount', 'cloudColor', 'cloudBlend'] },
-    { label: 'Couronne', keys: ['coronaStrength', 'coronaColor'] },
-  ],
-  metallic: [
-    { label: 'Surface',  keys: ['seed', 'noiseFreq', 'metalness', 'roughness'] },
-    { label: 'Fissures', keys: ['crackAmount', 'crackScale', 'crackWidth', 'crackDepth', 'crackColor', 'crackBlend'] },
-    { label: 'Lave',     keys: ['lavaAmount', 'lavaScale', 'lavaWidth', 'lavaColor', 'lavaEmissive'] },
-    { label: 'Couleurs', keys: ['colorA', 'colorB'] },
-  ],
-  star: [
-    { label: 'Base',        keys: ['seed', 'temperature', 'animSpeed'] },
-    { label: 'Granulation', keys: ['convectionScale', 'granulationContrast', 'cloudAmount', 'cloudBlend'] },
-    { label: 'Effets',      keys: ['coronaSize', 'pulsation'] },
-  ],
 }
 
 /**

@@ -1,26 +1,33 @@
 ﻿<script setup lang="ts">
 import { TresCanvas } from '@tresjs/core'
-import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
+import {
+  useBody,
+  generateBodyVariation,
+  DEFAULT_TILE_SIZE,
+  Body,
+} from '@cedric-pouilleux/stellar-hex'
 import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
  * Vue / TresJS metallic planet demo.
- * PBR reflections, crack network and lava veins are resolved automatically
- * from the config temperature range and hasCracks / hasLava flags.
+ * PBR reflections come from the metallic shader; the crack network and lava
+ * veins are activated by pushing non-zero intensities onto the variation.
  */
 
 const config: BodyConfig = {
-  type:           'metallic',
+  type:           'planetary', surfaceLook: 'metallic',
   name:           'metallic-body-demo',
   radius:         1,
   rotationSpeed:  0.003,
   axialTilt:      0.15,
-  hasCracks:      true,
-  hasLava:        true,
 }
 
-const body = useBody(config, DEFAULT_TILE_SIZE)
+const variation = generateBodyVariation(config)
+variation.crackIntensity = 0.5
+variation.lavaIntensity  = 0.4
+
+const body = useBody(config, DEFAULT_TILE_SIZE, { variation })
 </script>
 
 <template>

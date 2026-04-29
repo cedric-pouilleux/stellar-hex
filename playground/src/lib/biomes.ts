@@ -39,11 +39,10 @@ export function classifyBiome(
   config:        BodyConfig,
   temperature:   { min: number; max: number },
 ): BiomeType | undefined {
-  const { type, atmosphereThickness } = config
-
-  if (type === 'star')     return 'star'
-  if (type === 'gaseous')  return undefined
-  if (type === 'metallic') return undefined
+  if (config.type === 'star')                  return 'star'
+  if (config.surfaceLook === 'bands')          return undefined
+  if (config.surfaceLook === 'metallic')       return undefined
+  const atmosphereThickness = config.atmosphereThickness
 
   const avg       = (temperature.min + temperature.max) / 2
   const atmo      = atmosphereThickness ?? 0

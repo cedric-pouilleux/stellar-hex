@@ -81,6 +81,14 @@ export interface GameBodyState {
   getResourceAmount(tileId: number, resourceId: string):              number
   /** True when a tile has been mined down to the core (elevation 0). */
   isDestroyed(tileId: number):                                        boolean
+  /**
+   * Resolves the atmo-board tile resources for a given atmo tile id. Atmo
+   * tiles live on a separate hexasphere from sol — the id is meaningful
+   * only against `body.tiles.atmo.tiles`. Returns `null` when the body
+   * carries no atmo board, an empty map when the tile exists but has no
+   * resource distribution attached to it.
+   */
+  getAtmoTile(atmoTileId: number):                                    { resources: ReadonlyMap<string, number> } | null
 
   // Mutation (absolute writes, not deltas) ─────────────────────────
   /** Sets a tile's current elevation band. Mutates mesh geometry in place. */
@@ -152,7 +160,7 @@ export function createGameBodyState(
     if (updates.size === 0) return
     const heights = new Map<number, number>()
     for (const [id, band] of updates) heights.set(id, bandToWorldHeight(band))
-    body.tiles.updateTileSolHeight(heights)
+    body.tiles.sol.updateTileSolHeight(heights)
   }
 
   // ── Reading ──────────────────────────────────────────────────────
@@ -194,6 +202,11 @@ export function createGameBodyState(
   function isDestroyed(tileId: number): boolean {
     const view = getTile(tileId)
     return view?.elevation === 0
+  }
+
+  function getAtmoTile(atmoTileId: number): { resources: ReadonlyMap<string, number> } | null {
+    if (!body.tiles.atmo) return null
+    return { resources: atmoInitial.get(atmoTileId) ?? EMPTY_RESOURCES }
   }
 
   // ── Mutation ─────────────────────────────────────────────────────
@@ -331,6 +344,7 @@ export function createGameBodyState(
     getTile,
     getResourceAmount,
     isDestroyed,
+    getAtmoTile,
     setElevation,
     setElevations,
     setResourceAmount,

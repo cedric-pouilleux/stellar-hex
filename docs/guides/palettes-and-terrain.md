@@ -92,6 +92,31 @@ const body = useBody(config, DEFAULT_TILE_SIZE, { palette })
 
 **Attention** : la longueur du tableau doit correspondre à `resolveTerrainLevelCount(radius, coreRadiusRatio)`. Sinon `getTileLevel` clampe et certaines tuiles partagent une bande.
 
+## Continents discrets (rocheuses)
+
+Par défaut, l'élévation d'une rocheuse vient d'un FBm simplex continu — résultat sur une planète humide : un moiré d'îles éparpillées plutôt que de vraies masses terrestres. Pour produire **des continents discrets** (style Pangée, archipel, supercontinents), `BodyConfig` expose deux champs optionnels :
+
+| Champ | Plage | Défaut | Effet |
+| ----- | ----- | ------ | ----- |
+| `continentAmount` | `0..1` | `0` | Amplitude du masque voronoï ajouté à l'élévation. `0` désactive entièrement (rétrocompat exacte) |
+| `continentScale` | `1..3` | `1` | Fréquence du voronoï — `1` = 1-2 supercontinents, `3` = archipel de petites îles |
+
+```ts
+const body = useBody({
+  name: 'gaia',
+  type: 'rocky',
+  liquidState: 'liquid',
+  liquidCoverage: 0.6,
+  continentAmount: 0.7,
+  continentScale: 1.5,
+  // ...
+}, DEFAULT_TILE_SIZE)
+```
+
+Le mask est **déterministe du `name`** — deux planètes avec le même nom font les mêmes continents. La même formule (`continentMask3D`) tourne en CPU dans `BodySimulation` **et** en GLSL dans `liquidMask.glsl`, donc la classification des tuiles hexa et la silhouette de la sphère shader restent parfaitement synchronisées sur le trait de côte.
+
+L'effet reste actif sur les rocheuses sèches (visible via la palette d'élévation : plateaux et dépressions macro).
+
 ## Anatomie d'un `TerrainLevel`
 
 ```ts

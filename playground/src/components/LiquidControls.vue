@@ -14,7 +14,6 @@
  * dropped: the colour picker covers any visual override the user needs.
  */
 import { computed } from 'vue'
-import type { BodyConfig } from '@lib'
 import {
   liquidShaderParams,
   LIQUID_SHADER_RANGES,
@@ -26,10 +25,14 @@ import {
   FROZEN_LIQUID_COLOR,
   DRY_SEA_COLOR,
 } from '../lib/liquidCatalog'
-import { playgroundLibMeta } from '../lib/state'
+import { playgroundLibMeta, type PlaygroundBodyConfig } from '../lib/state'
 import { seaLevelFraction, SEA_LEVEL_DEFAULT } from '../lib/seaLevel'
 
-const props = defineProps<{ config: BodyConfig }>()
+// `config` is the playground's wide editing shape — `liquidState` /
+// `liquidColor` are always reachable here regardless of the active body
+// type (they collapse to no-op once the toLibBodyConfig handoff drops the
+// stale fields on a star projection).
+const props = defineProps<{ config: PlaygroundBodyConfig }>()
 
 const liquidStates: Array<'liquid' | 'frozen' | 'none'> = ['liquid', 'frozen', 'none']
 
@@ -246,7 +249,7 @@ function digits(step: number): number {
 }
 .state-radio {
   display: inline-flex;
-  border: 1px solid #1d2028;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -255,10 +258,10 @@ function digits(step: number): number {
   cursor: pointer;
   font-size: 11px;
   color: #8a919b;
-  background: #0a0c11;
-  border-left: 1px solid #1d2028;
+  background: transparent;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 .state-radio label:first-child { border-left: 0; }
-.state-radio label.is-active   { background: #1c2536; color: #e4e6ea; }
+.state-radio label.is-active   { background: rgba(255, 255, 255, 0.08); color: #e4e6ea; }
 .state-radio input             { display: none; }
 </style>

@@ -27,8 +27,10 @@ export type {
   BodyHover,
   BodyLiquid,
   BodyView,
-  BodyTiles,
+  BoardTiles,
+  SolBoardTiles,
   PlanetTiles,
+  StarTiles,
   RGB,
   TileBaseVisual,
 } from './types/bodyHandle.types'
@@ -54,6 +56,13 @@ export type {
 
 // ── Render-scoped types ──────────────────────────────────────────
 export type { RenderableBody } from './types/renderableBody'
+export type {
+  HoverCursorConfig,
+  HoverCursorPresets,
+  HoverCursorRingConfig,
+  HoverCursorEmissiveConfig,
+  HoverCursorColumnConfig,
+} from './types/hoverCursor.types'
 
 // ── Terrain palettes (produce THREE.Color) ───────────────────────
 // Consumers wanting to tweak relief defaults can call the generator,
@@ -77,9 +86,7 @@ export { buildStarPalette } from './terrain/starPalette'
 // ── Shaders (procedural planet + post-processing) ────────────────
 export {
   BodyMaterial,
-  BODY_TYPES,
   BODY_PARAMS,
-  BODY_GROUPS,
   getDefaultParams,
   SHADER_RANGES,
   kelvinToRGB,
@@ -127,14 +134,15 @@ export { buildCoreMesh } from './render/shells/buildCoreMesh'
 export type { CoreMesh, CoreMeshConfig } from './render/shells/buildCoreMesh'
 export { buildLayeredPrismGeometry } from './render/layered/buildLayeredPrism'
 export { buildLayeredMergedGeometry } from './render/layered/buildLayeredMesh'
-export { createAtmoMaterial } from './render/layered/atmoMaterial'
-export type { AtmoMaterialOptions, AtmoMaterialHandle } from './render/layered/atmoMaterial'
-export { buildLiquidSphere } from './render/shells/buildLiquidSphere'
-export type { LiquidSphereConfig, LiquidSphereHandle } from './render/shells/buildLiquidSphere'
+export { buildLiquidShell } from './render/shells/buildLiquidShell'
+export type { LiquidShellConfig, LiquidShellHandle } from './render/shells/buildLiquidShell'
 export { buildSolidShell } from './render/shells/buildSolidShell'
 export type { SolidShellConfig, SolidShellHandle } from './render/shells/buildSolidShell'
 export { buildLayeredInteractiveMesh, resolveSolHeight } from './render/layered/buildLayeredInteractiveMesh'
-export type { LayeredInteractiveMesh, LayeredInteractiveMeshOptions, InteractiveLayer, InteractiveView } from './render/layered/buildLayeredInteractiveMesh'
+export type { LayeredInteractiveMesh, LayeredInteractiveMeshOptions } from './render/layered/buildLayeredInteractiveMesh'
+export { buildAtmoBoardMesh } from './render/atmo/buildAtmoBoardMesh'
+export type { AtmoBoardMesh, AtmoBoardMeshOptions } from './render/atmo/buildAtmoBoardMesh'
+export type { InteractiveLayer, InteractiveView, BoardTileRef } from './types/bodyHandle.types'
 export type { RingVariation, RingArchetype, Profile8 } from './render/shells/ringVariation'
 export { RING_RANGES, RING_ARCHETYPES, ARCHETYPE_PROFILES } from './render/shells/ringVariation'
 export { generateBodyVariation } from './render/body/bodyVariation'
@@ -158,14 +166,14 @@ export { createHoverChannel } from './render/state/hoverState'
 export type { HoverChannel } from './render/state/hoverState'
 export { findSceneRoot, findDominantLightWorldPos } from './render/lighting/findDominantLight'
 
-// ── Body-type strategy ──────────────────────────────────────────
-// Centralised per-type policies (`flatSurface`, `displayMeshIsAtmosphere`,
-// `canHaveRings`, `metallicSheen`, `defaultAtmosphereOpacity`, palette
-// + shader builders). Adding a new body type collapses to one entry in
-// `BODY_TYPE_STRATEGIES` instead of hunting type discriminants across
-// the render pipeline.
+// ── Surface-look strategy ──────────────────────────────────────
+// Stars use a fixed strategy (their pipeline is structurally different);
+// planetary bodies pick a `SurfaceLook` (`'terrain'` / `'bands'` /
+// `'metallic'`) that drives palette generator + atmo defaults + shader
+// family. Adding a new visual archetype collapses to one entry in
+// `SURFACE_LOOK_STRATEGIES`.
 export {
-  BODY_TYPE_STRATEGIES,
+  SURFACE_LOOK_STRATEGIES,
   strategyFor,
 } from './render/body/bodyTypeStrategy'
 export type {
@@ -173,11 +181,7 @@ export type {
 } from './render/body/bodyTypeStrategy'
 
 // ── Scene display helpers ───────────────────────────────────────
-export {
-  BODY_TYPE_LABEL,
-  BODY_TYPE_COLOR,
-  bodyOuterRadius,
-} from './render/body/sceneBodyUtils'
+export { bodyOuterRadius } from './render/body/sceneBodyUtils'
 
 // ── Interaction ──────────────────────────────────────────────────
 export { findBodyIndex, raycastBodies } from './render/body/bodyRaycast'

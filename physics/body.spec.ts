@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+﻿import { describe, it, expect } from 'vitest'
 import {
   terrainBandLayout,
   resolveTerrainLevelCount,
@@ -13,7 +13,7 @@ import {
 describe('terrainBandLayout', () => {
   it('produces a strictly uniform staircase: height[i] = i * unit', () => {
     // Invariant of the refactor: every consecutive pair of bands is separated
-    // by exactly `unit` world units — digging one level always removes the
+    // by exactly `unit` world units â€” digging one level always removes the
     // same slice of height, no matter where in the staircase the tile sits.
     const N = 20
     const { unit, shell } = terrainBandLayout(1, 0.5, N)
@@ -25,7 +25,7 @@ describe('terrainBandLayout', () => {
   })
 
   it('anchors height[0] = 0 (band 0 collapses to the core surface)', () => {
-    // The lowest band is flush with the core — digging to elev=0 makes the
+    // The lowest band is flush with the core â€” digging to elev=0 makes the
     // prism disappear entirely, revealing the core mesh beneath.
     const { unit } = terrainBandLayout(1, 0.55, 12)
     expect(0 * unit).toBe(0)
@@ -59,8 +59,8 @@ describe('terrainBandLayout', () => {
     expect(Number.isFinite(a.unit)).toBe(true)
   })
 
-  it('returns shell = 0 when the core swallows the body (coreRatio ≥ 1)', () => {
-    // No physical shell left → unit collapses to 0, every band sits at 0.
+  it('returns shell = 0 when the core swallows the body (coreRatio â‰¥ 1)', () => {
+    // No physical shell left â†’ unit collapses to 0, every band sits at 0.
     const { unit, shell } = terrainBandLayout(1, 1, 20)
     expect(shell).toBe(0)
     expect(unit).toBe(0)
@@ -68,8 +68,8 @@ describe('terrainBandLayout', () => {
 })
 
 describe('resolveTerrainLevelCount', () => {
-  it('derives N so each band is ≈ DEFAULT_TERRAIN_STEP tall in world units', () => {
-    // Shell = 0.45 (radius=1, coreRatio=0.55) → N ≈ 0.45 / DEFAULT_TERRAIN_STEP
+  it('derives N so each band is â‰ˆ DEFAULT_TERRAIN_STEP tall in world units', () => {
+    // Shell = 0.45 (radius=1, coreRatio=0.55) â†’ N â‰ˆ 0.45 / DEFAULT_TERRAIN_STEP
     const n = resolveTerrainLevelCount(1, 0.55)
     expect(n).toBe(Math.round(0.45 / DEFAULT_TERRAIN_STEP))
     // The resulting unit should land close to the target step value.
@@ -77,21 +77,21 @@ describe('resolveTerrainLevelCount', () => {
     expect(layout.unit).toBeCloseTo(DEFAULT_TERRAIN_STEP, 1)
   })
 
-  it('scales the derived N with shell thickness — big planets get more bands', () => {
+  it('scales the derived N with shell thickness â€” big planets get more bands', () => {
     const small = resolveTerrainLevelCount(1, 0.55)
     const big   = resolveTerrainLevelCount(5, 0.55)
-    // Shell grows 5× → N grows roughly 5×.
+    // Shell grows 5Ã— â†’ N grows roughly 5Ã—.
     expect(big).toBeGreaterThan(small * 4)
     expect(big).toBeLessThanOrEqual(small * 6)
   })
 
   it('falls back to MIN_TERRAIN_LEVEL_COUNT for tiny shells', () => {
-    // radius=0.1, coreRatio=0.9 → shell=0.01 → derived ≈ 0 → clamped to MIN.
+    // radius=0.1, coreRatio=0.9 â†’ shell=0.01 â†’ derived â‰ˆ 0 â†’ clamped to MIN.
     const n = resolveTerrainLevelCount(0.1, 0.9)
     expect(n).toBe(MIN_TERRAIN_LEVEL_COUNT)
   })
 
-  it('is a pure function of (radius, coreRadiusRatio) — backend/frontend agree', () => {
+  it('is a pure function of (radius, coreRadiusRatio) â€” backend/frontend agree', () => {
     // The whole point of dropping the caller override: wire `radius` and
     // `coreRadiusRatio` across the boundary and both sides derive the same
     // N deterministically without negotiating extra fields.
@@ -108,7 +108,7 @@ describe('deriveCoreRadiusRatio', () => {
   })
 
   it('returns 0 for a pure gas ball (gasMassFraction = 1)', () => {
-    // Boundary the render layer must handle — core mesh is skipped,
+    // Boundary the render layer must handle â€” core mesh is skipped,
     // sol band collapses, atmo shell occupies the whole sphere.
     expect(deriveCoreRadiusRatio(1)).toBe(0)
   })
@@ -123,7 +123,7 @@ describe('deriveCoreRadiusRatio', () => {
 
   it('lands Jupiter-class bodies around the expected silhouette', () => {
     // Jupiter's mass is ~93% gas, ~7% heavier elements. We want the core to
-    // be a small but visible fraction of the silhouette — not collapsed to
+    // be a small but visible fraction of the silhouette â€” not collapsed to
     // zero (that's reserved for pure-gas fantasy bodies).
     const jupiter = deriveCoreRadiusRatio(0.93)
     expect(jupiter).toBeGreaterThan(0.1)
@@ -142,15 +142,15 @@ describe('resolveCoreRadiusRatio', () => {
   })
 
   it('falls back to gasMassFraction derivation when coreRadiusRatio is absent', () => {
-    // f=0 → derived ratio is 1.0, but the sol-band guard caps it at
-    // `1 − MIN_SOL_BAND_FRACTION = 0.95` so the layered mesh keeps a
+    // f=0 â†’ derived ratio is 1.0, but the sol-band guard caps it at
+    // `1 âˆ’ MIN_SOL_BAND_FRACTION = 0.95` so the layered mesh keeps a
     // non-degenerate sol band even on fully solid bodies.
     expect(resolveCoreRadiusRatio({ gasMassFraction: 0 })).toBe(0.95)
     expect(resolveCoreRadiusRatio({ gasMassFraction: 1 })).toBe(0)
   })
 
   it('clamps coreRadiusRatio so atmo + core leaves at least 5% of radius for the sol band', () => {
-    // Explicit 0.6 + atmo 0.5 → would leave only 0% for sol; clamp to 0.45.
+    // Explicit 0.6 + atmo 0.5 â†’ would leave only 0% for sol; clamp to 0.45.
     expect(resolveCoreRadiusRatio({ coreRadiusRatio: 0.6, atmosphereThickness: 0.5 }))
       .toBeCloseTo(0.45, 5)
   })
@@ -160,7 +160,7 @@ describe('resolveCoreRadiusRatio', () => {
   })
 
   it('treats 0 as a valid explicit override (pure-gas opt-in)', () => {
-    // Numeric check — `0 ?? …` would trip on nullish; the resolver uses
+    // Numeric check â€” `0 ?? â€¦` would trip on nullish; the resolver uses
     // typeof so the caller can force a pure-gas shape explicitly.
     expect(resolveCoreRadiusRatio({ coreRadiusRatio: 0 })).toBe(0)
   })
@@ -168,27 +168,30 @@ describe('resolveCoreRadiusRatio', () => {
 
 describe('hasSurfaceLiquid', () => {
   it('returns true for a liquid rocky body', () => {
-    expect(hasSurfaceLiquid({ type: 'rocky', liquidState: 'liquid' })).toBe(true)
+    expect(hasSurfaceLiquid({ type: 'planetary', surfaceLook: 'terrain', liquidState: 'liquid' })).toBe(true)
   })
 
   it('returns true for a frozen rocky body (ice sheets still count as a surface)', () => {
-    expect(hasSurfaceLiquid({ type: 'rocky', liquidState: 'frozen' })).toBe(true)
+    expect(hasSurfaceLiquid({ type: 'planetary', surfaceLook: 'terrain', liquidState: 'frozen' })).toBe(true)
   })
 
   it('returns false when liquidState is none or absent', () => {
-    expect(hasSurfaceLiquid({ type: 'rocky', liquidState: 'none' })).toBe(false)
-    expect(hasSurfaceLiquid({ type: 'rocky' /* undefined → none */ })).toBe(false)
+    expect(hasSurfaceLiquid({ type: 'planetary', surfaceLook: 'terrain', liquidState: 'none' })).toBe(false)
+    expect(hasSurfaceLiquid({ type: 'planetary', surfaceLook: 'terrain' /* undefined â†’ none */ })).toBe(false)
   })
 
-  it('is FALSE for gaseous bodies even when liquidState = liquid (invariant check)', () => {
-    // Gas giants cannot hold a surface liquid — the helper is the single
-    // enforcement point so a stale config value does not leak into the
-    // render pipeline.
-    expect(hasSurfaceLiquid({ type: 'gaseous', liquidState: 'liquid' })).toBe(false)
+  it('honours liquidState on gaseous bodies (deep ocean under the envelope)', () => {
+    expect(hasSurfaceLiquid({ type: 'planetary', surfaceLook: 'bands',  liquidState: 'liquid' })).toBe(true)
+    expect(hasSurfaceLiquid({ type: 'planetary', surfaceLook: 'bands',  liquidState: 'none'   })).toBe(false)
   })
 
-  it('is FALSE for metallic and star bodies regardless of liquid fields', () => {
-    expect(hasSurfaceLiquid({ type: 'metallic', liquidState: 'liquid' })).toBe(false)
-    expect(hasSurfaceLiquid({ type: 'star',     liquidState: 'liquid' })).toBe(false)
+  it('honours liquidState on metallic bodies (liquid metal surface)', () => {
+    expect(hasSurfaceLiquid({ type: 'planetary', surfaceLook: 'metallic', liquidState: 'liquid' })).toBe(true)
+    expect(hasSurfaceLiquid({ type: 'planetary', surfaceLook: 'metallic', liquidState: 'none'   })).toBe(false)
+  })
+
+  it('is FALSE for stars regardless of liquid fields (no solid surface)', () => {
+    expect(hasSurfaceLiquid({ type: 'star', liquidState: 'liquid' })).toBe(false)
+    expect(hasSurfaceLiquid({ type: 'star', liquidState: 'frozen' })).toBe(false)
   })
 })

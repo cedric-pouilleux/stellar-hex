@@ -5,7 +5,8 @@ import type { SurfaceLiquidType } from './liquidCatalog'
 
 function rocky(overrides: Partial<BodyConfig> = {}): BodyConfig {
   return {
-    type:           'rocky',
+    type:           'planetary',
+    surfaceLook:    'terrain',
     name:           'test',
     radius:         1,
     rotationSpeed:  0.01,
@@ -48,8 +49,8 @@ describe('resolveLiquidState', () => {
     expect(s.hasSurfaceBody).toBe(false)
   })
 
-  it('returns a dry profile for non-rocky bodies', () => {
-    const s = resolveLiquidState(rocky({ type: 'gaseous' }), 'water')
+  it('returns a dry profile for stars regardless of liquidType', () => {
+    const s = resolveLiquidState(rocky({ type: 'star', surfaceLook: undefined }), 'water')
     expect(s.liquidType).toBeUndefined()
     expect(s.hasLiquid).toBe(false)
     expect(s.hasSurfaceBody).toBe(false)

@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest'
+﻿import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { useBody } from './useBody'
 import { DEFAULT_CORE_RADIUS_RATIO } from '../../physics/body'
 import type { BodyConfig } from '../../types/body.types'
 
-// ── Helpers ───────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** Mirrors the StatsOverlay polygon counting logic (position.count / 3). */
 function countGroupPolygons(group: THREE.Group): number {
@@ -18,12 +18,16 @@ function countGroupPolygons(group: THREE.Group): number {
   return n
 }
 
-/** Returns true when every mesh geometry in the group is non-indexed (merged prisms). */
+/** Returns true when a substantial non-indexed mesh (merged prisms) is present. */
 function hasNonIndexedMesh(group: THREE.Group): boolean {
   let found = false
   group.traverse(obj => {
     const mesh = obj as THREE.Mesh
-    if (mesh.isMesh && mesh.geometry && !mesh.geometry.index) found = true
+    // Threshold filters out the hover-cursor ring (≤ ~36 vertices) — it
+    // is mounted permanently but is not the merged hex board the swap
+    // test cares about.
+    if (mesh.isMesh && mesh.geometry && !mesh.geometry.index
+      && mesh.geometry.getAttribute('position').count > 50) found = true
   })
   return found
 }
@@ -49,19 +53,19 @@ function makeStarConfig(radius = 1): BodyConfig {
 
 function makeRockyConfig(radius = 1): BodyConfig {
   return {
-    name: 'TestRocky', type: 'rocky',
+    name: 'TestRocky', type: 'planetary', surfaceLook: 'terrain',
     atmosphereThickness: 0.5,
-    liquidType: 'water', liquidState: 'liquid',
+    liquidState: 'liquid',
     radius, rotationSpeed: 0.05, axialTilt: 0,
   }
 }
 
-// Large tile size → subdivision 2 → 42 tiles (fast test builds).
+// Large tile size â†’ subdivision 2 â†’ 42 tiles (fast test builds).
 const TILE_SIZE = 0.5
 
-// ── Star display mesh is smooth sphere (indexed) in overview ──────
+// â”€â”€ Star display mesh is smooth sphere (indexed) in overview â”€â”€â”€â”€â”€â”€
 
-describe('useBody — star', () => {
+describe('useBody â€” star', () => {
   it('places an indexed smooth sphere in the group without hex mode', () => {
     // Stars now use buildStarSmoothMesh (same pattern as rocky):
     // indexed SphereGeometry + animated BodyMaterial('star').
@@ -72,7 +76,7 @@ describe('useBody — star', () => {
   })
 
   it('polygon count stays low without hex mode (smooth sphere vertex count / 3)', () => {
-    // SphereGeometry with segs ≈ 64 → far fewer than the old hex mesh.
+    // SphereGeometry with segs â‰ˆ 64 â†’ far fewer than the old hex mesh.
     const star = useBody(makeStarConfig(), TILE_SIZE)
     expect(countGroupPolygons(star.group)).toBeLessThan(5_000)
     star.dispose()
@@ -81,14 +85,14 @@ describe('useBody — star', () => {
   it('exposes planetMaterial so ShaderPane can live-update star uniforms', () => {
     // The playground's shader slider pipeline calls `body.planetMaterial.setParams`
     // on every input event. Omitting this field here (previous regression) broke
-    // every star shader control — temperature, pulsation, corona, granulation…
+    // every star shader control â€” temperature, pulsation, corona, granulationâ€¦
     const star = useBody(makeStarConfig(), TILE_SIZE)
     expect((star as any).planetMaterial?.setParams).toBeTypeOf('function')
     star.dispose()
   })
 
   it('switches to non-indexed hex mesh in interactive mode and back on deactivate', () => {
-    // Same smooth ↔ hex swap lifecycle as rocky planets.
+    // Same smooth â†” hex swap lifecycle as rocky planets.
     const star = useBody(makeStarConfig(), TILE_SIZE)
 
     expect(hasNonIndexedMesh(star.group)).toBe(false)
@@ -106,48 +110,42 @@ describe('useBody — star', () => {
   })
 })
 
-// ── Rocky display mesh is smooth sphere (indexed) ─────────────────
+// â”€â”€ Rocky display mesh is smooth sphere (indexed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe('useBody — rocky (non-interactive)', () => {
+describe('useBody â€” rocky (non-interactive)', () => {
   it('places an indexed smooth sphere in the group (not a hex mesh)', () => {
-    // Rocky planets use buildSmoothSphereMesh → THREE.SphereGeometry (indexed).
+    // Rocky planets use buildSmoothSphereMesh â†’ THREE.SphereGeometry (indexed).
     const rocky = useBody(makeRockyConfig(), TILE_SIZE)
     expect(hasIndexedMesh(rocky.group)).toBe(true)
     rocky.dispose()
   })
 
   it('polygon count stays low without hex mode (smooth sphere vertex count / 3)', () => {
-    // SphereGeometry with segs ≈ 72 → position.count ≈ 74×37 = 2738 → polys ≈ 912.
+    // SphereGeometry with segs â‰ˆ 72 â†’ position.count â‰ˆ 74Ã—37 = 2738 â†’ polys â‰ˆ 912.
     // The hex mesh (buildPlanetMesh + buildInteractiveMesh) is built but NOT in the group.
     const rocky = useBody(makeRockyConfig(), TILE_SIZE)
     const polys = countGroupPolygons(rocky.group)
-    // Smooth sphere is indexed: position.count = (segs+1)*(segs/2+1) ≪ tile prism count.
-    // 5000 is a generous ceiling that no smooth sphere (segs ≤ ~120) would exceed.
+    // Smooth sphere is indexed: position.count = (segs+1)*(segs/2+1) â‰ª tile prism count.
+    // 5000 is a generous ceiling that no smooth sphere (segs â‰¤ ~120) would exceed.
     expect(polys).toBeLessThan(5_000)
     rocky.dispose()
   })
 
-  it('hex mesh is absent from group before activateInteractive, present after', () => {
-    // buildPlanetMesh (raycaster proxy) and buildInteractiveMesh are constructed
-    // eagerly for all rocky planets, consuming CPU memory even in smooth mode.
-    // They must NOT appear in body.group until activateInteractive() is called.
+  it('mounts both boards (sol + atmo) alongside the smooth display sphere', () => {
+    // The dual-board model mounts every mesh up-front: the smooth display
+    // sphere (indexed), the sol interactive mesh (non-indexed prisms) and
+    // the atmo board mesh (non-indexed prisms). The view switcher drives
+    // their visibility — `interactive.activate` only flips the controller
+    // mode, the scene-graph layout stays stable.
     const rocky = useBody(makeRockyConfig(), TILE_SIZE)
 
-    // Before: only smooth sphere (indexed) — no non-indexed hex prism mesh.
-    expect(hasNonIndexedMesh(rocky.group)).toBe(false)
+    expect(hasIndexedMesh(rocky.group)).toBe(true)     // smooth sphere
+    expect(hasNonIndexedMesh(rocky.group)).toBe(true)  // sol mesh + atmo board
 
     rocky.interactive.activate()
-
-    // After activation: hex prism mesh (non-indexed) replaces the smooth sphere.
-    // Note: when the surface is liquid, an ocean sphere (indexed) is added
-    // alongside the hex mesh, so `hasIndexedMesh` may still be true here.
     expect(hasNonIndexedMesh(rocky.group)).toBe(true)
-
     rocky.interactive.deactivate()
-
-    // After deactivation: back to smooth sphere — hex mesh removed from group.
-    expect(hasNonIndexedMesh(rocky.group)).toBe(false)
-    expect(hasIndexedMesh(rocky.group)).toBe(true)
+    expect(hasNonIndexedMesh(rocky.group)).toBe(true)
 
     rocky.dispose()
   })
@@ -156,7 +154,7 @@ describe('useBody — rocky (non-interactive)', () => {
     const rocky = useBody(makeRockyConfig(), TILE_SIZE)
     rocky.interactive.activate()
 
-    // Count indexed meshes with non-trivial geometry — the ocean layer uses
+    // Count indexed meshes with non-trivial geometry â€” the ocean layer uses
     // a SphereGeometry which is indexed and contributes many vertices.
     let indexedMeshes = 0
     rocky.group.traverse(obj => {
@@ -211,7 +209,7 @@ describe('useBody — rocky (non-interactive)', () => {
     // colour buffer must now react to every `setSeaLevel` call.
     const rocky = useBody(makeRockyConfig(), TILE_SIZE)
 
-    // Grab the smooth display sphere (indexed SphereGeometry — the only
+    // Grab the smooth display sphere (indexed SphereGeometry â€” the only
     // indexed mesh with vertex colours in non-interactive mode).
     let displayMesh: THREE.Mesh | undefined
     rocky.group.traverse(obj => {
@@ -227,8 +225,8 @@ describe('useBody — rocky (non-interactive)', () => {
     const shader = rocky.planetMaterial.material as THREE.ShaderMaterial
     const initialSeaUniform = shader.uniforms.uSeaLevel?.value as number
 
-    // Push sea level well above its initial world radius → more submerged
-    // vertices → the smooth-sphere colour buffer flips them to the sea
+    // Push sea level well above its initial world radius â†’ more submerged
+    // vertices â†’ the smooth-sphere colour buffer flips them to the sea
     // anchor (the smooth sphere has no liquid mesh sitting on top in
     // shader view, so the underwater tint must come from vertex colour),
     // AND the shader uniform slides to track the new waterline.
@@ -240,7 +238,7 @@ describe('useBody — rocky (non-interactive)', () => {
       if (Math.abs(movedColours[i] - initialColours[i]) > 1e-4) { anyChanged = true; break }
     }
     expect(anyChanged).toBe(true)
-    // `needsUpdate = true` bumps the internal `version` counter — the
+    // `needsUpdate = true` bumps the internal `version` counter â€” the
     // observable side-effect renderers pick up to re-upload the buffer.
     expect(colorAttr.version).toBeGreaterThan(initialVersion)
     expect(shader.uniforms.uSeaLevel.value).not.toBe(initialSeaUniform)
@@ -249,11 +247,11 @@ describe('useBody — rocky (non-interactive)', () => {
   })
 })
 
-// ── Core mesh transverse (step 1) ─────────────────────────────────
+// â”€â”€ Core mesh transverse (step 1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe('useBody — core mesh (non-stellar bodies)', () => {
+describe('useBody â€” core mesh (non-stellar bodies)', () => {
   it('rocky exposes getCoreRadius = radius * DEFAULT_CORE_RADIUS_RATIO when ratio is omitted', () => {
-    // Drop the atmo so the clamp `coreRatio + atmoThick ≤ 0.95` is inert
+    // Drop the atmo so the clamp `coreRatio + atmoThick â‰¤ 0.95` is inert
     // and the default ratio survives end-to-end.
     const cfg = { ...makeRockyConfig(4), atmosphereThickness: 0 }
     const rocky = useBody(cfg, TILE_SIZE)
@@ -287,10 +285,10 @@ describe('useBody — core mesh (non-stellar bodies)', () => {
   it('star carries the StarBody discriminant and exposes coherent radii', () => {
     const config = makeStarConfig()
     const star   = useBody(config, TILE_SIZE)
-    // Discriminant — callers narrow the Body union via `kind === 'star'`
+    // Discriminant â€” callers narrow the Body union via `kind === 'star'`
     // before reaching for planet-only namespaces (liquid, view, atmoShell).
     expect(star.kind).toBe('star')
-    // Radii are real — stars do carry a core + surface even though they
+    // Radii are real â€” stars do carry a core + surface even though they
     // skip the 3-layer liquid plumbing.
     expect(star.getSurfaceRadius()).toBeCloseTo(config.radius, 5)
     expect(star.getCoreRadius()).toBeLessThanOrEqual(config.radius)
@@ -298,31 +296,48 @@ describe('useBody — core mesh (non-stellar bodies)', () => {
   })
 })
 
-// ── Surface-liquid invariant (gaseous / metallic stay dry) ─────────
+// â”€â”€ Surface liquid honoured on every non-stellar type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-describe('useBody — surface liquid invariant', () => {
-  it('gaseous body with stale liquidType still renders dry (no liquid sphere, no wet sea anchor)', () => {
-    // Regression: a gaseous config accidentally carrying `liquidType` used
-    // to smuggle in a liquid sphere + sea anchor through the render layer.
-    // `hasSurfaceLiquid(config)` is the single gate — gas giants must
-    // ignore the field entirely.
+describe('useBody â€” surface liquid', () => {
+  it('honours liquidState on a gaseous body (deep ocean under the envelope)', () => {
+    // Doctrine: every non-stellar type honours `liquidState`. A gaseous
+    // config with `liquidState: 'liquid'` produces a real waterline; the
+    // caller decides when that makes sense (composition, temperature,
+    // biome). The lib only carries the resolved state.
     const gaseous = useBody({
-      name:           'GasGiant',
-      type:           'gaseous',
-      atmosphereThickness: 0.9,
-      // These should be ignored — the body is gaseous.
-      liquidType:     'water',
-      liquidState:    'liquid',
-      radius:         3,
-      rotationSpeed:  0.4,
-      axialTilt:      0,
+      name:                'GasGiant',
+      type:                'planetary', surfaceLook: 'bands',
+      atmosphereThickness: 0.5,
+      liquidState:         'liquid',
+      liquidColor:         '#3a4f6e',
+      liquidCoverage:      0.7,
+      radius:              3,
+      rotationSpeed:       0.4,
+      axialTilt:           0,
     }, TILE_SIZE)
 
-    // Simulation side: the sim must not compute a waterline.
-    expect(gaseous.sim.seaLevelElevation).toBe(-1)
-    expect(gaseous.sim.surfaceLiquid).toBeUndefined()
-    expect(gaseous.sim.liquidCoverage).toBe(0)
+    expect(gaseous.sim.hasLiquidSurface).toBe(true)
+    expect(gaseous.sim.seaLevelElevation).toBeGreaterThan(-1)
+    expect(gaseous.sim.liquidCoverage).toBeGreaterThan(0)
 
     gaseous.dispose()
+  })
+
+  it('stays dry on a gaseous body with liquidState: none', () => {
+    const dry = useBody({
+      name:                'DryGas',
+      type:                'planetary', surfaceLook: 'bands',
+      atmosphereThickness: 0.5,
+      liquidState:         'none',
+      radius:              3,
+      rotationSpeed:       0.4,
+      axialTilt:           0,
+    }, TILE_SIZE)
+
+    expect(dry.sim.hasLiquidSurface).toBe(false)
+    expect(dry.sim.seaLevelElevation).toBe(-1)
+    expect(dry.sim.liquidCoverage).toBe(0)
+
+    dry.dispose()
   })
 })

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+﻿import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { buildAtmoShell } from './buildAtmoShell'
 import type { BodyConfig } from '../../types/body.types'
@@ -6,7 +6,7 @@ import type { BodyConfig } from '../../types/body.types'
 function rockyConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
   return {
     name: 'test-atmo-shell',
-    type: 'rocky',
+    type: 'planetary', surfaceLook: 'terrain',
     radius: 1,
     rotationSpeed: 0.05,
     axialTilt: 0,
@@ -64,7 +64,26 @@ describe('buildAtmoShell', () => {
     handle.dispose()
   })
 
-  it('material.visible follows opacity — 0 hides the shell, > 0 shows it', () => {
+  it('setParams({ tint }) live-patches the uTint uniform without rebuilding', () => {
+    const handle = buildAtmoShell({ config: rockyConfig(), radius: 1, opacity: 0.5, tint: '#ff0000' })
+    const tint = (handle.mesh.material as THREE.ShaderMaterial).uniforms.uTint.value as THREE.Vector3
+    // Same `THREE.Color`-decoded values used at build time, so the test is
+    // robust to whatever colour-space conversion three.js applies internally.
+    const baselineX = tint.x
+    const baselineY = tint.y
+    const baselineZ = tint.z
+
+    handle.setParams({ tint: '#00ff00' })
+    // X collapses to 0 (no red); Y rises to baseline-X (full green channel
+    // mirrors what red was on the previous build → identical sRGB curve).
+    expect(tint.x).toBeCloseTo(0, 5)
+    expect(tint.y).toBeCloseTo(baselineX, 5)
+    expect(tint.z).toBeCloseTo(baselineZ, 5)
+    void baselineY
+    handle.dispose()
+  })
+
+  it('material.visible follows opacity â€” 0 hides the shell, > 0 shows it', () => {
     const dim = buildAtmoShell({ config: rockyConfig(), radius: 1, opacity: 0 })
     expect(dim.mesh.material).toMatchObject({ visible: false })
     dim.dispose()
@@ -110,5 +129,61 @@ describe('buildAtmoShell', () => {
   it('dispose releases geometry + material without throwing', () => {
     const handle = buildAtmoShell({ config: rockyConfig(), radius: 1, opacity: 0.5 })
     expect(() => handle.dispose()).not.toThrow()
+  })
+
+  it('setHaloMode dims opacity and silences clouds/storms/tile paint, restoring on toggle off', () => {
+    const handle = buildAtmoShell({
+      config:  rockyConfig(),
+      radius:  1,
+      opacity: 0.8,
+      params:  { cloudAmount: 0.4, storms: 0.3, tileColorMix: 0.7 },
+    })
+    const u = (handle.mesh.material as THREE.ShaderMaterial).uniforms
+
+    // Baseline values applied at build.
+    expect(u.uOpacity.value).toBeCloseTo(0.8, 6)
+    expect(u.uCloudAmount.value).toBeCloseTo(0.4, 6)
+    expect(u.uStorms.value).toBeCloseTo(0.3, 6)
+    expect(u.uTileColorMix.value).toBeCloseTo(0.7, 6)
+
+    handle.setHaloMode(true)
+    // Halo mode: opacity dimmed, decorative content silenced, rim shader
+    // path engaged so the centre fades out and only the silhouette glows.
+    // Additive blending kicks in so the glow reads against dark backgrounds.
+    expect(u.uOpacity.value).toBeLessThan(0.8)
+    expect(u.uOpacity.value).toBeGreaterThan(0)
+    expect(u.uCloudAmount.value).toBe(0)
+    expect(u.uStorms.value).toBe(0)
+    expect(u.uTileColorMix.value).toBe(0)
+    expect(u.uRimOnly.value).toBe(1)
+    expect((handle.mesh.material as THREE.ShaderMaterial).visible).toBe(true)
+    expect((handle.mesh.material as THREE.ShaderMaterial).blending).toBe(THREE.AdditiveBlending)
+
+    handle.setHaloMode(false)
+    // Toggle off restores the build-time baseline.
+    expect(u.uOpacity.value).toBeCloseTo(0.8, 6)
+    expect(u.uCloudAmount.value).toBeCloseTo(0.4, 6)
+    expect(u.uStorms.value).toBeCloseTo(0.3, 6)
+    expect(u.uTileColorMix.value).toBeCloseTo(0.7, 6)
+    expect(u.uRimOnly.value).toBe(0)
+    expect((handle.mesh.material as THREE.ShaderMaterial).blending).toBe(THREE.NormalBlending)
+
+    handle.dispose()
+  })
+
+  it('setHaloMode is idempotent — repeat calls in the same state are no-ops', () => {
+    const handle = buildAtmoShell({ config: rockyConfig(), radius: 1, opacity: 0.5 })
+    const u = (handle.mesh.material as THREE.ShaderMaterial).uniforms
+
+    handle.setHaloMode(true)
+    const dimmed = u.uOpacity.value as number
+    handle.setHaloMode(true)
+    expect(u.uOpacity.value).toBe(dimmed)
+
+    handle.setHaloMode(false)
+    handle.setHaloMode(false)
+    expect(u.uOpacity.value).toBeCloseTo(0.5, 6)
+
+    handle.dispose()
   })
 })

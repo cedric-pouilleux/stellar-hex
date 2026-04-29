@@ -1,23 +1,16 @@
 /**
  * Pure body-orientation math + a small stateful accumulator.
  *
- * The lib used to drive every body's spin / axial-tilt from a Vue
- * component (`BodyController.vue`) hard-wired to the render loop. That
- * coupled three things that should be independent:
- *   - the **physics data** (`rotationSpeed`, `axialTilt`),
- *   - the **time integration** (`spinAngle += rotationSpeed * dt`),
- *   - the **time source** (the render loop's `delta`).
- *
- * In a server-authoritative MMO context the time source is the server tick,
- * not the local render loop — and the integration may even be skipped
- * entirely on the client (the server pushes a pre-computed pose). Splitting
- * the three lets every consumer pick its own combination:
+ * Body rotation is **always cosmetic** in this lib: a server-authoritative
+ * MMO does not observe a planet's spin, so there is no driveable orientation
+ * mode. Spin / axial-tilt is integrated locally on the client, on the
+ * caller's chosen time source. Splitting the math from the time source
+ * keeps that flexibility:
  *
  * | Use case                | Data            | Integration | Time source     |
  * |-------------------------|-----------------|-------------|-----------------|
  * | Demo / preview          | `BodyConfig`    | local       | render loop     |
  * | Replay / scrub UI       | `BodyConfig`    | local       | replay clock    |
- * | Server-authoritative    | server snapshot | none        | server tick     |
  *
  * This module exposes:
  *   - {@link computeBodyQuaternion} — pure: `(spinAngle, axialTilt) → Q`.

@@ -16,7 +16,7 @@ let cleanup:   (() => void) | null = null
 watch(mode, m => applyMode?.(m))
 
 onMounted(async () => {
-  const [THREE, { OrbitControls }, { useBody, DEFAULT_TILE_SIZE }] = await Promise.all([
+  const [THREE, { OrbitControls }, { useBody, generateBodyVariation, DEFAULT_TILE_SIZE }] = await Promise.all([
     import('three'),
     import('three/examples/jsm/controls/OrbitControls.js'),
     import('@cedric-pouilleux/stellar-hex/core'),
@@ -44,23 +44,27 @@ onMounted(async () => {
   orbit.minDistance = 1.6
   orbit.maxDistance = 8
 
-  const body = useBody({
-    type:                'rocky',
+  const config = {
+    type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'lava-demo',
     radius:               1,
     rotationSpeed:        0,
     axialTilt:            0.1,
     reliefFlatness:       0.55,
     atmosphereThickness:  0.05,
-    hasCracks:            true,
-    hasLava:              true,
-    lavaColor:           '#ff5520',
-  }, DEFAULT_TILE_SIZE)
+  }
+  // Cracks + lava are pure visual effects activated through the variation —
+  // the lib has no opinion on when a body should look volcanic, that's a
+  // game-side decision.
+  const variation = generateBodyVariation(config)
+  variation.crackIntensity = 0.6
+  variation.lavaIntensity  = 0.7
+  variation.lavaEmissive   = 2.2
+  variation.lavaColor      = '#ff5520'
+
+  const body = useBody(config, DEFAULT_TILE_SIZE, { variation })
   scene.add(body.group)
   setBodyCoreVisible(body, false)
-
-  const material = (body as any).planetMaterial
-  material?.setParams({ lavaAmount: 0.7, lavaEmissive: 2.2 })
 
   applyMode = (m) => {
     if (m === 'shader') { body.view.set('shader'); body.interactive.deactivate(); setBodyCoreVisible(body, false) }

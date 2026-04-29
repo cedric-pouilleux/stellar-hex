@@ -14,7 +14,7 @@ import OrbitControlsBridge from './OrbitControlsBridge.vue'
  */
 
 const config: BodyConfig = {
-  type:                'rocky',
+  type:                'planetary', surfaceLook: 'terrain',
   name:                'core-demo',
   radius:               1,
   rotationSpeed:        0,
@@ -62,7 +62,7 @@ onMounted(async () => {
         for (const n of getNeighbors(cur, nMap)) queue.push(n)
       }
     }
-    if (updates.size > 0) body.tiles.updateTileSolHeight(updates)
+    if (updates.size > 0) body.tiles.sol.updateTileSolHeight(updates)
   } catch (err) {
     console.warn('[CoreShellVue] pre-excavation skipped:', err)
   }

@@ -3,6 +3,7 @@ import type { Tile } from '../geometry/hexasphere.types'
 import type { BodyConfig } from '../types/body.types'
 import type { TileState } from './TileState'
 import { seededPrng } from '../internal/prng'
+import { continentMask3D, continentSeedFromName } from '../internal/continents'
 import {
   resolveCoreRadiusRatio,
   resolveTerrainLevelCount,
@@ -25,6 +26,18 @@ export interface BodySimulation {
   readonly tiles:              readonly Tile[]
   readonly tileStates:         ReadonlyMap<number, TileState>
   readonly config:             BodyConfig
+  /**
+   * Atmosphere board tiles — independent hexasphere from the sol board, with
+   * its own subdivision count (derived from the atmosphere outer radius
+   * rather than the sol surface radius). Empty array when the body carries
+   * no atmosphere (`hasAtmosphere(config) === false`).
+   *
+   * Atmo tile ids are NOT comparable to sol tile ids: a sol tile `42` has
+   * no relation to an atmo tile `42` — they live on separate hexaspheres.
+   * Resource distribution on the atmo board is an off-lib concern; the lib
+   * exposes the tiles, consumers paint them through the atmo board mesh.
+   */
+  readonly atmoTiles:          readonly Tile[]
   /**
    * Returns the integer elevation band `[0, N-1]` at any world-space point on
    * the planet. Uses the same seeded simplex + quantisation as tile
@@ -86,8 +99,9 @@ export interface BodySimulation {
  * @param config  - Full body physics/visual configuration.
  */
 export function initBodySimulation(
-  tiles:   Tile[],
-  config:  BodyConfig,
+  tiles:     Tile[],
+  config:    BodyConfig,
+  atmoTiles: readonly Tile[] = [],
 ): BodySimulation {
   const noiseScale       = config.noiseScale       ?? 1.4
   const noiseOctaves     = Math.max(1, Math.floor(config.noiseOctaves ?? 1))
@@ -96,6 +110,11 @@ export function initBodySimulation(
   const noisePower       = Math.max(1e-4, config.noisePower       ?? 1.0)
   const noiseRidge       = Math.max(0, Math.min(1, config.noiseRidge ?? 0))
   const reliefFlatness   = Math.max(0, Math.min(1, config.reliefFlatness ?? 0))
+  // Macro continent layer — adds a low-frequency voronoi mask on top of the
+  // simplex sample. `continentAmount = 0` short-circuits the cost.
+  const continentAmount  = Math.max(0, Math.min(1, config.continentAmount ?? 0))
+  const continentScale   = Math.max(1, Math.min(3, config.continentScale  ?? 1))
+  const continentSeed    = continentSeedFromName(config.name)
   const noise3D          = createNoise3D(seededPrng(config.name))
   const bandCount        = resolveTerrainLevelCount(
     config.radius,
@@ -141,9 +160,19 @@ export function initBodySimulation(
   // Unit-sphere projection matches the smooth-sphere vertex lookup path in
   // `buildSmoothSphereMesh`, so tile-center queries and shader re-samples
   // land on identical values.
+  //
+  // The optional continent mask is added in unit-sphere space too (that's the
+  // domain it was designed for), and the same calculation runs in
+  // `liquidMask.glsl` so the GPU and CPU rank-quantise tiles identically on
+  // the liquid boundary.
   const noiseAt = (x: number, y: number, z: number): number => {
     const len = Math.sqrt(x * x + y * y + z * z)
-    return sampleNoise(x / len, y / len, z / len)
+    const ux = x / len, uy = y / len, uz = z / len
+    let value = sampleNoise(ux, uy, uz)
+    if (continentAmount > 0) {
+      value += continentMask3D({ x: ux, y: uy, z: uz }, continentScale, continentSeed) * continentAmount
+    }
+    return value
   }
 
   // ── Step 1: sample raw noise per tile ─────────────────────────────
@@ -230,7 +259,10 @@ export function initBodySimulation(
     // are squeezed against `N - 1`, so we apply the same linear contraction
     // to the initial waterline — the default still lands at the requested
     // percentile of the *populated* range.
-    const targetCoverage = clamp01(config.liquidCoverage ?? DEFAULT_LIQUID_COVERAGE)
+    // `liquidCoverage` lives on `PlanetConfig` only; `hasSurfaceLiquid`
+    // already short-circuits star configs, so the read below is safe.
+    const liquidCoverageInput  = config.type === 'planetary' ? config.liquidCoverage : undefined
+    const targetCoverage = clamp01(liquidCoverageInput ?? DEFAULT_LIQUID_COVERAGE)
     const rawSea = Math.max(0, bandCount * targetCoverage - 0.5)
     seaLevelElevation = reliefFlatness > 0
       ? (bandCount - 1) - (1 - reliefFlatness) * (bandCount - 1 - rawSea)
@@ -264,6 +296,7 @@ export function initBodySimulation(
     tiles,
     tileStates,
     config,
+    atmoTiles,
     elevationAt,
     seaLevelNoise,
     bandToNoiseThreshold,

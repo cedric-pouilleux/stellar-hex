@@ -33,7 +33,7 @@ function makeFakeBody(
     } as unknown as Body['sim'],
     palette: [] as unknown as Body['palette'],
     tiles:   {
-      updateTileSolHeight,
+      sol: { updateTileSolHeight },
     } as unknown as Body['tiles'],
   } as unknown as Body
   return { body: fake, updateTileSolHeight }

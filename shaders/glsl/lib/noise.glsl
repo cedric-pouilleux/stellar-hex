@@ -101,6 +101,60 @@ float fbm6(vec3 p, float lac, float gain) {
 // Convenience alias — 6-octave FBM with standard lacunarity/gain
 float fbm(vec3 p) { return fbm6(p, 2.0, 0.5); }
 
+// ── Terrain archetypes ──────────────────────────────────────
+// Same octave budget as `fbm4` but different per-octave shaping —
+// chosen at planet level via a `uTerrainArchetype` uniform so the
+// branch is uniform across the wavefront (no GPU divergence).
+//
+// Ridged FBM — `1 - |2n - 1|` produces sharp ridges at noise
+// extrema, reads as fault lines / mountain chains. Final value is
+// remapped to [0, 1] so it composes cleanly with the smooth FBM
+// scale used by the rest of the pipeline.
+float fbmRidged4(vec3 p, float lac, float gain) {
+  float v = 0.0, amp = 0.5, freq = 1.0, maxV = 0.0;
+  v += (1.0 - abs(gnoise(p * freq) * 2.0 - 1.0)) * amp; maxV += amp; amp *= gain; freq *= lac;
+  v += (1.0 - abs(gnoise(p * freq) * 2.0 - 1.0)) * amp; maxV += amp; amp *= gain; freq *= lac;
+  v += (1.0 - abs(gnoise(p * freq) * 2.0 - 1.0)) * amp; maxV += amp; amp *= gain; freq *= lac;
+  v += (1.0 - abs(gnoise(p * freq) * 2.0 - 1.0)) * amp; maxV += amp;
+  return v / maxV;
+}
+
+// Billow FBM — `|2n - 1|` produces rounded mounds at noise extrema,
+// reads as dunes / soft hills. Same normalisation as `fbmRidged4`.
+float fbmBillow4(vec3 p, float lac, float gain) {
+  float v = 0.0, amp = 0.5, freq = 1.0, maxV = 0.0;
+  v += abs(gnoise(p * freq) * 2.0 - 1.0) * amp; maxV += amp; amp *= gain; freq *= lac;
+  v += abs(gnoise(p * freq) * 2.0 - 1.0) * amp; maxV += amp; amp *= gain; freq *= lac;
+  v += abs(gnoise(p * freq) * 2.0 - 1.0) * amp; maxV += amp; amp *= gain; freq *= lac;
+  v += abs(gnoise(p * freq) * 2.0 - 1.0) * amp; maxV += amp;
+  return v / maxV;
+}
+
+// Archetype dispatcher — uniform branch on `uTerrainArchetype` index.
+// 0 = smooth, 1 = ridged, 2 = billow, 3 = hybrid (billow plains +
+// ridged peaks, blended on the ridged altitude). Hybrid pays the cost
+// of both variants by design — caller opts in via the uniform.
+//
+// Single-return shape (no early returns). HLSL/D3D (ANGLE on Windows) flags
+// chained `if (...) return ...;` as "potentially uninitialised" because
+// the cross-compiler doesn't recognise the cases as exhaustive. Accumulate
+// into `result` and return once to silence the X4000 warning.
+float fbmArchetype4(vec3 p, float lac, float gain, float archetype) {
+  float result;
+  if (archetype < 0.5) {
+    result = fbm4(p, lac, gain);
+  } else if (archetype < 1.5) {
+    result = fbmRidged4(p, lac, gain);
+  } else if (archetype < 2.5) {
+    result = fbmBillow4(p, lac, gain);
+  } else {
+    float r = fbmRidged4(p, lac, gain);
+    float b = fbmBillow4(p, lac, gain);
+    result = mix(b, r, smoothstep(0.45, 0.75, r));
+  }
+  return result;
+}
+
 // ── Warped FBM ───────────────────────────────────────────────
 // Uses 4-octave FBM for the warp domain (high octaves contribute
 // sub-pixel detail to the offset, wasted work). Final evaluation
@@ -110,6 +164,17 @@ float warpedFBM(vec3 p, float w) {
                 fbm4(p + vec3(5.2, 1.3, 0.8), 2.0, 0.5),
                 fbm4(p + vec3(1.7, 9.2, 3.1), 2.0, 0.5)) * 2.0 - 1.0;
   return fbm4(p + w * q, 2.0, 0.5);
+}
+
+// Warp domain stays smooth (smooth fbm gives a coherent flow field);
+// only the final sample picks up the archetype. Lets ridged/billow
+// terrains keep their characteristic shape while still benefiting
+// from the warp-driven pseudo-tectonic distortion.
+float warpedFBMArchetype(vec3 p, float w, float archetype) {
+  vec3 q = vec3(fbm4(p, 2.0, 0.5),
+                fbm4(p + vec3(5.2, 1.3, 0.8), 2.0, 0.5),
+                fbm4(p + vec3(1.7, 9.2, 3.1), 2.0, 0.5)) * 2.0 - 1.0;
+  return fbmArchetype4(p + w * q, 2.0, 0.5, archetype);
 }
 
 // ── Voronoi ──────────────────────────────────────────────────

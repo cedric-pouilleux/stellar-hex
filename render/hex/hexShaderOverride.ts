@@ -3,9 +3,9 @@
  *
  * Minimal shader for the focused hex mesh: per-vertex roughness/metalness
  * + optional fill light + terrain bump + edge blend + metallic sheen.
- * Liquid surfaces are handled exclusively by the separate liquid-shell
- * sphere ({@link buildLiquidSphere}) on the layered planet path; the hex
- * mesh only draws the sol prisms.
+ * Liquid surfaces are handled by the stacked hex liquid shell
+ * ({@link buildLiquidShell}) on the layered planet path; the hex mesh
+ * only draws the sol prisms.
  */
 
 import * as THREE from 'three'

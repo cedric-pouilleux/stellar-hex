@@ -1,18 +1,18 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed } from 'vue'
 
 /**
- * Reusable view-mode toggle for body demos — segmented control style.
+ * Reusable view-mode toggle for body demos â€” segmented control style.
  *
  *   - 'shader' = smooth procedural sphere (default).
  *   - 'sol'    = interactive hex mesh, surface view (relief visible).
  *   - 'atmo'   = interactive hex mesh, atmosphere view (sol hidden, smooth fallback shown).
  *
  * Per body type:
- *   - rocky    → 3 modes (shader, sol, atmo)
- *   - metallic → 2 modes (shader, sol)  — no atmosphere shell to expose
- *   - gaseous  → 2 modes (shader, atmo) — no per-tile relief to expose
- *   - star     → no bar
+ *   - rocky    â†’ 3 modes (shader, sol, atmo)
+ *   - metallic â†’ 2 modes (shader, sol)  â€” no atmosphere shell to expose
+ *   - gaseous  â†’ 2 modes (shader, atmo) â€” no per-tile relief to expose
+ *   - star     â†’ no bar
  *
  * Emits `update:mode` with the new value.
  */
@@ -20,7 +20,7 @@ import { computed } from 'vue'
 export type ViewMode = 'shader' | 'sol' | 'atmo'
 
 const props = defineProps<{
-  bodyType: 'rocky' | 'metallic' | 'gaseous' | 'star'
+  bodytype: 'planetary', surfaceLook: 'terrain' | 'metallic' | 'gaseous' | 'star'
   mode:     ViewMode
 }>()
 defineEmits<{ (e: 'update:mode', m: ViewMode): void }>()
@@ -30,17 +30,17 @@ interface ButtonSpec { mode: ViewMode, label: string, icon: string }
 const buttons = computed<ButtonSpec[]>(() => {
   if (props.bodyType === 'star') return []
   if (props.bodyType === 'gaseous') return [
-    { mode: 'shader', label: 'Shader',     icon: '✦' },
-    { mode: 'atmo',   label: 'Atmosphère', icon: '⬢' },
+    { mode: 'shader', label: 'Shader',     icon: 'âœ¦' },
+    { mode: 'atmo',   label: 'AtmosphÃ¨re', icon: 'â¬¢' },
   ]
   if (props.bodyType === 'metallic') return [
-    { mode: 'shader', label: 'Shader', icon: '✦' },
-    { mode: 'sol',    label: 'Sol',    icon: '⬢' },
+    { mode: 'shader', label: 'Shader', icon: 'âœ¦' },
+    { mode: 'sol',    label: 'Sol',    icon: 'â¬¢' },
   ]
   return [
-    { mode: 'shader', label: 'Shader',     icon: '✦' },
-    { mode: 'sol',    label: 'Sol',        icon: '⬢' },
-    { mode: 'atmo',   label: 'Atmosphère', icon: '☁' },
+    { mode: 'shader', label: 'Shader',     icon: 'âœ¦' },
+    { mode: 'sol',    label: 'Sol',        icon: 'â¬¢' },
+    { mode: 'atmo',   label: 'AtmosphÃ¨re', icon: 'â˜' },
   ]
 })
 

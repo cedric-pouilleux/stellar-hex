@@ -115,7 +115,7 @@ const LAVA_COLOR_BANDS: readonly { minTempC: number; color: string }[] = [
  * equilibrium temperature. Pure function.
  *
  * @param input Caller-side thermal metadata.
- * @returns Hex colour string ready to assign to `BodyConfig.lavaColor`.
+ * @returns Hex colour string ready to push onto `BodyVariation.lavaColor`.
  */
 export function deriveLavaColor(input: TemperatureInput): string {
   const T_avg = (input.temperatureMin + input.temperatureMax) / 2

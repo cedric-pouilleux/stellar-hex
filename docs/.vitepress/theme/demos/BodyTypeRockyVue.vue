@@ -9,7 +9,7 @@ import OrbitControlsBridge from './OrbitControlsBridge.vue'
  */
 
 const config: BodyConfig = {
-  type:                'rocky',
+  type:                'planetary', surfaceLook: 'terrain',
   name:                'rocky-body-demo',
   radius:               1,
   rotationSpeed:        0.004,

@@ -45,7 +45,7 @@ onMounted(async () => {
   orbit.maxDistance = 8
 
   const body = useBody({
-    type:           'gaseous',
+    type:           'planetary', surfaceLook: 'bands',
     name:           'gas-body-demo',
     radius:          1,
     rotationSpeed:   0,

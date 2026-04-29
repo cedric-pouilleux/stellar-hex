@@ -16,7 +16,7 @@ let cleanup:   (() => void) | null = null
 watch(mode, m => applyMode?.(m))
 
 onMounted(async () => {
-  const [THREE, { OrbitControls }, { useBody, DEFAULT_TILE_SIZE }] = await Promise.all([
+  const [THREE, { OrbitControls }, { useBody, generateBodyVariation, DEFAULT_TILE_SIZE }] = await Promise.all([
     import('three'),
     import('three/examples/jsm/controls/OrbitControls.js'),
     import('@cedric-pouilleux/stellar-hex/core'),
@@ -44,15 +44,18 @@ onMounted(async () => {
   orbit.minDistance = 1.6
   orbit.maxDistance = 8
 
-  const body = useBody({
-    type:           'metallic',
+  const config = {
+    type:           'planetary', surfaceLook: 'metallic' as const,
     name:           'metallic-body-demo',
     radius:          1,
     rotationSpeed:   0,
     axialTilt:       0.15,
-    hasCracks:       true,
-    hasLava:         true,
-  }, DEFAULT_TILE_SIZE)
+  }
+  const variation = generateBodyVariation(config)
+  variation.crackIntensity = 0.5
+  variation.lavaIntensity  = 0.4
+
+  const body = useBody(config, DEFAULT_TILE_SIZE, { variation })
   scene.add(body.group)
   setBodyCoreVisible(body, false)
 

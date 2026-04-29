@@ -8,7 +8,7 @@
 
 import { watch } from 'vue'
 import type { LibBodyType } from '@lib'
-import { bodyConfig, bodyType, rebuildKey } from './state'
+import { bodyConfig, bodyType, rebuildKey, configFromUiMode } from './state'
 
 const VALID_TYPES: readonly LibBodyType[] = ['rocky', 'gaseous', 'metallic', 'star']
 
@@ -46,7 +46,9 @@ export function installUrlStateSync(): () => void {
   if (initial.seed) bodyConfig.name = initial.seed
   if (initial.type) {
     bodyType.value = initial.type
-    bodyConfig.type = initial.type
+    const { type, surfaceLook } = configFromUiMode(initial.type)
+    bodyConfig.type        = type
+    bodyConfig.surfaceLook = surfaceLook
   }
   if (initial.seed || initial.type) rebuildKey.value++
 
@@ -67,7 +69,9 @@ export function installUrlStateSync(): () => void {
     if (h.seed && h.seed !== bodyConfig.name) bodyConfig.name = h.seed
     if (h.type && h.type !== bodyType.value) {
       bodyType.value = h.type
-      bodyConfig.type = h.type
+      const { type, surfaceLook } = configFromUiMode(h.type)
+      bodyConfig.type        = type
+      bodyConfig.surfaceLook = surfaceLook
       rebuildKey.value++
     }
   }

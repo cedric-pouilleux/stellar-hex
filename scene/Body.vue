@@ -15,6 +15,7 @@
     :radius="body.config.radius"
     :rotation-speed="body.config.rotationSpeed"
     :variation="body.variation.rings"
+    :sun-world-pos="sunWorldPos ?? undefined"
   />
 
   <ShadowUpdater
@@ -31,12 +32,12 @@
  * awareness of scene-wide concepts like a top-down vs hexa mode, the focused
  * body, or system pause state. Those are the caller's responsibility.
  *
- * Time control (pause, speed multiplier, replay) and **world position** are
- * caller concerns: in server-authoritative scenes, pass a `pose` prop sourced
- * from the server tick; in standalone previews, omit `pose` and the caller
- * positions the group manually (the body's auto-anime only writes the
- * quaternion). Orbital mechanics are deliberately out of scope — game-side
- * concept, not a body property.
+ * **World position** is a caller concern: pass `pose.position` per frame
+ * (server snapshot, orbital sim, scripted path) or omit `pose` and set the
+ * body's `group.position` yourself outside this component. Rotation is
+ * always cosmetic and driven by the body's auto-spin accumulator — see
+ * `BodyController.vue` for the rationale. Orbital mechanics are out of
+ * scope — game-side concept, not a body property.
  */
 import { watch } from 'vue'
 import * as THREE from 'three'
@@ -55,11 +56,12 @@ const props = withDefaults(defineProps<{
    */
   parentBody?:      RenderableBody | null
   /**
-   * Authoritative pose driven by the caller. When set, BodyController
-   * applies it verbatim and skips its internal animation. Typical use:
-   * server-driven simulation, replay, scrub UI.
+   * Caller-driven world position, copied onto the body's group each frame.
+   * Pass `null` (or omit) to leave the group position untouched. Only
+   * `position` is consumed — rotation is intentionally cosmetic and
+   * advanced by the body's local auto-spin accumulator.
    */
-  pose?:            { quaternion?: THREE.Quaternion, position?: THREE.Vector3 } | null
+  pose?:            { position?: THREE.Vector3 } | null
   /** Sets BodyController preview mode (zeroes axial tilt, body sits upright). */
   previewMode?:     boolean
   /** Drag quaternion premultiplied onto the resolved orientation each frame. */
@@ -73,11 +75,6 @@ const props = withDefaults(defineProps<{
    */
   hoveredTileId?:   number | null
   /**
-   * Controlled pinned-tile state (click-to-pin marker). Same contract as
-   * `hoveredTileId`: scene controllers decide, Body applies the visual.
-   */
-  pinnedTileId?:    number | null
-  /**
    * Controlled body-level hover ring (used when another body is hovered
    * outside of the focused one). Forwarded to `body.hover.setBodyHover`.
    */
@@ -89,6 +86,14 @@ const props = withDefaults(defineProps<{
    * flips, so callers do not have to orchestrate the transition themselves.
    */
   interactive?:     boolean
+  /**
+   * Optional caller-driven sun world-space position, forwarded to the
+   * mounted `<BodyRings>` (when the body has rings). When omitted, the
+   * ring wrapper falls back to its own per-frame
+   * `findDominantLightWorldPos` traversal — fine for simple scenes with
+   * a single light. Multi-star scenes pass the resolved sun ref here.
+   */
+  sunWorldPos?:     THREE.Vector3 | null
 }>(), {
   parentBody:      null,
   pose:            null,
@@ -96,9 +101,9 @@ const props = withDefaults(defineProps<{
   dragQuat:        null,
   showShadow:      false,
   hoveredTileId:   null,
-  pinnedTileId:    null,
   bodyHover:       false,
   interactive:     false,
+  sunWorldPos:     null,
 })
 
 // ── Controlled tile-state watchers ────────────────────────────────
@@ -114,10 +119,6 @@ watch(() => props.interactive, (active, prev) => {
 
 watch(() => props.hoveredTileId, (id) => {
   props.body.hover?.setTile(id ?? null)
-}, { immediate: true })
-
-watch(() => props.pinnedTileId, (id) => {
-  props.body.hover?.setPinnedTile(id ?? null)
 }, { immediate: true })
 
 watch(() => props.bodyHover, (visible) => {

@@ -1,8 +1,8 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
- * Three.js demo — a tiny solar system: one star + three orbiting bodies.
+ * Three.js demo â€” a tiny solar system: one star + three orbiting bodies.
  * Showcases caller-driven orbits (the lib has no orbital mechanics) and
  * shared lighting via a single point light at the star's position.
  */
@@ -53,7 +53,7 @@ onMounted(async () => {
   const planets = [
     {
       body: useBody({
-        type:                'rocky' as const,
+        type:                'planetary', surfaceLook: 'terrain' as const,
         name:                'rocky-1',
         radius:               0.45,
         rotationSpeed:        0.02,
@@ -69,7 +69,7 @@ onMounted(async () => {
     },
     {
       body: useBody({
-        type:           'metallic' as const,
+        type:           'planetary', surfaceLook: 'metallic' as const,
         name:           'metal-2',
         radius:          0.6,
         rotationSpeed:   0.012,
@@ -82,7 +82,7 @@ onMounted(async () => {
     },
     {
       body: useBody({
-        type:           'gaseous' as const,
+        type:           'planetary', surfaceLook: 'bands' as const,
         name:           'jovian-3',
         radius:          1.0,
         rotationSpeed:   0.005,

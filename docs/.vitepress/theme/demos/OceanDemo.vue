@@ -1,11 +1,15 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
 
 /**
- * Three.js demo â€” rocky planet with a 60% water ocean coverage.
- * View toggle: Shader / Sol / AtmosphÃ¨re.
+ * Three.js demo — rocky planet with a 60% water ocean coverage.
+ * View toggle: Shader / Sol / Atmosphère.
+ *
+ * Hover behaviour: the lib's `hoverCursor` config wires a unified ring +
+ * emissive point light + opaque underwater column. The column shows on
+ * liquid hovers only; ring + light fire on every layer.
  */
 
 const container = ref<HTMLDivElement>()
@@ -45,7 +49,7 @@ onMounted(async () => {
   orbit.maxDistance = 8
 
   const body = useBody({
-    type:                'rocky',
+    type:                'planetary', surfaceLook: 'terrain',
     name:                'ocean-demo',
     radius:               1,
     rotationSpeed:        0,
@@ -55,9 +59,28 @@ onMounted(async () => {
     liquidState:         'liquid',
     liquidCoverage:       0.6,
     liquidColor:         '#175da1',
-  }, DEFAULT_TILE_SIZE)
+  }, DEFAULT_TILE_SIZE, {
+    hoverCursor: {
+      ring:     { color: 0xffffff },
+      emissive: { color: 0xffffff, intensity: 1.5, size: 0.6 },
+      column:   { color: 0xffffff },
+    },
+  })
   scene.add(body.group)
   setBodyCoreVisible(body, false)
+
+  // ── Hover dispatch (lib's queryHover handles sol/liquid/atmo) ──
+  const raycaster = new THREE.Raycaster()
+  const pointer   = new THREE.Vector2()
+  let pointerSet  = false
+
+  const onPointerMove = (e: PointerEvent) => {
+    const r = renderer.domElement.getBoundingClientRect()
+    pointer.x =  ((e.clientX - r.left) / r.width)  * 2 - 1
+    pointer.y = -((e.clientY - r.top)  / r.height) * 2 + 1
+    pointerSet = true
+  }
+  renderer.domElement.addEventListener('pointermove', onPointerMove)
 
   applyMode = (m) => {
     if (m === 'shader') { body.view.set('shader'); body.interactive.deactivate(); setBodyCoreVisible(body, false) }
@@ -77,12 +100,17 @@ onMounted(async () => {
     last = now
     orbit.update()
     body.tick(dt)
+    if (pointerSet && mode.value !== 'shader') {
+      raycaster.setFromCamera(pointer, camera)
+      body.hover.setBoardTile(body.interactive.queryHover(raycaster))
+    }
     renderer.render(scene, camera)
   }
   loop()
 
   cleanup = () => {
     cancelAnimationFrame(animId)
+    renderer.domElement.removeEventListener('pointermove', onPointerMove)
     orbit.dispose()
     body.dispose()
     renderer.dispose()

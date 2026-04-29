@@ -76,6 +76,17 @@ describe('resolveGasPattern', () => {
   it('an empty override map is a no-op — same as omitting the argument', () => {
     expect(resolveGasPattern('ch4', {})).toEqual(resolveGasPattern('ch4'))
   })
+
+  it('unknown id falls back to scatter (custom user-added gas resource)', () => {
+    const fallback = resolveGasPattern('xenon-cloud')
+    expect(fallback.kind).toBe('scatter')
+    expect(fallback.peak).toBeGreaterThan(0)
+  })
+
+  it('unknown id still honours the override when supplied', () => {
+    const swapped = resolveGasPattern('xenon-cloud', { 'xenon-cloud': 'band' })
+    expect(swapped.kind).toBe('band')
+  })
 })
 
 // ── assignGaseousTiles — exclusive assignment ────────────────────

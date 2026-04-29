@@ -52,7 +52,7 @@ export function choosePalette(config: BodyConfig, paletteOverride?: TerrainLevel
   const coreRatio = resolveCoreRadiusRatio(config)
   const atmo      = resolveAtmosphereThickness(config)
   const count     = resolveTerrainLevelCount(config.radius, coreRatio, atmo)
-  return strategyFor(config.type).buildPalette(config, count, coreRatio)
+  return strategyFor(config).buildPalette(config, count, coreRatio)
 }
 
 // ── Tile height resolution ───────────────────────────────────────

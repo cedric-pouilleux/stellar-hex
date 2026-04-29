@@ -1,8 +1,8 @@
 /**
  * Derives the 4-stop band palette consumed by the lib's gas shader from a
- * volatile gas mix. Bridges the playground's physics pipeline
- * (`assignResourceMix` → `extractGasVolatiles`) to the lib's opaque
- * `bandColors` uniform contract.
+ * volatile gas mix. The playground feeds this from the user's reactive
+ * resource state (toggles + per-resource weights) so the atmo palette
+ * stays decoupled from temperature.
  *
  * Blend rule: each gas-phase volatile contributes its `gasColor` weighted by
  * its share of the mix. The result is a single "mid" hue. Four band stops

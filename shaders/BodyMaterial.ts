@@ -365,6 +365,10 @@ export class BodyMaterial {
       // Read by `gas.frag` only; declared on every type for a uniform
       // bag layout. Other shaders silently ignore it.
       uViewDim:        { value: 1.0 },
+      // Declared by `body.vert` for every type so the vertex displacement
+      // can pick the planet's archetype. Overridden below when the type's
+      // params expose `terrainArchetype` (rocky, metallic).
+      uTerrainArchetype: { value: 0 },
       ...paramsToUniforms(this.#type, this.#params),
     }
     if (this.#liquid) {

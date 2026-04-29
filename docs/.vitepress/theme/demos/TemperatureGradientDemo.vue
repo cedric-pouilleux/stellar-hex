@@ -55,7 +55,7 @@ onMounted(async () => {
     scene.add(sun)
 
     const body = useBody({
-      type:                'rocky',
+      type:                'planetary', surfaceLook: 'terrain',
       name:                spec.name,
       radius:               1,
       rotationSpeed:        0.005,

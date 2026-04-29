@@ -11,14 +11,14 @@
  */
 
 import * as THREE from 'three'
-import type { BodyConfig } from '../../types/body.types'
+import type { PlanetConfig } from '../../types/body.types'
 import type { TerrainLevel } from '../../types/terrain.types'
 import type { BodySimulation } from '../../sim/BodySimulation'
 import type { BodyVariation } from './bodyVariation'
 import {
   resolveCoreRadiusRatio,
   resolveAtmosphereThickness,
-  hasSurfaceLiquid,
+  hasAtmosphere,
 } from '../../physics/body'
 import type { ShadowUniforms, OccluderUniforms } from '../hex/hexMeshShared'
 import type { HoverChannel } from '../state/hoverState'
@@ -29,7 +29,7 @@ import { buildLayeredInteractiveMesh } from '../layered/buildLayeredInteractiveM
 import { buildBodyHoverOverlay } from '../shells/buildBodyHoverOverlay'
 import { buildCoreMesh } from '../shells/buildCoreMesh'
 import { buildAtmoShell, type AtmoShellHandle } from '../shells/buildAtmoShell'
-import { buildLiquidCorona, type LiquidCoronaHandle } from '../shells/buildLiquidCorona'
+import { buildAtmoBoardMesh, type AtmoBoardMesh } from '../atmo/buildAtmoBoardMesh'
 import { makeInteractiveController } from './interactiveController'
 import { injectPlanetShadows } from '../lighting/shadowInjection'
 import { injectRingShadow } from '../shells/ringShadowInjection'
@@ -37,14 +37,12 @@ import { strategyFor, type BodyTypeStrategy } from './bodyTypeStrategy'
 
 /** Inputs needed by the planet assembler. */
 export interface AssemblePlanetInputs {
-  config:    BodyConfig
+  config:    PlanetConfig
   sim:       BodySimulation
   palette:   TerrainLevel[]
   variation: BodyVariation
   hoverChannel:     HoverChannel
   graphicsUniforms: GraphicsUniforms
-  /** Multiplicative headroom over `solOuterRadius` for the corona shells. Clamped upstream. */
-  coronaHeadroom:   number
   quality?:         RenderQuality
 }
 
@@ -55,12 +53,22 @@ export interface PlanetSceneGraph {
   smoothSphere:   ReturnType<typeof buildSmoothSphereMesh>
   displayMesh:    THREE.Mesh
   planetMaterial: ReturnType<typeof buildSmoothSphereMesh>['planetMaterial']
+  /** Sol interactive mesh (single-band hex prisms). */
   interactive:    ReturnType<typeof buildLayeredInteractiveMesh>
+  /** Sol-side interactive controller. Atmo board has its own controller. */
   ctrl:           ReturnType<typeof makeInteractiveController>
   bodyHover:      ReturnType<typeof buildBodyHoverOverlay>
   coreMesh:       ReturnType<typeof buildCoreMesh>
   atmoShell:      AtmoShellHandle | null
-  liquidCorona:   LiquidCoronaHandle | null
+  /**
+   * Atmosphere board — playable hex grid spanning `[solOuterRadius,
+   * config.radius]`, built from its own hexasphere (independent
+   * subdivision count from the sol mesh). `null` on bodies without an
+   * atmosphere (`atmosphereThickness === 0`). Carries its own raycast
+   * proxy (`atmoBoard.queryHover`) so the public `Body.interactive` can
+   * route hover queries to the right board based on the active view.
+   */
+  atmoBoard:      AtmoBoardMesh | null
   shadowUniforms:   ShadowUniforms
   occluderUniforms: OccluderUniforms
 }
@@ -71,8 +79,8 @@ export interface PlanetSceneGraph {
  * `createPlanetViewSwitcher` and the public factory.
  */
 export function assemblePlanetSceneGraph(inputs: AssemblePlanetInputs): PlanetSceneGraph {
-  const { config, sim, palette, variation, hoverChannel, graphicsUniforms, coronaHeadroom, quality } = inputs
-  const strategy = strategyFor(config.type)
+  const { config, sim, palette, variation, hoverChannel, graphicsUniforms, quality } = inputs
+  const strategy = strategyFor(config)
 
   const group = new THREE.Group()
 
@@ -89,9 +97,9 @@ export function assemblePlanetSceneGraph(inputs: AssemblePlanetInputs): PlanetSc
   // as the atmospheric silhouette; rocky / metallic keep the default
   // `solOuterRadius` placement under their atmo shell halo.
   const smoothMeshRadius = strategy.displayMeshIsAtmosphere ? config.radius : undefined
-  const smoothSphere     = buildSmoothSphereMesh(sim, palette, variation, { meshRadius: smoothMeshRadius, quality })
+  const smoothSphere     = buildSmoothSphereMesh(sim, palette, variation, { meshRadius: smoothMeshRadius, quality, strategy })
   const { mesh: displayMesh, planetMaterial } = smoothSphere
-  const interactive      = buildLayeredInteractiveMesh(sim, palette, variation, { hoverChannel, graphicsUniforms, quality })
+  const interactive      = buildLayeredInteractiveMesh(sim, palette, variation, { hoverChannel, graphicsUniforms })
   // `manageDisplay: false` keeps the smooth sphere mounted at all times so
   // the view switcher can drive its visibility + depth flags directly.
   const ctrl = makeInteractiveController(
@@ -122,22 +130,25 @@ export function assemblePlanetSceneGraph(inputs: AssemblePlanetInputs): PlanetSc
     )
   }
 
-  // Atmo shell — BackSide-rendered halo just outside the visible sol
-  // silhouette. Mounted on bodies whose smooth sphere does NOT play the
-  // role of atmosphere (i.e. not gas) and whose atmospheric opacity > 0.
-  // Anchored to `solOuterRadius` so headroom reads as % of visible planet.
+  // Atmo shell — translucent BackSide halo for the `'shader'` overview view.
+  // Mounted on bodies whose smooth sphere does NOT play the role of
+  // atmosphere (i.e. not gas), whose `atmosphereThickness > 0` and whose
+  // atmospheric opacity > 0. Anchored on `config.radius` (the planet's
+  // total silhouette) so the halo wraps the atmospheric envelope exactly.
   const shaderAtmoOpacity = config.atmosphereOpacity ?? strategy.defaultAtmosphereOpacity
-  const wantsCorona       = !strategy.displayMeshIsAtmosphere
+  const wantsCorona       = !strategy.displayMeshIsAtmosphere && hasAtmosphere(config)
   let atmoShell: AtmoShellHandle | null = null
   if (wantsCorona && shaderAtmoOpacity > 0) {
-    const atmoFraction    = resolveAtmosphereThickness(config)
-    const solOuterRadius  = config.radius * (1 - atmoFraction)
-    const atmoShellRadius = solOuterRadius * (1 + coronaHeadroom)
     atmoShell = buildAtmoShell({
       config,
-      radius:  atmoShellRadius,
+      radius:  config.radius,
       opacity: shaderAtmoOpacity,
-      tiles:   sim.tiles,
+      // Anchor the shader-view halo on the **atmo board** hexasphere so
+      // `paintAtmoShell` can project per-tile gas colours by atmo tile id
+      // (the only meaningful identity for atmospheric resources). Falling
+      // back to `sim.tiles` (sol) would mismatch ids and the halo would
+      // ignore any paint coming from the playable atmo grid.
+      tiles:   sim.atmoTiles.length > 0 ? sim.atmoTiles : sim.tiles,
       params: {
         turbulence: 0.70,
         bandiness:  0.30,
@@ -152,29 +163,31 @@ export function assemblePlanetSceneGraph(inputs: AssemblePlanetInputs): PlanetSc
     atmoShell.mesh.visible = false
   }
 
-  // Liquid corona — outer translucent halo tinted with `liquidColor`.
-  // Mounted at the same radius as the atmoShell, with higher renderOrder
-  // so it blends ON TOP at the silhouette ring. `hasSurfaceLiquid` already
-  // encodes the rocky-only invariant.
-  let liquidCorona: LiquidCoronaHandle | null = null
-  if (hasSurfaceLiquid(config) && atmoShell) {
+  // Atmosphere board — playable hex grid floating between the sol surface
+  // and the atmospheric silhouette. Only mounted on bodies that actually
+  // carry an atmosphere (`atmosphereThickness > 0`); the sim already
+  // populates `sim.atmoTiles` accordingly.
+  let atmoBoard: AtmoBoardMesh | null = null
+  if (hasAtmosphere(config) && sim.atmoTiles.length > 0) {
     const atmoFraction   = resolveAtmosphereThickness(config)
     const solOuterRadius = config.radius * (1 - atmoFraction)
-    liquidCorona = buildLiquidCorona({
-      radius:  solOuterRadius * (1 + coronaHeadroom),
-      color:   config.liquidColor ?? '#2878d0',
-      opacity: 0.3,
-      quality,
+    atmoBoard = buildAtmoBoardMesh({
+      tiles:       sim.atmoTiles,
+      innerRadius: solOuterRadius,
+      outerRadius: config.radius,
     })
-    liquidCorona.mesh.visible = false
-    group.add(liquidCorona.mesh)
+    group.add(atmoBoard.group)
+    // Hidden by default — the view switcher reveals it on
+    // `setView('atmosphere')`.
+    atmoBoard.setVisible(false)
   }
 
   return {
     group, strategy,
     smoothSphere, displayMesh, planetMaterial,
     interactive, ctrl, bodyHover,
-    coreMesh, atmoShell, liquidCorona,
+    coreMesh, atmoShell,
+    atmoBoard,
     shadowUniforms, occluderUniforms,
   }
 }

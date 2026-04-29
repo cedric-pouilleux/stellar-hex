@@ -8,8 +8,9 @@ import { registerResourceVisual } from './resourceVisualRegistry'
 /**
  * Covers the orchestration of `paintBody`: reading pre-blend palette bases
  * from the body, running the playground-side blend, uploading each layer
- * via `applyTileOverlay`, merging sol + atmo into the smooth-sphere
- * projection, and skipping tiles whose base lookup fails.
+ * via the dedicated `tiles.sol.applyOverlay` / `tiles.atmo.applyOverlay`
+ * calls, merging sol + atmo into the smooth-sphere projection, and
+ * skipping tiles whose base lookup fails.
  */
 
 const RULES: ResourceRules = {
@@ -17,30 +18,47 @@ const RULES: ResourceRules = {
   isSurfaceLiquid: (id) => id === 'water',
 }
 
-type BaseVisual = NonNullable<ReturnType<Body['tiles']['tileBaseVisual']>>
+type BaseVisual = NonNullable<ReturnType<NonNullable<Body['tiles']> extends { sol: { tileBaseVisual: (id: number) => infer R } } ? () => R : never>>
 
 function makeFakeBody(
   resolver: (tileId: number) => BaseVisual | null,
-  bodyType: 'rocky' | 'metallic' | 'gaseous' | 'star' = 'rocky',
+  mode: 'rocky' | 'metallic' | 'gaseous' | 'star' = 'rocky',
+  withAtmoBoard: boolean = true,
 ): {
   body:               Body
-  applyTileOverlay:   ReturnType<typeof vi.fn>
+  solApplyOverlay:    ReturnType<typeof vi.fn>
+  atmoApplyOverlay:   ReturnType<typeof vi.fn>
   paintSmoothSphere:  ReturnType<typeof vi.fn>
   paintAtmoShell:     ReturnType<typeof vi.fn>
 } {
-  const applyTileOverlay  = vi.fn()
+  const solApplyOverlay   = vi.fn()
+  const atmoApplyOverlay  = vi.fn()
   const paintSmoothSphere = vi.fn()
   const paintAtmoShell    = vi.fn()
+  const cfg = mode === 'star'
+    ? { type: 'star' as const, name: 'spec-body' }
+    : {
+        type:        'planetary' as const,
+        surfaceLook: mode === 'rocky' ? 'terrain' as const
+                   : mode === 'gaseous' ? 'bands' as const
+                   : 'metallic' as const,
+        name:        'spec-body',
+      }
   const fake = {
-    config: { type: bodyType, name: 'spec-body' } as unknown as Body['config'],
+    config: cfg as unknown as Body['config'],
     tiles: {
-      tileBaseVisual:    vi.fn((id: number) => resolver(id)),
-      applyTileOverlay,
+      sol: {
+        tileBaseVisual: vi.fn((id: number) => resolver(id)),
+        applyOverlay:   solApplyOverlay,
+      },
+      atmo: withAtmoBoard ? {
+        applyOverlay: atmoApplyOverlay,
+      } : null,
       paintSmoothSphere,
       paintAtmoShell,
     },
   } as unknown as Body
-  return { body: fake, applyTileOverlay, paintSmoothSphere, paintAtmoShell }
+  return { body: fake, solApplyOverlay, atmoApplyOverlay, paintSmoothSphere, paintAtmoShell }
 }
 
 const NEUTRAL_BASE: BaseVisual = {
@@ -74,51 +92,59 @@ beforeEach(() => {
 
 describe('paintBody', () => {
   it('returns 0 and never touches the mesh on empty layered input', () => {
-    const { body, applyTileOverlay, paintSmoothSphere } = makeFakeBody(() => NEUTRAL_BASE)
+    const { body, solApplyOverlay, atmoApplyOverlay, paintSmoothSphere } = makeFakeBody(() => NEUTRAL_BASE)
     expect(paintBody(body, EMPTY_LAYERED, RULES)).toBe(0)
-    expect(applyTileOverlay).not.toHaveBeenCalled()
+    expect(solApplyOverlay).not.toHaveBeenCalled()
+    expect(atmoApplyOverlay).not.toHaveBeenCalled()
     expect(paintSmoothSphere).not.toHaveBeenCalled()
   })
 
-  it('forwards sol tiles in a single applyTileOverlay("sol") call', () => {
-    const { body, applyTileOverlay } = makeFakeBody(() => NEUTRAL_BASE)
+  it('forwards sol tiles in a single sol.applyOverlay call', () => {
+    const { body, solApplyOverlay } = makeFakeBody(() => NEUTRAL_BASE)
     const painted = paintBody(body, solOnly(new Map([
       [1, new Map([['iron', 0.8]])],
       [2, new Map([['gold', 0.5]])],
       [7, new Map([['iron', 0.2]])],
     ])), RULES)
     expect(painted).toBe(3)
-    expect(applyTileOverlay).toHaveBeenCalledTimes(1)
-    const [layer, colors] = applyTileOverlay.mock.calls[0] as [string, Map<number, RGB>]
-    expect(layer).toBe('sol')
+    expect(solApplyOverlay).toHaveBeenCalledTimes(1)
+    const [colors] = solApplyOverlay.mock.calls[0] as [Map<number, RGB>]
     expect(colors.size).toBe(3)
   })
 
-  it('forwards atmo tiles in a single applyTileOverlay("atmo") call', () => {
-    const { body, applyTileOverlay } = makeFakeBody(() => NEUTRAL_BASE)
+  it('forwards atmo tiles in a single atmo.applyOverlay call', () => {
+    const { body, solApplyOverlay, atmoApplyOverlay } = makeFakeBody(() => NEUTRAL_BASE)
     const painted = paintBody(body, {
       sol:  new Map(),
       atmo: new Map([[1, new Map([['h2he', 1.0]])]]),
     }, RULES)
     expect(painted).toBe(1)
-    expect(applyTileOverlay).toHaveBeenCalledTimes(1)
-    const [layer] = applyTileOverlay.mock.calls[0] as [string, Map<number, RGB>]
-    expect(layer).toBe('atmo')
+    expect(solApplyOverlay).not.toHaveBeenCalled()
+    expect(atmoApplyOverlay).toHaveBeenCalledTimes(1)
   })
 
   it('paints both layers when both buckets carry data', () => {
-    const { body, applyTileOverlay } = makeFakeBody(() => NEUTRAL_BASE)
+    const { body, solApplyOverlay, atmoApplyOverlay } = makeFakeBody(() => NEUTRAL_BASE)
     paintBody(body, {
       sol:  new Map([[1, new Map([['iron', 0.7]])]]),
       atmo: new Map([[2, new Map([['h2he', 1.0]])]]),
     }, RULES)
-    expect(applyTileOverlay).toHaveBeenCalledTimes(2)
-    const layers = applyTileOverlay.mock.calls.map(c => c[0]).sort()
-    expect(layers).toEqual(['atmo', 'sol'])
+    expect(solApplyOverlay).toHaveBeenCalledTimes(1)
+    expect(atmoApplyOverlay).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips atmo paint when the body has no atmo board', () => {
+    const { body, solApplyOverlay, atmoApplyOverlay } = makeFakeBody(() => NEUTRAL_BASE, 'rocky', false)
+    paintBody(body, {
+      sol:  new Map([[1, new Map([['iron', 0.7]])]]),
+      atmo: new Map([[2, new Map([['h2he', 1.0]])]]),
+    }, RULES)
+    expect(solApplyOverlay).toHaveBeenCalledTimes(1)
+    expect(atmoApplyOverlay).not.toHaveBeenCalled()
   })
 
   it('skips tiles whose base lookup returns null', () => {
-    const { body, applyTileOverlay } = makeFakeBody((id) =>
+    const { body, solApplyOverlay } = makeFakeBody((id) =>
       id === 99 ? null : NEUTRAL_BASE,
     )
     const painted = paintBody(body, solOnly(new Map([
@@ -126,19 +152,18 @@ describe('paintBody', () => {
       [99, new Map([['gold', 0.5]])],
     ])), RULES)
     expect(painted).toBe(1)
-    const [, colors] = applyTileOverlay.mock.calls[0] as [string, Map<number, unknown>]
+    const [colors] = solApplyOverlay.mock.calls[0] as [Map<number, unknown>]
     expect(colors.has(1)).toBe(true)
     expect(colors.has(99)).toBe(false)
   })
 
   it('tints the sol overlay away from the base when a dominant resource is present', () => {
-    const { body, applyTileOverlay } = makeFakeBody(() => NEUTRAL_BASE)
+    const { body, solApplyOverlay } = makeFakeBody(() => NEUTRAL_BASE)
     paintBody(body, solOnly(new Map([
       [1, new Map([['iron', 0.9]])],
     ])), RULES)
-    const [, colors] = applyTileOverlay.mock.calls[0] as [string, Map<number, RGB>]
+    const [colors] = solApplyOverlay.mock.calls[0] as [Map<number, RGB>]
     const tinted = colors.get(1)!
-    // Iron visual is reddish (0.9, 0.1, 0.1); overlay should pull r up from base 0.2.
     expect(tinted.r).toBeGreaterThan(NEUTRAL_BASE.r)
   })
 
@@ -150,9 +175,6 @@ describe('paintBody', () => {
     }, RULES)
     expect(paintSmoothSphere).toHaveBeenCalledTimes(1)
     const [sphereMap] = paintSmoothSphere.mock.calls[0] as [Map<number, RGB>]
-    // Sol entry (tile 1) shows on the smooth sphere; atmo entry (tile 2)
-    // must NOT leak onto the solid silhouette — gases live on the atmo hex
-    // shell exclusively for rocky / metallic bodies.
     expect(sphereMap.has(1)).toBe(true)
     expect(sphereMap.has(2)).toBe(false)
   })
@@ -163,10 +185,6 @@ describe('paintBody', () => {
       sol:  new Map(),
       atmo: new Map([[2, new Map([['h2he', 1.0]])]]),
     }, RULES)
-    // Gaseous: the smooth sphere IS the procedural atmosphere
-    // (`BodyMaterial.gas`), so resource colours route to it. No
-    // separate corona shell is mounted on gas — adding one would
-    // stack a second halo over the existing atmospheric silhouette.
     expect(paintSmoothSphere).toHaveBeenCalledTimes(1)
     const [sphereMap] = paintSmoothSphere.mock.calls[0] as [Map<number, RGB>]
     expect(sphereMap.has(2)).toBe(true)
@@ -174,19 +192,16 @@ describe('paintBody', () => {
   })
 
   it('skips the smooth sphere entirely when its routed bucket is empty', () => {
-    // Rocky body with no sol entries (atmo-only distribution) → no paint.
     const { body, paintSmoothSphere } = makeFakeBody(() => NEUTRAL_BASE, 'rocky')
     paintBody(body, {
       sol:  new Map(),
       atmo: new Map([[1, new Map([['h2he', 1.0]])]]),
     }, RULES)
-    // Gaseous-body shape: sol bucket empty → smooth sphere paint is a no-op
-    // so the sphere keeps its procedural gas-shader look (bandColors uniform).
     expect(paintSmoothSphere).not.toHaveBeenCalled()
   })
 
   it('preserves the base colour when submerged (liquid gate)', () => {
-    const { body, applyTileOverlay } = makeFakeBody(() => ({
+    const { body, solApplyOverlay } = makeFakeBody(() => ({
       ...NEUTRAL_BASE,
       r: 0.1, g: 0.3, b: 0.8,
       submerged: true,
@@ -194,7 +209,7 @@ describe('paintBody', () => {
     paintBody(body, solOnly(new Map([
       [1, new Map([['water', 1.0]])],
     ])), RULES)
-    const [, colors] = applyTileOverlay.mock.calls[0] as [string, Map<number, RGB>]
+    const [colors] = solApplyOverlay.mock.calls[0] as [Map<number, RGB>]
     const kept = colors.get(1)!
     expect(kept.r).toBeCloseTo(0.1)
     expect(kept.g).toBeCloseTo(0.3)

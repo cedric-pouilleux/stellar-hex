@@ -27,20 +27,32 @@ Drag pour orbiter, scroll pour zoomer. Active **« Mode hex »** pour basculer l
 | ------- | ----- |
 | `body.interactive.activate()`         | Swap smooth → hex mesh + active raycast |
 | `body.interactive.deactivate()`       | Retour au smooth mesh (le hex reste en mémoire) |
-| `body.interactive.queryHover(raycaster)` | ID de la tuile sous le rayon, ou `null` |
-| `body.hover.setTile(id)`              | Highlight tuile (overlay + couleur) |
-| `body.hover.setPinnedTile(id)`        | Épingle persistante (popover qui suit la planète) |
+| `body.interactive.queryHover(raycaster)` | `BoardTileRef \| null` — `{ layer: 'sol' \| 'liquid' \| 'atmo', tileId }` sous le rayon |
+| `body.hover.setBoardTile(ref)`        | Dispatch hover sur le bon layer (ring + emissive + column si liquid) |
+| `body.hover.useCursor(name)`          | Switch entre presets de curseur enregistrés au build |
+| `body.hover.updateCursor(partial)`    | Mutation live des params (couleur, opacité, intensité) |
 | `body.view.set('surface'|'atmosphere')` | Toggle terrain / vue atmosphère |
 | `body.tiles.applyTileOverlay(layer, colors)` | Stamp couleurs RGB par tuile sans rebuild |
-| `body.liquid.setSeaLevel(worldRadius)` | Déplace le shell liquide en runtime (rayon monde — combiner avec `getCoreRadius()`/`getSurfaceRadius()` pour rester dans la bande) |
+| `body.liquid.setSeaLevel(worldRadius)` | Déplace le shell liquide en runtime |
 | `body.liquid.setVisible(true|false)`  | Cache/montre l'océan |
+
+::: tip Curseur de survol
+La lib gère **ring + emissive + column** automatiquement à partir du dispatch `setBoardTile`. Pour personnaliser couleur / taille / presets, voir le [guide dédié](/guides/hover-cursor).
+:::
 
 Les namespaces `view`, `liquid` et la version étendue de `tiles` (incl. `applyTileOverlay`, `updateTileSolHeight`, …) ne sont présents que sur **`PlanetBody`** (`kind: 'planet'`). Sur une étoile (`StarBody`), TS rejette directement ces accès — narrow le union avant : `if (body.kind === 'planet') { body.view.set(...) }`.
 
 ## Pattern Three.js (vanille)
 
 ```ts
-const body = useBody(config, DEFAULT_TILE_SIZE)
+const body = useBody(config, DEFAULT_TILE_SIZE, {
+  // Optionnel — déclare ici les presets de curseur que tu veux activer en jeu
+  hoverCursors: {
+    default: { ring: { color: 0xffffff }, column: { color: 0xffffff } },
+    attack:  { ring: { color: 0xff2244 }, emissive: { color: 0xff4400, intensity: 3 } },
+    build:   { ring: { color: 0x00ff88 }, column: { color: 0x00ff88 } },
+  },
+})
 scene.add(body.group)
 
 // Activer / désactiver le mode hex
@@ -51,22 +63,25 @@ function toggleHex() {
   else       body.interactive.deactivate()
 }
 
-// Hover par frame
+// Hover par frame — un seul appel, le dispatch est dans la lib
 const raycaster = new THREE.Raycaster()
 function tickHover() {
   if (!hexOn) return
   raycaster.setFromCamera(pointer, camera)
-  const id = body.interactive.queryHover(raycaster)
-  body.hover.setTile(id) // null désactive le highlight
+  body.hover.setBoardTile(body.interactive.queryHover(raycaster))
 }
 
-// Click pour peindre une tuile en or
+// Switch de cursor selon l'intent gameplay
+function onAttackMode() { body.hover.useCursor('attack') }
+function onBuildMode()  { body.hover.useCursor('build')  }
+
+// Click pour peindre une tuile en or (sol uniquement)
 function onClick() {
   if (!hexOn) return
   raycaster.setFromCamera(pointer, camera)
-  const id = body.interactive.queryHover(raycaster)
-  if (id != null) {
-    body.tiles.applyTileOverlay('sol', new Map([[id, new THREE.Color('#ffc34a')]]))
+  const ref = body.interactive.queryHover(raycaster)
+  if (ref?.layer === 'sol') {
+    body.tiles.sol.writeTileColor(ref.tileId, { r: 1, g: 0.76, b: 0.29 })
   }
 }
 
@@ -89,7 +104,6 @@ import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
 const body          = useBody(config, DEFAULT_TILE_SIZE)
 const hexMode       = ref(false)
 const hoveredTileId = ref<number | null>(null)
-const pinnedTileId  = ref<number | null>(null)
 </script>
 
 <template>
@@ -98,7 +112,6 @@ const pinnedTileId  = ref<number | null>(null)
       :body="body"
       :interactive="hexMode"
       :hovered-tile-id="hoveredTileId"
-      :pinned-tile-id="pinnedTileId"
     />
   </TresCanvas>
   <button @click="hexMode = !hexMode">Mode hex</button>

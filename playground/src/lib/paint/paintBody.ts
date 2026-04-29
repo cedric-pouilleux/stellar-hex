@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { PlanetBody } from '@lib'
 import { applyResourceBlend, type ResourceRules, type TileResources } from './tileResourceBlend'
 
-/** Plain RGB triple — aligned with the `Body.tiles.applyTileOverlay` contract. */
+/** Plain RGB triple — aligned with the `Body.tiles.sol.applyOverlay` / `tiles.atmo.applyOverlay` contract. */
 export interface RGB {
   r: number
   g: number
@@ -63,7 +63,7 @@ function buildOverlay(
     let emissive: THREE.Color | undefined, emissiveI: number
     let submerged: boolean
     if (layer === 'sol') {
-      const base = body.tiles.tileBaseVisual(tileId)
+      const base = body.tiles.sol.tileBaseVisual(tileId)
       if (!base) continue
       r = base.r; g = base.g; b = base.b
       rough = base.roughness; metal = base.metalness
@@ -117,18 +117,18 @@ export function paintBody(
   const solOver = buildOverlay(body, distribution.sol, r, 'sol')
   const atmOver = buildOverlay(body, distribution.atmo, r, 'atmo')
 
-  if (solOver.size > 0) body.tiles.applyTileOverlay('sol',  solOver)
-  if (atmOver.size > 0) body.tiles.applyTileOverlay('atmo', atmOver)
+  if (solOver.size > 0) body.tiles.sol.applyOverlay(solOver)
+  if (atmOver.size > 0 && body.tiles.atmo) body.tiles.atmo.applyOverlay(atmOver)
 
-  // Smooth-sphere routing — gas paints atmo (the smooth sphere IS the
-  // atmosphere on gas), rocky / metallic paint sol (the smooth sphere
-  // is the surface backdrop in Shader view).
-  const sphereOverlay = body.config.type === 'gaseous' ? atmOver : solOver
+  // Smooth-sphere routing — bands look paints atmo (the smooth sphere IS the
+  // atmosphere on gas-like bodies), terrain / metallic paint sol (the smooth
+  // sphere is the surface backdrop in Shader view).
+  const sphereOverlay = body.config.surfaceLook === 'bands' ? atmOver : solOver
   if (sphereOverlay.size > 0) body.tiles.paintSmoothSphere(sphereOverlay)
 
-  // Atmo corona — rocky / metallic only; gas already shows atmo on its
-  // smooth sphere.
-  const hasCorona = body.config.type === 'rocky' || body.config.type === 'metallic'
+  // Atmo corona — terrain / metallic only; the bands look already shows atmo
+  // on its smooth sphere.
+  const hasCorona = body.config.surfaceLook === 'terrain' || body.config.surfaceLook === 'metallic'
   if (hasCorona && atmOver.size > 0) {
     body.tiles.paintAtmoShell(atmOver)
   }

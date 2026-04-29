@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+﻿import { describe, it, expect } from 'vitest'
 import { generateHexasphere } from '../geometry/hexasphere'
 import { initBodySimulation } from './BodySimulation'
 import { resolveTerrainLevelCount, DEFAULT_CORE_RADIUS_RATIO } from '../physics/body'
@@ -7,12 +7,11 @@ import type { BodyConfig } from '../types/body.types'
 function rockyConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
   return {
     name: 'sim-seatest',
-    type: 'rocky',
+    type: 'planetary', surfaceLook: 'terrain',
     radius: 1,
     rotationSpeed: 0.05,
     axialTilt: 0,
     atmosphereThickness: 0.4,
-    liquidType: 'water',
     liquidState: 'liquid',
     ...overrides,
   }
@@ -20,7 +19,7 @@ function rockyConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
 
 describe('BodySimulation.bandToNoiseThreshold', () => {
   it('returns -1 on dry bodies (no sorted noise table)', () => {
-    const config = rockyConfig({ liquidState: 'none', liquidType: undefined })
+    const config = rockyConfig({ liquidState: 'none' })
     const data   = generateHexasphere(config.radius, 2)
     const sim    = initBodySimulation(data.tiles, config)
     expect(sim.seaLevelNoise).toBe(-1)
@@ -40,7 +39,7 @@ describe('BodySimulation.bandToNoiseThreshold', () => {
     }
   })
 
-  it('is monotonic: higher band → higher (or equal) simplex threshold', () => {
+  it('is monotonic: higher band â†’ higher (or equal) simplex threshold', () => {
     const config = rockyConfig()
     const data   = generateHexasphere(config.radius, 3)
     const sim    = initBodySimulation(data.tiles, config)
@@ -116,7 +115,7 @@ describe('BodySimulation fBm noise knobs', () => {
     const data = generateHexasphere(cfg.radius, 2)
     const sim  = initBodySimulation(data.tiles, cfg)
     // Equal-frequency banding tolerates any monotone distribution, so ridge
-    // transforms just reshape which tiles land in which band — the band
+    // transforms just reshape which tiles land in which band â€” the band
     // count itself stays constant.
     const used = new Set<number>()
     for (const s of sim.tileStates.values()) used.add(s.elevation)
@@ -124,7 +123,7 @@ describe('BodySimulation fBm noise knobs', () => {
   })
 
   it('reliefFlatness=0 is identity (same elevations as an unset config)', () => {
-    // Hot path — we must not pay the Math.round contraction when the caller
+    // Hot path â€” we must not pay the Math.round contraction when the caller
     // does not opt in. Identity is verified by deep-equality of the
     // per-tile elevation map.
     const cfg   = rockyConfig({ name: 'fbm-flatness-id' })
@@ -152,7 +151,7 @@ describe('BodySimulation fBm noise knobs', () => {
 
   it('reliefFlatness in (0,1) contracts the band range upward and is monotone', () => {
     // Intermediate flatness keeps the mapping monotone non-decreasing so
-    // higher raw bands stay on top — only the visible extent shrinks.
+    // higher raw bands stay on top â€” only the visible extent shrinks.
     const data = generateHexasphere(1, 2)
     const cfg0 = rockyConfig({ name: 'fbm-flatness-mid', reliefFlatness: 0 })
     const cfgM = rockyConfig({ name: 'fbm-flatness-mid', reliefFlatness: 0.7 })
@@ -194,11 +193,11 @@ describe('BodySimulation fBm noise knobs', () => {
     expect(b.seaLevelElevation).toBeGreaterThan(a.seaLevelElevation)
   })
 
-  it('power ≠ 1 reshapes the raw simplex distribution (bandToNoiseThreshold shifts)', () => {
+  it('power â‰  1 reshapes the raw simplex distribution (bandToNoiseThreshold shifts)', () => {
     // Equal-frequency banding is rank-based, so a monotone sign-preserving
     // power transform leaves per-tile band assignments unchanged. What DOES
     // shift is the raw simplex value at each band's upper edge, which is
-    // what the smooth-sphere ocean-mask shader re-samples — so that is
+    // what the smooth-sphere ocean-mask shader re-samples â€” so that is
     // where the knob's effect is observable.
     const data = generateHexasphere(1, 2)
     const cfgA = rockyConfig({ name: 'fbm-power', noisePower: 1 })
@@ -224,7 +223,7 @@ describe('BodySimulation liquidCoverage', () => {
     expect(sim.liquidCoverage).toBeLessThan(0.6)
   })
 
-  it('honours an explicit liquidCoverage — higher target → more submerged tiles', () => {
+  it('honours an explicit liquidCoverage â€” higher target â†’ more submerged tiles', () => {
     const data  = generateHexasphere(1, 3)
     const low   = initBodySimulation(data.tiles, rockyConfig({ name: 'cov-asym', liquidCoverage: 0.2 }))
     const high  = initBodySimulation(data.tiles, rockyConfig({ name: 'cov-asym', liquidCoverage: 0.8 }))
@@ -239,15 +238,78 @@ describe('BodySimulation liquidCoverage', () => {
     const negative = initBodySimulation(data.tiles, rockyConfig({ name: 'cov-neg', liquidCoverage: -0.5 }))
     const huge     = initBodySimulation(data.tiles, rockyConfig({ name: 'cov-big', liquidCoverage: 1.5 }))
     expect(negative.liquidCoverage).toBeGreaterThanOrEqual(0)
-    expect(negative.liquidCoverage).toBeLessThan(0.05)        // clamped to 0 → no/very few tiles submerged
-    expect(huge.liquidCoverage).toBeGreaterThan(0.95)         // clamped to 1 → almost every tile submerged
+    expect(negative.liquidCoverage).toBeLessThan(0.05)        // clamped to 0 â†’ no/very few tiles submerged
+    expect(huge.liquidCoverage).toBeGreaterThan(0.95)         // clamped to 1 â†’ almost every tile submerged
   })
 
-  it('is ignored on dry bodies (liquidState = none) — coverage stays at 0', () => {
+  it('is ignored on dry bodies (liquidState = none) â€” coverage stays at 0', () => {
     const cfg  = rockyConfig({ name: 'cov-dry', liquidState: 'none', liquidCoverage: 0.7 })
     const data = generateHexasphere(cfg.radius, 2)
     const sim  = initBodySimulation(data.tiles, cfg)
     expect(sim.liquidCoverage).toBe(0)
     expect(sim.seaLevelElevation).toBe(-1)
+  })
+})
+
+describe('BodySimulation continent layer', () => {
+  it('continentAmount = 0 reproduces the legacy elevation field exactly', () => {
+    // Same seed, no continent → must match the simplex-only baseline by tile id.
+    const data    = generateHexasphere(1, 3)
+    const baseCfg = rockyConfig({ name: 'cont-baseline' })
+    const noCont  = initBodySimulation(data.tiles, { ...baseCfg, continentAmount: 0 })
+    const legacy  = initBodySimulation(data.tiles, baseCfg)
+    for (const t of data.tiles) {
+      const a = noCont.tileStates.get(t.id)!.elevation
+      const b = legacy.tileStates.get(t.id)!.elevation
+      expect(a).toBe(b)
+    }
+  })
+
+  it('continentAmount > 0 reshuffles which tiles land in which band (rank-based count is preserved)', () => {
+    const data = generateHexasphere(1, 3)
+    const cfg  = rockyConfig({ name: 'cont-shuffle' })
+    const flat = initBodySimulation(data.tiles, cfg)
+    const cont = initBodySimulation(data.tiles, { ...cfg, continentAmount: 0.7, continentScale: 1.5 })
+
+    // Per-band tile counts stay (rank-based equal-frequency banding).
+    const countByBand = (sim: typeof flat): number[] => {
+      const counts: number[] = []
+      for (const s of sim.tileStates.values()) counts[s.elevation] = (counts[s.elevation] ?? 0) + 1
+      return counts
+    }
+    expect(countByBand(cont)).toEqual(countByBand(flat))
+
+    // But individual tile assignments diverge — the voronoi mask shifts which
+    // tiles cluster into low / high bands.
+    let differingTiles = 0
+    for (const t of data.tiles) {
+      if (flat.tileStates.get(t.id)!.elevation !== cont.tileStates.get(t.id)!.elevation) differingTiles++
+    }
+    expect(differingTiles).toBeGreaterThan(data.tiles.length * 0.30)
+  })
+
+  it('is deterministic from the body name — same seed + same amount → same elevation per tile', () => {
+    const data = generateHexasphere(1, 3)
+    const cfg  = rockyConfig({ name: 'cont-determinism', continentAmount: 0.6, continentScale: 2 })
+    const a = initBodySimulation(data.tiles, cfg)
+    const b = initBodySimulation(data.tiles, cfg)
+    for (const t of data.tiles) {
+      expect(a.tileStates.get(t.id)!.elevation).toBe(b.tileStates.get(t.id)!.elevation)
+    }
+  })
+
+  it('different names produce different continent layouts at the same amount', () => {
+    const data = generateHexasphere(1, 3)
+    const optsA = rockyConfig({ name: 'cont-name-A', continentAmount: 0.7 })
+    const optsB = rockyConfig({ name: 'cont-name-B', continentAmount: 0.7 })
+    const a = initBodySimulation(data.tiles, optsA)
+    const b = initBodySimulation(data.tiles, optsB)
+    let differingTiles = 0
+    for (const t of data.tiles) {
+      if (a.tileStates.get(t.id)!.elevation !== b.tileStates.get(t.id)!.elevation) differingTiles++
+    }
+    // Two different seeds should diverge on most tiles — same banding
+    // distribution, different per-tile assignments.
+    expect(differingTiles).toBeGreaterThan(data.tiles.length * 0.30)
   })
 })

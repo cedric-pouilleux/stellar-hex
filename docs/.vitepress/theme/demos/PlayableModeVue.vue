@@ -12,7 +12,7 @@ import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
  */
 
 const config: BodyConfig = {
-  type:                'rocky',
+  type:                'planetary', surfaceLook: 'terrain',
   name:                'playable-demo',
   radius:               1,
   rotationSpeed:        0,

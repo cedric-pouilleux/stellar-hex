@@ -49,7 +49,7 @@ onMounted(async () => {
   orbit.maxDistance = 8
 
   const config = {
-    type:                'rocky' as const,
+    type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'demo-earth',
     radius:               1,
     liquidState:         'liquid' as const,

@@ -47,11 +47,12 @@ import {
 
 const { tiles } = generateHexasphere(3, 8) // radius, subdivisions
 const sim = initBodySimulation(tiles, {
-  type:           'rocky',
-  name:           'kepler-22b',
-  radius:         3,
-  rotationSpeed:  0.005,
-  axialTilt:      0.41,
+  type:                'planetary',
+  surfaceLook:         'terrain',
+  name:                'kepler-22b',
+  radius:              3,
+  rotationSpeed:       0.005,
+  axialTilt:           0.41,
   atmosphereThickness: 0.6,
 })
 
@@ -68,7 +69,8 @@ import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellar-hex/core'
 
 const body = useBody(
   {
-    type: 'rocky', name: 'earth', radius: 3,
+    type: 'planetary', surfaceLook: 'terrain',
+    name: 'earth', radius: 3,
     rotationSpeed: 0.01, axialTilt: 0.41,
     atmosphereThickness: 0.7,
   },
@@ -136,14 +138,15 @@ first-class case: `buildCoreMesh` skips the sphere allocation, the sol
 band collapses (no relief), and the atmo shell occupies the whole
 visible sphere.
 
-### Surface liquid — rocky only
+### Surface liquid — planetary only
 
-`liquidType` and `liquidState` are only honoured on `type: 'rocky'`.
-Gaseous / metallic / star bodies are always dry regardless of what the
-config carries — the sim sets `surfaceLiquid = undefined` and the render
-layer skips the liquid sphere, the sea anchor and the shore basement.
-The single enforcement point is `hasSurfaceLiquid(config)`, exported
-from `/sim` for consumers that need to read the same invariant.
+`liquidState` (and the related `liquidColor` / `liquidCoverage`) lives on
+[`PlanetConfig`](./types/body.types.ts) — the discriminated-union branch
+of [`BodyConfig`](./types/body.types.ts). The fields are simply absent
+from the `StarConfig` branch, so the type-checker rejects them at the
+construction site rather than letting them be silently ignored at
+runtime. The single enforcement point is `hasSurfaceLiquid(config)`,
+exported from `/sim` for consumers that need to read the same invariant.
 
 ## Determinism
 

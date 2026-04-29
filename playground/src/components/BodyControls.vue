@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { SpectralType } from '@lib'
+import type { LibBodyType, SpectralType } from '@lib'
 import type { PlaygroundBodyConfig } from '../lib/state'
 import {
   DEFAULT_CORE_RADIUS_RATIO,
   DEFAULT_TERRAIN_LOW_COLOR,
   DEFAULT_TERRAIN_HIGH_COLOR,
 } from '@lib'
-import { tileSize, coronaHeadroom, atmoTileColorMix, liquidCoronaOpacity } from '../lib/state'
+import { BODY_TYPE_CHIPS } from '../lib/paramLabels'
+import {
+  tileSize,
+  bodyType, configFromUiMode,
+} from '../lib/state'
 import {
   TERRAIN_PRESETS,
   applyTerrainPreset,
@@ -39,11 +43,42 @@ function toHex(value: unknown, fallback: string): string {
 const props = defineProps<{ config: PlaygroundBodyConfig }>()
 
 /** Whether a field is meaningful for the current body type. */
-const isRocky   = computed(() => props.config.type === 'rocky')
-const isStar    = computed(() => props.config.type === 'star')
-const needsTemp = computed(() => props.config.type !== 'star')
-/** Rocky body with a non-`'none'` liquid surface — gates the liquid corona slider. */
-const hasLiquid = computed(() => isRocky.value && (props.config.liquidState ?? 'none') !== 'none')
+const isStar         = computed(() => props.config.type === 'star')
+const isPlanet       = computed(() => props.config.type !== 'star')
+const isTerrainLook  = computed(() => isPlanet.value && (props.config.surfaceLook ?? 'terrain') === 'terrain')
+/**
+ * `true` when the body is configured with an atmosphere (positive
+ * thickness). Mirrors `hasAtmosphere(config)` exposed by the lib — the
+ * single switch driving the visible halo, the playable atmo layer and
+ * the matching UI panels.
+ */
+const atmoEnabled    = computed(() => isPlanet.value && (props.config.atmosphereThickness ?? 0) > 0)
+
+/**
+ * Whether the user is allowed to toggle the atmosphere off. Gas-like
+ * bodies (`surfaceLook === 'bands'`) ARE their atmosphere — the smooth
+ * sphere itself plays the role of the gas envelope. Disabling the atmo
+ * leaves the body in a degenerate state (hollow shell with collapsed
+ * prisms), so the toggle is hidden for that look. The user can still
+ * tweak `Atmo thickness` once the slider is exposed (always-on for bands).
+ */
+const canToggleAtmo  = computed(() => isPlanet.value && (props.config.surfaceLook ?? 'terrain') !== 'bands')
+
+/**
+ * Toggle handler — flipping ON restores the archetype defaults from
+ * `configFromUiMode(bodyType)` (atmoThickness + atmoOpacity); flipping
+ * OFF zeroes both fields so the lib skips every atmo-related allocation.
+ */
+function setAtmoEnabled(on: boolean): void {
+  if (on) {
+    const { atmosphereThickness, atmosphereOpacity } = configFromUiMode(bodyType.value)
+    props.config.atmosphereThickness = atmosphereThickness > 0 ? atmosphereThickness : 0.20
+    props.config.atmosphereOpacity   = atmosphereOpacity   > 0 ? atmosphereOpacity   : 0.45
+  } else {
+    props.config.atmosphereThickness = 0
+    props.config.atmosphereOpacity   = 0
+  }
+}
 
 const spectralTypes: SpectralType[] = ['O', 'B', 'A', 'F', 'G', 'K', 'M']
 
@@ -85,13 +120,73 @@ function set<K extends keyof PlaygroundBodyConfig>(key: K, value: PlaygroundBody
 function setNum(key: keyof PlaygroundBodyConfig, evt: Event) {
   set(key as any, parseFloat((evt.target as HTMLInputElement).value) as any)
 }
+
+/**
+ * Effective sol surface radius in world units — derived from
+ * `Planet radius × (1 - atmosphereThickness)`. Exposes the sol surface
+ * directly so the user reads world units (alongside `Planet radius`)
+ * rather than an abstract atmospheric fraction. Bidirectional: writing
+ * it back computes the matching `atmosphereThickness` at constant
+ * silhouette and stores it on the config.
+ */
+const solRadius = computed(() => {
+  const atmoFraction = Math.max(0, Math.min(1, props.config.atmosphereThickness ?? 0))
+  return props.config.radius * (1 - atmoFraction)
+})
+
+/**
+ * Allowed range for the `Sol radius` slider. The minimum keeps a non-
+ * collapsed sol band (`MIN_SOL_BAND_FRACTION = 5%` of `Planet radius`);
+ * the maximum is `Planet radius` itself (atmospheric thickness = 0).
+ */
+const solRadiusMin = computed(() => props.config.radius * 0.05)
+const solRadiusMax = computed(() => props.config.radius)
+
+function setSolRadius(evt: Event): void {
+  const next = parseFloat((evt.target as HTMLInputElement).value)
+  if (!Number.isFinite(next)) return
+  const clamped = Math.max(solRadiusMin.value, Math.min(solRadiusMax.value, next))
+  const atmoFraction = 1 - clamped / props.config.radius
+  set('atmosphereThickness', Math.max(0, Math.min(1, atmoFraction)) as never)
+}
 function setInt(key: keyof PlaygroundBodyConfig, evt: Event) {
   set(key as any, parseInt((evt.target as HTMLInputElement).value) as any)
+}
+
+/**
+ * Switch the active archetype. Mutates the shared `bodyType` ref + config
+ * fields driven by `configFromUiMode` (type, surfaceLook + atmosphere
+ * defaults so the silhouette and halo land at sane values for the new
+ * archetype). Resync and rebuild are picked up by the deep watcher and
+ * the `bodyConfig.type` watcher in `App.vue` — no explicit calls needed.
+ */
+function setType(t: LibBodyType): void {
+  if (bodyType.value === t) return
+  bodyType.value = t
+  const { type, surfaceLook, atmosphereThickness, atmosphereOpacity } = configFromUiMode(t)
+  set('type', type as never)
+  set('surfaceLook', surfaceLook as never)
+  set('atmosphereThickness', atmosphereThickness as never)
+  set('atmosphereOpacity', atmosphereOpacity as never)
 }
 </script>
 
 <template>
-  <details class="group" open>
+  <details class="group">
+    <summary>Type</summary>
+    <div class="group-body">
+      <div class="type-switch">
+        <button
+          v-for="t in BODY_TYPE_CHIPS" :key="t.id"
+          type="button"
+          :class="{ active: bodyType === t.id }"
+          @click="setType(t.id)"
+        >{{ t.icon }} {{ t.label }}</button>
+      </div>
+    </div>
+  </details>
+
+  <details class="group">
     <summary>Identity</summary>
     <div class="group-body">
       <div class="row" style="grid-template-columns: 110px 1fr;">
@@ -102,13 +197,23 @@ function setInt(key: keyof PlaygroundBodyConfig, evt: Event) {
     </div>
   </details>
 
-  <details class="group" open>
-    <summary>Geometry</summary>
+  <details class="group">
+    <summary>Geometry ground</summary>
     <div class="group-body">
       <div class="row">
-        <label>Radius</label>
+        <label>{{ isStar ? 'Radius' : 'Planet radius' }}</label>
         <input type="range" min="0.5" max="8" step="0.1" :value="config.radius" @input="setNum('radius', $event)" />
         <span class="val">{{ config.radius.toFixed(1) }}</span>
+      </div>
+      <div class="row" v-if="isPlanet && atmoEnabled">
+        <label>Sol radius</label>
+        <input
+          type="range"
+          :min="solRadiusMin" :max="solRadiusMax" step="0.05"
+          :value="solRadius"
+          @input="setSolRadius"
+        />
+        <span class="val">{{ solRadius.toFixed(2) }}</span>
       </div>
       <div class="row">
         <label>Tile size</label>
@@ -125,7 +230,13 @@ function setInt(key: keyof PlaygroundBodyConfig, evt: Event) {
         <input type="range" min="0" max="0.2" step="0.001" :value="config.rotationSpeed" @input="setNum('rotationSpeed', $event)" />
         <span class="val">{{ config.rotationSpeed.toFixed(3) }}</span>
       </div>
-      <div class="row" v-if="!isStar">
+    </div>
+  </details>
+
+  <details class="group" v-if="!isStar">
+    <summary>Geometry core</summary>
+    <div class="group-body">
+      <div class="row">
         <label>Core ratio</label>
         <input
           type="range" min="0.1" max="0.9" step="0.01"
@@ -137,54 +248,30 @@ function setInt(key: keyof PlaygroundBodyConfig, evt: Event) {
     </div>
   </details>
 
-  <details class="group" v-if="isRocky" open>
-    <summary>Turbulence</summary>
+  <details class="group" v-if="isPlanet">
+    <summary>Geometry atmosphere</summary>
     <div class="group-body">
-      <div class="row">
-        <label>Atmo size</label>
+      <div class="row" v-if="canToggleAtmo" style="grid-template-columns: 110px 1fr auto;">
+        <label>Atmosphère</label>
+        <span></span>
         <input
-          type="range" min="0.02" max="0.5" step="0.01"
-          :value="coronaHeadroom"
-          @input="coronaHeadroom = parseFloat(($event.target as HTMLInputElement).value)"
+          type="checkbox"
+          :checked="atmoEnabled"
+          @change="setAtmoEnabled(($event.target as HTMLInputElement).checked)"
         />
-        <span class="val">+{{ (coronaHeadroom * 100).toFixed(0) }}%</span>
       </div>
-      <div class="row">
-        <label>Atmo opacity</label>
-        <input
-          type="range" min="0" max="1" step="0.01"
-          :value="config.atmosphereOpacity ?? 0.55"
-          @input="setNum('atmosphereOpacity', $event)"
-        />
-        <span class="val">{{ (config.atmosphereOpacity ?? 0.55).toFixed(2) }}</span>
-      </div>
-      <div class="row">
-        <label>Atmo color mix</label>
-        <input
-          type="range" min="0" max="1" step="0.01"
-          :value="atmoTileColorMix"
-          @input="atmoTileColorMix = parseFloat(($event.target as HTMLInputElement).value)"
-        />
-        <span class="val">{{ atmoTileColorMix.toFixed(2) }}</span>
-      </div>
-      <div class="row" v-if="hasLiquid">
-        <label>Liquid corona</label>
-        <input
-          type="range" min="0" max="1" step="0.01"
-          :value="liquidCoronaOpacity"
-          @input="liquidCoronaOpacity = parseFloat(($event.target as HTMLInputElement).value)"
-        />
-        <span class="val">{{ liquidCoronaOpacity.toFixed(2) }}</span>
-      </div>
-      <p class="hint">
-        <code>Size</code> : rayon du halo (rebuild). <code>opacity</code> : alpha global.
-        <code>color mix</code> : 0 = tint procédural, 1 = couleurs de tuiles dominantes.
-        <code v-if="hasLiquid">Liquid corona</code><span v-if="hasLiquid"> : halo extérieur teinté de la couleur du liquide.</span>
+      <p v-if="atmoEnabled" class="hint">
+        <code>Planet radius</code> reste constant : l'atmosphère occupe
+        l'espace entre <code>Sol radius</code> et <code>Planet radius</code>.
+        Augmenter <code>Sol radius</code> réduit l'épaisseur d'atmo à
+        silhouette constante. Décocher <em>Atmosphère</em> retire
+        intégralement le halo et la couche jouable. La couleur du halo
+        se règle dans <em>Shader parameters → Halo</em>.
       </p>
     </div>
   </details>
 
-  <details class="group" v-if="needsTemp" open>
+  <details class="group" v-if="isPlanet">
     <summary>Climate</summary>
     <div class="group-body">
       <div class="row" style="grid-template-columns: 110px 1fr;">
@@ -199,12 +286,12 @@ function setInt(key: keyof PlaygroundBodyConfig, evt: Event) {
     </div>
   </details>
 
-  <details class="group" v-if="isRocky" open>
+  <details class="group" v-if="isPlanet">
     <summary>Liquid</summary>
     <LiquidControls :config="config" />
   </details>
 
-  <details class="group" v-if="isRocky" open>
+  <details class="group" v-if="isTerrainLook">
     <summary>Terrain colour</summary>
     <div class="group-body">
       <div class="row" style="grid-template-columns: 110px 1fr auto auto;">
@@ -238,7 +325,7 @@ function setInt(key: keyof PlaygroundBodyConfig, evt: Event) {
     </div>
   </details>
 
-  <details class="group" v-if="isStar" open>
+  <details class="group" v-if="isStar">
     <summary>Spectral</summary>
     <div class="group-body">
       <div class="row">
@@ -301,10 +388,24 @@ function setInt(key: keyof PlaygroundBodyConfig, evt: Event) {
       <p class="hint">
         Aplatit le relief visible tout en conservant la shell d'extraction complète (N bandes) — idéal pour des planètes plates à gros noyau.
       </p>
+      <div class="row">
+        <label>Continents</label>
+        <input type="range" min="0" max="1" step="0.01" :value="config.continentAmount ?? 0" @input="setNum('continentAmount', $event)" />
+        <span class="val">{{ (config.continentAmount ?? 0).toFixed(2) }}</span>
+      </div>
+      <div class="row">
+        <label>Échelle continents</label>
+        <input type="range" min="1" max="3" step="0.05" :value="config.continentScale ?? 1" @input="setNum('continentScale', $event)" />
+        <span class="val">{{ (config.continentScale ?? 1).toFixed(2) }}</span>
+      </div>
+      <p class="hint">
+        Ajoute un voronoï basse fréquence sur l'élévation : <code>0</code> = comportement classique (moiré d'îles),
+        <code>0.5–1</code> produit des masses terrestres discrètes (Pangée / archipels). L'échelle pilote le nombre de continents.
+      </p>
     </div>
   </details>
 
-  <details class="group" open>
+  <details class="group" v-if="isPlanet">
     <summary>Rings</summary>
     <div class="group-body">
       <div class="row" style="grid-template-columns: 110px 1fr auto;">

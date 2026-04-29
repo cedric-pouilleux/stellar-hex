@@ -12,8 +12,6 @@
  *     gas-phase volatiles) to emit `'rocky' | 'metallic' | 'gaseous'`.
  *   - {@link pickSurfaceLiquid} picks the dominant liquid-phase volatile so
  *     callers can drive `BodyConfig.liquidColor` off the physics.
- *   - {@link extractGasVolatiles} isolates the gas-phase volatile weights so
- *     PR 4 can blend their `gasColor` stops into `bandColors` for the atmo.
  *
  * Pure module — no Vue dependency, trivially testable.
  */
@@ -234,27 +232,6 @@ export function classifyBodyType(mix: ResourceMix, T_avg_K: number): DerivedBody
 }
 
 // ── Volatile helpers ──────────────────────────────────────────────
-
-/**
- * Returns the gas-phase volatiles only, re-normalised so their weights sum
- * to `1`. PR 4 will feed this to the atmosphere band-colour derivation.
- * Returns `{}` when the body has no gas volatiles at this temperature.
- */
-export function extractGasVolatiles(mix: ResourceMix, T_avg_K: number): Record<VolatileId, number> {
-  const out = {} as Record<VolatileId, number>
-  let total = 0
-  for (const id of VOLATILE_IDS) {
-    const w = mix[id]
-    if (!w) continue
-    if (volatileState(VOLATILES[id], T_avg_K) !== 'gas') continue
-    out[id] = w
-    total += w
-  }
-  if (total > 0) {
-    for (const id of VOLATILE_IDS) if (out[id] !== undefined) out[id] /= total
-  }
-  return out
-}
 
 /**
  * Picks the dominant volatile in liquid phase — the one that should paint

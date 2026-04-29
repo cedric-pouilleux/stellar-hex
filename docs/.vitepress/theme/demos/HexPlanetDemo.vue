@@ -55,7 +55,7 @@ onMounted(async () => {
   controls.maxDistance    = 12
 
   const config = {
-    type:                'rocky' as const,
+    type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'demo-hex',
     radius:              1,
     rotationSpeed:       0,
@@ -99,8 +99,9 @@ onMounted(async () => {
 
     if (pointerIn) {
       raycaster.setFromCamera(pointer, camera)
-      const id = body.interactive.queryHover(raycaster)
-      body.hover.setTile(id)
+      const ref = body.interactive.queryHover(raycaster)
+      body.hover.setBoardTile(ref)
+      const id  = ref?.layer === 'sol' ? ref.tileId : null
 
       if (id != null && sim) {
         const state = sim.tileStates.get(id)

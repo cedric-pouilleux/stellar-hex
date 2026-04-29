@@ -1,8 +1,8 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
 /**
- * Three.js demo — Earth-like planet with a pre-excavated cluster of
+ * Three.js demo â€” Earth-like planet with a pre-excavated cluster of
  * tiles that exposes the molten core. The core's procedural fire
  * shader + point light "leak" through the mined tiles.
  *
@@ -56,7 +56,7 @@ onMounted(async () => {
   orbit.maxDistance = 6
 
   const config = {
-    type:                'rocky' as const,
+    type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'core-demo',
     radius:               1,
     rotationSpeed:        0,
@@ -104,7 +104,7 @@ onMounted(async () => {
         }
       }
       if (updates.size > 0) {
-        body.tiles.updateTileSolHeight(updates)
+        body.tiles.sol.updateTileSolHeight(updates)
         minedCount.value += updates.size
       }
     } catch (err) {
@@ -119,9 +119,9 @@ onMounted(async () => {
     pointer.x =  ((e.clientX - r.left) / r.width)  * 2 - 1
     pointer.y = -((e.clientY - r.top)  / r.height) * 2 + 1
     raycaster.setFromCamera(pointer, camera)
-    const id = body.interactive.queryHover(raycaster)
-    if (id != null) {
-      body.tiles.updateTileSolHeight(new Map([[id, 0]]))
+    const ref = body.interactive.queryHover(raycaster)
+    if (ref?.layer === 'sol') {
+      body.tiles.sol.updateTileSolHeight(new Map([[ref.tileId, 0]]))
       minedCount.value++
     }
   }
@@ -157,7 +157,7 @@ onBeforeUnmount(() => cleanup?.())
 <template>
   <div class="core-demo">
     <div ref="container" class="core-canvas">
-      <p class="core-hint">Cliquez une tuile pour creuser · {{ minedCount }} tuiles minées</p>
+      <p class="core-hint">Cliquez une tuile pour creuser Â· {{ minedCount }} tuiles minÃ©es</p>
     </div>
     <div class="core-bar">
       <label class="core-toggle">

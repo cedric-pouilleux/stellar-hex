@@ -1,4 +1,4 @@
-import type { SpectralType, StarConfig, ResolvedStarData } from '../types/body.types'
+import type { SpectralType, StarPhysicsInput, ResolvedStarData } from '../types/body.types'
 import { REF_STAR_RADIUS, REF_STAR_TEMP } from './body'
 
 // ── Spectral lookup table ─────────────────────────────────────────────────────
@@ -23,8 +23,8 @@ function computeLuminosity(radius: number, tempK: number): number {
   return (radius / REF_STAR_RADIUS) ** 2 * (tempK / REF_STAR_TEMP) ** 4
 }
 
-/** Resolve a StarConfig to concrete physical values, applying any overrides. */
-export function resolveStarData(cfg: StarConfig): ResolvedStarData {
+/** Resolve a StarPhysicsInput to concrete physical values, applying any overrides. */
+export function resolveStarData(cfg: StarPhysicsInput): ResolvedStarData {
   const base = SPECTRAL_TABLE[cfg.spectralType]
   const tempK  = cfg.tempK  ?? base.tempK
   const radius = cfg.radius ?? base.radius
@@ -37,7 +37,7 @@ export function resolveStarData(cfg: StarConfig): ResolvedStarData {
 }
 
 /**
- * Returns `{ radius, tempK }` derived from a StarConfig — the minimal
+ * Returns `{ radius, tempK }` derived from a StarPhysicsInput — the minimal
  * star parameters consumed by orbital physics in downstream features.
  *
  * `tempK` is the star's surface temperature in Kelvin (e.g. 5778 K for the
@@ -45,7 +45,7 @@ export function resolveStarData(cfg: StarConfig): ResolvedStarData {
  * over a temperature range — an inaccurate framing for a body whose
  * temperature is a single physical scalar.
  */
-export function toStarParams(cfg: StarConfig): { radius: number; tempK: number } {
+export function toStarParams(cfg: StarPhysicsInput): { radius: number; tempK: number } {
   const { radius, tempK } = resolveStarData(cfg)
   return { radius, tempK }
 }

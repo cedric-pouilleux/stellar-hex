@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+﻿import { describe, it, expect } from 'vitest'
 import type { BodyConfig } from '@lib'
 import {
   TERRAIN_PRESETS,
@@ -11,7 +11,7 @@ import {
 function blankConfig(): BodyConfig {
   return {
     name:           'preset-test',
-    type:           'rocky',
+    type:           'planetary', surfaceLook: 'terrain',
     radius:         1,
     temperatureMin: -10,
     temperatureMax: 30,
@@ -34,7 +34,7 @@ describe('TERRAIN_PRESETS', () => {
   })
 
   it('keeps every preset inside the sliders ranges declared in BodyControls.vue', () => {
-    // Hard ranges wired on the Terrain noise sliders — a preset writing
+    // Hard ranges wired on the Terrain noise sliders â€” a preset writing
     // outside them would push the UI to a value the user cannot reach with
     // the controls, which would make the preset un-editable after apply.
     for (const p of TERRAIN_PRESETS) {
@@ -65,8 +65,8 @@ describe('TERRAIN_PRESETS', () => {
     }
   })
 
-  it('uses ≥ 2 octaves on every non-flat preset so persistence actually applies', () => {
-    // persistence only affects the fBm sum between octaves — a preset with
+  it('uses â‰¥ 2 octaves on every non-flat preset so persistence actually applies', () => {
+    // persistence only affects the fBm sum between octaves â€” a preset with
     // octaves=1 would silently ignore persistence. "Flat" is the single
     // exception: its low-detail pitch tolerates octaves=2 but not less.
     for (const p of TERRAIN_PRESETS) {
@@ -88,7 +88,7 @@ describe('applyTerrainPreset', () => {
     expect(cfg.reliefFlatness).toBe(mountain.reliefFlatness)
   })
 
-  it('leaves unrelated fields untouched (name, radius, noisePower, …)', () => {
+  it('leaves unrelated fields untouched (name, radius, noisePower, â€¦)', () => {
     const cfg = blankConfig()
     cfg.name       = 'keep-me'
     cfg.radius     = 3.2
@@ -111,7 +111,7 @@ describe('applyTerrainPreset', () => {
   })
 
   it('resets reliefFlatness back to 0 when switching from flat to any other preset', () => {
-    // Regression guard — a sticky flatness after switching presets would
+    // Regression guard â€” a sticky flatness after switching presets would
     // silently kill the relief of "mountainous" / "tectonic" etc.
     const cfg = blankConfig()
     applyTerrainPreset(cfg, TERRAIN_PRESETS.find(p => p.id === 'flat')!)
@@ -137,7 +137,7 @@ describe('findMatchingPreset', () => {
     expect(findMatchingPreset(cfg)).toBeNull()
   })
 
-  it('returns null when only reliefFlatness diverges — it is a tracked knob', () => {
+  it('returns null when only reliefFlatness diverges â€” it is a tracked knob', () => {
     // Guards against a user-tweaked flatness silently reading as a preset
     // match, which would mislabel the picker and make the custom value
     // look "canonical".
@@ -148,9 +148,9 @@ describe('findMatchingPreset', () => {
   })
 
   it('matches against lib defaults when noise fields are omitted on the config', () => {
-    // Blank config → noiseScale=1.4, octaves=1, persistence=0.5, lacunarity=2,
-    // ridge=0. All presets use octaves ≥ 2, so no preset can match a blank
-    // config — the picker must fall back to "Personnalisé".
+    // Blank config â†’ noiseScale=1.4, octaves=1, persistence=0.5, lacunarity=2,
+    // ridge=0. All presets use octaves â‰¥ 2, so no preset can match a blank
+    // config â€” the picker must fall back to "PersonnalisÃ©".
     const cfg = blankConfig()
     expect(findMatchingPreset(cfg)).toBeNull()
   })

@@ -1,23 +1,6 @@
 import type { BodyConfig } from '../../types/body.types'
 import type { TerrainLevel } from '../../types/terrain.types'
 
-// ── Display labels & colors ──────────────────────────────────────
-
-/** French labels for body types (used in HUD overlays and top-down labels). */
-export const BODY_TYPE_LABEL: Record<string, string> = {
-  rocky:    'Rocheuse',
-  gaseous:  'Gazeuse',
-  metallic: 'Métallique',
-}
-
-/** Accent colors for body type badges in the HUD. */
-export const BODY_TYPE_COLOR: Record<string, string> = {
-  rocky:    'rgba(200, 140, 75, 0.9)',
-  gaseous:  'rgba(110, 175, 245, 0.9)',
-  metallic: 'rgba(160, 215, 230, 0.9)',
-  star:     'rgba(255, 205, 80, 0.9)',
-}
-
 // ── Body outer radius ─────────────────────────────────────────────
 
 /**

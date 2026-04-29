@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import * as THREE from 'three'
 import {
   useBody, resolveTileHeight, resolveTileLevel,
@@ -8,7 +8,7 @@ import {
   hasSurfaceLiquid, buildSolidShell, buildNeighborMap,
 } from '@lib'
 import type { Body, PlanetBody, SolidShellHandle } from '@lib'
-import type { PlaygroundBodyConfig } from '../lib/state'
+import { toLibBodyConfig, type PlaygroundBodyConfig } from '../lib/state'
 import {
   generateDemoDistribution,
   getDemoResourceRules,
@@ -28,14 +28,19 @@ import type { BodyRingsHandle, RingVariation } from '@lib'
 import {
   hoverInfo, ringOverrides, digOptions, lastDigMutation,
   resourcePatternOverrides, disabledResourceIds, resourceWeights,
-  totalResources, coronaHeadroom, atmoTileColorMix, liquidCoronaOpacity,
+  totalResources, atmoTileColorMix,
   sphereDetail, shaderQuality, resolveShaderPixelRatio,
-  type HoverInfo,
+  buildPlaygroundVariation,
+  type HoverInfo, type HoverResource,
 } from '../lib/state'
 import { playgroundGraphicsUniforms } from '../lib/playgroundUniforms'
 import { viewMode } from '../lib/viewMode'
 import { seaLevelFraction } from '../lib/seaLevel'
 import { useTileDig } from '../lib/useTileDig'
+import {
+  hoverCursorParams,
+  resolveHoverCursorConfig,
+} from '../lib/hoverCursorParams'
 
 // Pointer travel above this many CSS pixels between down and up is treated
 // as a camera drag and suppresses the dig — keeps orbit gestures from
@@ -59,6 +64,14 @@ const hostEl    = ref<HTMLDivElement | null>(null)
 const fps       = ref(0)
 const tileCount = ref(0)
 
+/**
+ * Lib-shape projection of the playground's wide editing config — recovers
+ * the strict {@link BodyConfig} union the lib expects (drops cross-branch
+ * fields). Re-derived on every dependent change so any reactive read of
+ * the underlying `props.config` propagates automatically.
+ */
+const libConfig = computed(() => toLibBodyConfig(props.config))
+
 let renderer:        THREE.WebGLRenderer | null = null
 let scene:           THREE.Scene | null = null
 let camera:          THREE.PerspectiveCamera | null = null
@@ -78,6 +91,10 @@ function planet(): PlanetBody | null {
 }
 let rings:           BodyRingsHandle | null = null
 let solidShell:      SolidShellHandle | null = null
+// Mutable Vector3 refreshed each frame from the dominant directional
+// light — wired by reference into the rings shader (via `attachBodyRings`)
+// and the per-frame shadow sync (`syncRingShadowSun`).
+const sunWorldPos = new THREE.Vector3()
 /**
  * Per-tile state of the frozen ice cap when active. `top` and `base` are
  * in the same band space the lib's simulation uses; `top - base` is the
@@ -164,10 +181,12 @@ function rebuildBody() {
     gameState = null
   }
   try {
-    body = useBody(props.config, props.tileSize, {
+    const cfg = libConfig.value
+    body = useBody(cfg, props.tileSize, {
       graphicsUniforms: playgroundGraphicsUniforms,
-      coronaHeadroom:   coronaHeadroom.value,
       quality:          { sphereDetail: sphereDetail.value },
+      variation:        buildPlaygroundVariation(cfg),
+      hoverCursor:      resolveHoverCursorConfig(hoverCursorParams),
     })
     pushAtmoVisualParams()
   } catch (e) {
@@ -196,6 +215,7 @@ function rebuildBody() {
     props.config.radius,
     props.config.rotationSpeed,
     merged,
+    sunWorldPos,
   )
 
   // ── Planet-only build path ────────────────────────────────────────
@@ -223,13 +243,14 @@ function rebuildBody() {
     // Layered paint: sol overlay for metals / minerals, atmo overlay for gases.
     // The pipeline routes each resource to its correct layer based on `phase`.
     paintBody(planetBody, distribution, getDemoResourceRules())
-    // Default the active layer based on body type — gaseous bodies start on
-    // the atmosphere (their visible surface), every other body type starts on
-    // the sol. The user can flip the layer at any time via PaneToggles, and
-    // the watcher below propagates the choice into `body.view.set`.
-    if (props.config.type === 'gaseous' && viewMode.value !== 'atmosphere') {
+    // Default the active layer based on the surface look — `'bands'` bodies
+    // start on the atmosphere (their visible surface), every other look
+    // starts on the sol. The user can flip the layer at any time via
+    // PaneToggles, and the watcher below propagates the choice into
+    // `body.view.set`.
+    if (props.config.surfaceLook === 'bands' && viewMode.value !== 'atmosphere') {
       viewMode.value = 'atmosphere'
-    } else if (props.config.type !== 'gaseous' && viewMode.value !== 'surface') {
+    } else if (props.config.surfaceLook !== 'bands' && viewMode.value !== 'surface') {
       viewMode.value = 'surface'
     }
     planetBody.view.set(viewMode.value)
@@ -239,11 +260,10 @@ function rebuildBody() {
     // ground elevation. Mining the cap (handled below in the digger adapter)
     // exposes the underlying mineral tile band by band.
     if (planetBody.config.liquidState === 'frozen' && planetBody.sim.seaLevelElevation > -1) {
-      // Cap top tracks the *live* sea level (slider-driven) instead of the
-      // sim-derived `seaLevelElevation`, which only reflects the initial
-      // coverage. Aligning with the slider keeps the hex cap and the
-      // (hidden) smooth liquid sphere on the same horizon — and matches
-      // the user's mental "calotte = niveau de l'eau" anchor.
+      // Cap top tracks the *live* sea level (slider-driven) instead of
+      // the sim-derived `seaLevelElevation`, which only reflects the
+      // initial coverage. Aligns with the user's mental "calotte = niveau
+      // de l'eau" anchor when the slider has moved.
       const targetSeaBand = liveSeaLevelBand()
       const submergedTiles: Array<(typeof planetBody.sim.tiles)[number]> = []
       const baseElevation  = new Map<number, number>()
@@ -269,12 +289,6 @@ function rebuildBody() {
           metalness:     0.05,
         })
         planetBody.group.add(solidShell.group)
-        // The lib's smooth liquid sphere (rendered opaque in frozen mode)
-        // sits at the same radius as our hex cap and would visually mask
-        // the per-tile geometry. Hide it: the solid shell is now the
-        // canonical surface for the frozen state, with one mineable hex
-        // per submerged tile.
-        planetBody.liquid.setVisible(false)
       }
     }
   }
@@ -290,7 +304,7 @@ function rebuildBody() {
   if (gameState) {
     const state = gameState
     dig = useTileDig({
-      config:       props.config,
+      config:       libConfig.value,
       sim:          { tiles: body.sim.tiles },
       getElevation: (id) => {
         const ice = iceColumns.get(id)
@@ -334,11 +348,12 @@ function rebuildBody() {
  * keep the existing "no waterline" semantic.
  */
 function liveSeaLevelBand(): number {
-  if (!hasSurfaceLiquid(props.config)) return -1
+  const cfg = libConfig.value
+  if (!hasSurfaceLiquid(cfg)) return -1
   const bandCount = resolveTerrainLevelCount(
-    props.config.radius,
-    props.config.coreRadiusRatio ?? DEFAULT_CORE_RADIUS_RATIO,
-    resolveAtmosphereThickness(props.config),
+    cfg.radius,
+    cfg.coreRadiusRatio ?? DEFAULT_CORE_RADIUS_RATIO,
+    resolveAtmosphereThickness(cfg),
   )
   return seaLevelFraction.value * bandCount
 }
@@ -346,6 +361,87 @@ function liveSeaLevelBand(): number {
 function buildHoverInfo(target: HoverTarget): HoverInfo | null {
   if (!body || !gameState) return null
   const tileId = target.tileId
+
+  // Liquid surface — the user is pointing at the translucent liquid shell.
+  // The tooltip surfaces both the liquid layer (waterline-anchored) and
+  // the mineral floor underneath (the actual submerged sol tile) in one
+  // hover so the player can read what's below the surface without having
+  // to dig first.
+  if (target.kind === 'liquid') {
+    const view = gameState.getTile(tileId)
+    if (!view) return null
+    const seaBand   = liveSeaLevelBand()
+    const waterline = Math.round(seaBand)
+    // The liquid surface IS the ocean biome by definition — short-circuit
+    // `classifyBiome`, which would otherwise mislabel a tile sitting
+    // exactly at the rounded waterline as land (`elevation < seaLevelElev`
+    // is strict).
+    const surfaceBio = biomeLabel('ocean')
+    // Mined-out floor (elevation 0) means the underwater tile has been
+    // dug down to the molten core — surface that explicitly instead of
+    // letting the classifier label it as deep ocean.
+    const seabedBio = view.elevation === 0
+      ? 'Noyau'
+      : biomeLabel(classifyBiome(view.elevation, seaBand, libConfig.value, {
+          min: props.config.temperatureMin,
+          max: props.config.temperatureMax,
+        }))
+    const seabedHeight = resolveTileHeight(libConfig.value, view.elevation)
+    const seabedLevel  = resolveTileLevel(seaBand, view.elevation)
+    const display      = getDemoResourceDisplay()
+    const seabedRes: HoverResource[] = []
+    for (const [id, amount] of view.solResources.entries()) {
+      // Below-water deposits are valid (we're submerged), so don't filter.
+      const disp = display.getResourceDisplay(id)
+      seabedRes.push({ id, label: disp?.label ?? id, amount, color: disp?.color ?? 0x9aa3b0 })
+    }
+    seabedRes.sort((a, b) => b.amount - a.amount)
+    return {
+      tileId,
+      kind:           'liquid',
+      biome:          surfaceBio,
+      elevation:      waterline,
+      height:         resolveTileHeight(libConfig.value, waterline),
+      level:          0,
+      solResources:   [],
+      atmoResources: [],
+      seabed: {
+        biome:        seabedBio,
+        elevation:    view.elevation,
+        height:       seabedHeight,
+        level:        seabedLevel,
+        solResources: seabedRes,
+      },
+      bodyVersion,
+    }
+  }
+
+  // Atmo board — own hexasphere, ids unrelated to sol. Read the resource
+  // distribution off the dedicated getter and skip every sol-side concept
+  // (elevation, biome, height, level).
+  if (target.kind === 'atmo') {
+    const atmoView = gameState.getAtmoTile(tileId)
+    if (!atmoView) return null
+    const display = getDemoResourceDisplay()
+    const atmoResources: HoverInfo['atmoResources'] = []
+    for (const [id, amount] of atmoView.resources.entries()) {
+      const disp = display.getResourceDisplay(id)
+      atmoResources.push({ id, label: disp?.label ?? id, amount, color: disp?.color ?? 0x9aa3b0 })
+    }
+    atmoResources.sort((a, b) => b.amount - a.amount)
+    return {
+      tileId,
+      kind:           'atmo',
+      biome:          undefined,
+      elevation:      null,
+      height:         null,
+      level:          null,
+      solResources:   [],
+      atmoResources,
+      bodyVersion,
+    }
+  }
+
   const view = gameState.getTile(tileId)
   if (!view) return null
   // Tiles mined down to the core have nothing meaningful to read back —
@@ -358,7 +454,7 @@ function buildHoverInfo(target: HoverTarget): HoverInfo | null {
   // mineral floor — so the displayed elevation/height reflect the cap
   // surface (the waterline) instead of the buried sol.
   const displayElevation = target.kind === 'ice' ? Math.round(seaBand) : view.elevation
-  const height  = resolveTileHeight(props.config, displayElevation)
+  const height  = resolveTileHeight(libConfig.value, displayElevation)
   const level   = resolveTileLevel(seaBand, displayElevation)
 
   // Per-tile resources come from the game state — split by render layer so the
@@ -394,7 +490,7 @@ function buildHoverInfo(target: HoverTarget): HoverInfo | null {
 
   const biome = target.kind === 'ice'
     ? 'Frozen surface'
-    : biomeLabel(classifyBiome(view.elevation, seaBand, props.config, {
+    : biomeLabel(classifyBiome(view.elevation, seaBand, libConfig.value, {
         min: props.config.temperatureMin,
         max: props.config.temperatureMax,
       }))
@@ -412,10 +508,17 @@ function buildHoverInfo(target: HoverTarget): HoverInfo | null {
   }
 }
 
-/** Discriminated hover target — ice cap and sol tile are distinct entities. */
+/**
+ * Discriminated hover target — liquid surface, ice cap, sol tile and
+ * atmo tile are distinct entities. The liquid layer is the translucent
+ * shell laid over submerged tiles; under it sits a sol tile (the
+ * mineral sea floor) which the tooltip surfaces alongside.
+ */
 type HoverTarget =
-  | { kind: 'ice'; tileId: number }
-  | { kind: 'sol'; tileId: number }
+  | { kind: 'liquid'; tileId: number }
+  | { kind: 'ice';    tileId: number }
+  | { kind: 'sol';    tileId: number }
+  | { kind: 'atmo';   tileId: number }
 
 /**
  * Computes the radial offset (above the body's surface radius) at which
@@ -474,6 +577,23 @@ const _hitRadialScratch = new THREE.Vector3()
 function queryHoverTarget(): HoverTarget | null {
   if (!body) return null
   body.group.updateWorldMatrix(true, true)
+  // Liquid shell takes priority — it sits on top of the sol mesh and
+  // is visually the surface the user sees first. Top-fan-only geometry
+  // means every triangle is a hex top face, so no normal filtering is
+  // needed (unlike the ice cap whose walls must be rejected).
+  if (body.kind === 'planet') {
+    const liquid = body.liquid.getRaycastState()
+    if (liquid && liquid.mesh.visible) {
+      const hits = raycaster.intersectObject(liquid.mesh, false)
+      for (const hit of hits) {
+        const fi = hit.faceIndex
+        if (fi == null) continue
+        const tileId = liquid.faceToTileId[fi]
+        if (tileId === undefined) continue
+        return { kind: 'liquid', tileId }
+      }
+    }
+  }
   if (solidShell && solidShell.mesh.visible && solidShell.faceToTileId.length > 0) {
     const hits = raycaster.intersectObject(solidShell.mesh, false)
     for (const hit of hits) {
@@ -499,8 +619,12 @@ function queryHoverTarget(): HoverTarget | null {
   // walls (rejected above) or pointing through its top should NOT
   // select the buried mineral floor. Return null so the cursor reads
   // as "no selection" until the cap is mined out.
-  const id = body.interactive.queryHover(raycaster)
-  if (id == null) return null
+  const ref = body.interactive.queryHover(raycaster)
+  // Only sol-board hits are routed through the ice column logic — atmo
+  // hits flow through `tiles.atmo` (caller-side handling) and never reach
+  // this branch in surface view.
+  if (ref == null || ref.layer !== 'sol') return null
+  const id  = ref.tileId
   const col = iceColumns.get(id)
   if (col && col.top > col.base) return null
   return { kind: 'sol', tileId: id }
@@ -524,7 +648,7 @@ function onPointerLeave() {
   lockedHoverId = null
   hoverInfo.value = null
   hoveringConsumed.value = false
-  body?.hover.setTile(null)
+  body?.hover.setBoardTile(null)
 }
 
 function onPointerDown(e: PointerEvent) {
@@ -713,7 +837,6 @@ onMounted(() => {
   rebuildBody()
 
   const camTarget = new THREE.Vector3()
-  const sunWorldPos = new THREE.Vector3()
   stopLoop = startRenderLoop(
     (dt) => {
       if (!renderer || !scene || !camera) return
@@ -722,15 +845,41 @@ onMounted(() => {
       if (body) {
         body.tick(dt)
         spin.update(dt, body.group, props.config.rotationSpeed, props.config.axialTilt)
-        rings?.tick(dt)
-        if (rings && findDominantLightWorldPos(scene, sunWorldPos)) {
-          syncRingShadowSun(body.group, sunWorldPos)
+        // Refresh the dominant-light position BEFORE `rings.tick` — the
+        // ring shader reads `sunWorldPos` by reference, so the new value
+        // must be in place by render time. Same vector feeds the body's
+        // surface shadow sync below.
+        if (rings) {
+          if (findDominantLightWorldPos(scene, sunWorldPos)) {
+            syncRingShadowSun(body.group, sunWorldPos)
+          }
+          rings.tick(dt)
         }
       }
 
       const nowMs = performance.now()
       if (pointerIn && body && camera && nowMs - lastHoverCheckMs >= HOVER_UPDATE_MIN_MS) {
         lastHoverCheckMs = nowMs
+        // Atmosphere view — atmo board hover. Routes the raycast through
+        // `setBoardTile` (paints the atmo tile under the cursor) and
+        // populates the same `hoverInfo` slot the sol path uses, so the
+        // tooltip surfaces the atmo tile id + atmo resources.
+        if (viewMode.value === 'atmosphere') {
+          raycaster.setFromCamera(pointer, camera)
+          const ref = body.interactive.queryHover(raycaster)
+          body.hover.setBoardTile(ref)
+          const atmoTarget: HoverTarget | null = ref?.layer === 'atmo'
+            ? { kind: 'atmo', tileId: ref.tileId }
+            : null
+          const id          = atmoTarget?.tileId ?? null
+          const currentId   = hoverInfo.value?.tileId ?? null
+          const currentKind = hoverInfo.value?.kind   ?? null
+          if (id !== currentId || currentKind !== 'atmo') {
+            hoverInfo.value = atmoTarget ? buildHoverInfo(atmoTarget) : null
+          }
+          renderer.render(scene, camera)
+          return
+        }
         // Post-dig focus lock short-circuits the raycast so the freshly dug
         // tile keeps the hover ring even when a taller neighbour is now in
         // front of the crater. Cleared by `pointermove` — see `lockedHoverId`.
@@ -758,13 +907,15 @@ onMounted(() => {
           const info = effectiveTarget ? buildHoverInfo(effectiveTarget) : null
           hoverInfo.value = info
           if (id !== currentId || kindChanged) {
-            // Anchor the ring on the ice cap's top face when the cursor
-            // is over a frozen tile; otherwise use the lib's default
-            // (sol cap height).
+            // Map the playground's HoverTarget kinds to the lib's BoardTileRef
+            // layers (ice = sol with cap-offset override; liquid stays liquid).
             const opts = effectiveTarget?.kind === 'ice' && id != null
               ? { capOffsetFromRadius: iceCapOffsetFromRadius(id) }
               : undefined
-            body.hover.setTile(id, opts)
+            const ref = effectiveTarget && id != null
+              ? { layer: effectiveTarget.kind === 'ice' ? 'sol' as const : effectiveTarget.kind, tileId: id }
+              : null
+            body.hover.setBoardTile(ref, opts)
           }
         }
       }
@@ -818,7 +969,6 @@ watch(
 // `viewMode === 'shader'`.
 const BACKDROP_ATMO_OPACITY   = 0.2
 const BACKDROP_ATMO_COLOR_MIX = 0.0
-const BACKDROP_LIQUID_CORONA  = 0.15
 
 // Lighting profile per view. Playable raises ambient + lowers the sun
 // so the dark hemisphere stays readable; Shader keeps a contrasty rig
@@ -846,9 +996,6 @@ function pushAtmoVisualParams(): void {
       tileColorMix: isShader ? atmoTileColorMix.value : BACKDROP_ATMO_COLOR_MIX,
     })
   }
-  if (p.liquidCorona) {
-    p.liquidCorona.setOpacity(isShader ? liquidCoronaOpacity.value : BACKDROP_LIQUID_CORONA)
-  }
 }
 
 watch(viewMode, (mode) => {
@@ -857,12 +1004,21 @@ watch(viewMode, (mode) => {
   applyLightingForView()
 })
 
+// Live cursor tuning — every reactive change in `hoverCursorParams` is
+// pushed into the body without rebuild via `body.hover.updateCursor`.
+watch(
+  () => ({
+    ring:      { ...hoverCursorParams.ring },
+    floorRing: { ...hoverCursorParams.floorRing },
+    emissive:  { ...hoverCursorParams.emissive },
+    column:    { ...hoverCursorParams.column },
+  }),
+  () => body?.hover.updateCursor(resolveHoverCursorConfig(hoverCursorParams)),
+  { deep: true },
+)
+
 watch(() => props.config.atmosphereOpacity, pushAtmoVisualParams)
 watch(atmoTileColorMix,                     pushAtmoVisualParams)
-watch(liquidCoronaOpacity,                  pushAtmoVisualParams)
-watch(() => props.config.liquidColor, (c) => {
-  if (c !== undefined) planet()?.liquidCorona?.setColor(c)
-})
 
 /**
  * Map the normalised sea-level fraction to a world-space radius and push
@@ -923,7 +1079,7 @@ function hex(n: number) { return '#' + n.toString(16).padStart(6, '0') }
 
 <template>
   <div class="view" :class="{ 'no-dig': hoveringConsumed }" ref="hostEl">
-    <div class="badge">HEXA · {{ config.type }} · {{ tileCount }} tiles</div>
+    <div class="badge">HEXA · {{ config.surfaceLook ?? config.type }} · {{ tileCount }} tiles</div>
     <div class="fps">{{ fps }} fps</div>
 
     <div
@@ -932,20 +1088,46 @@ function hex(n: number) { return '#' + n.toString(16).padStart(6, '0') }
       :style="{ left: `${tooltipX + 12}px`, top: `${tooltipY + 12}px` }"
     >
       <div class="row-kv">
-        <span class="k">Tile</span><span class="v">#{{ hoverInfo.tileId }}</span>
+        <span class="k">Tile</span><span class="v">#{{ hoverInfo.tileId }}{{ hoverInfo.kind === 'atmo' ? ' (atmo)' : '' }}</span>
       </div>
-      <div class="row-kv">
-        <span class="k">Biome</span><span class="v">{{ hoverInfo.biome ?? '—' }}</span>
-      </div>
-      <div class="row-kv">
-        <span class="k">Level</span><span class="v">{{ hoverInfo.level >= 0 ? `+${hoverInfo.level}` : hoverInfo.level }}</span>
-      </div>
-      <div class="row-kv">
-        <span class="k">Elev.</span><span class="v">{{ hoverInfo.elevation.toFixed(3) }}</span>
-      </div>
-      <div class="row-kv">
-        <span class="k">Height</span><span class="v">{{ hoverInfo.height.toFixed(3) }}</span>
-      </div>
+      <template v-if="hoverInfo.kind !== 'atmo'">
+        <div class="tooltip-section-title" v-if="hoverInfo.kind === 'liquid'">Liquide</div>
+        <div class="row-kv">
+          <span class="k">Biome</span><span class="v">{{ hoverInfo.biome ?? '—' }}</span>
+        </div>
+        <div class="row-kv">
+          <span class="k">Level</span><span class="v">{{ (hoverInfo.level ?? 0) >= 0 ? `+${hoverInfo.level}` : hoverInfo.level }}</span>
+        </div>
+        <div class="row-kv">
+          <span class="k">Elev.</span><span class="v">{{ hoverInfo.elevation?.toFixed(3) ?? '—' }}</span>
+        </div>
+        <div class="row-kv">
+          <span class="k">Height</span><span class="v">{{ hoverInfo.height?.toFixed(3) ?? '—' }}</span>
+        </div>
+      </template>
+      <template v-if="hoverInfo.kind === 'liquid' && hoverInfo.seabed">
+        <div class="tooltip-sep"></div>
+        <div class="tooltip-section-title">Fond océanique</div>
+        <div class="row-kv">
+          <span class="k">Biome</span><span class="v">{{ hoverInfo.seabed.biome ?? '—' }}</span>
+        </div>
+        <div class="row-kv">
+          <span class="k">Level</span><span class="v">{{ hoverInfo.seabed.level >= 0 ? `+${hoverInfo.seabed.level}` : hoverInfo.seabed.level }}</span>
+        </div>
+        <div class="row-kv">
+          <span class="k">Elev.</span><span class="v">{{ hoverInfo.seabed.elevation.toFixed(3) }}</span>
+        </div>
+        <div class="row-kv">
+          <span class="k">Height</span><span class="v">{{ hoverInfo.seabed.height.toFixed(3) }}</span>
+        </div>
+        <template v-if="hoverInfo.seabed.solResources.length">
+          <div v-for="r in hoverInfo.seabed.solResources" :key="'seabed-' + r.id" class="resource-bar">
+            <span :style="{ color: hex(r.color) }">{{ r.label }}</span>
+            <div class="bar"><span :style="{ width: (r.amount * 100).toFixed(1) + '%' }"></span></div>
+            <span class="amt">{{ (r.amount * 100).toFixed(0) }}%</span>
+          </div>
+        </template>
+      </template>
       <template v-if="hoverInfo.solResources.length">
         <div class="tooltip-sep"></div>
         <div class="tooltip-section-title">Surface</div>

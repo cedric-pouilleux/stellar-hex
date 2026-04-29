@@ -45,7 +45,7 @@ onMounted(async () => {
   orbit.maxDistance = 8
 
   const body = useBody({
-    type:                'rocky',
+    type:                'planetary', surfaceLook: 'terrain',
     name:                'atmo-demo',
     radius:               1,
     rotationSpeed:        0,

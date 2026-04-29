@@ -15,8 +15,9 @@
 export { BodyMaterial } from './BodyMaterial'
 export type { BodyMaterialOptions, BodyLightUpdate, ParamValue, ParamMap } from './BodyMaterial'
 
-// Parameter defs (types, defaults, UI groups)
-export { BODY_TYPES, BODY_PARAMS, BODY_GROUPS, getDefaultParams } from './params'
+// Parameter schema (types, defaults). Display labels are caller-owned —
+// see the playground's `paramLabels.ts` for a reference dictionary.
+export { BODY_PARAMS, getDefaultParams } from './params'
 export type { LibBodyType, ParamDef, BodyParamsMap } from './params'
 
 // Shader ranges (numeric slider bounds)

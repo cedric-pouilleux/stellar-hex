@@ -1,4 +1,4 @@
-import type { BodyConfig, ColorInput } from '../../types/body.types'
+import type { PlanetConfig, ColorInput } from '../../types/body.types'
 import { clamp } from '../../internal/math'
 
 /** Neutral fallback used when the caller supplies no rocky anchor colours. */
@@ -89,32 +89,26 @@ export function shiftColor(hex: string, colorMix: number, luminance: number): st
 
 // ── Rocky planet colors ───────────────────────────────────────────
 
-/** Neutral fallback used when the caller declares lava but supplies no colour. */
-const DEFAULT_LAVA_COLOR = '#cc2200'
-
 /**
  * Resolves the rocky planet's shader colour anchors from the caller-supplied
- * `terrainColorLow` / `terrainColorHigh` config fields plus an optional
- * `lavaColor` override.
+ * `terrainColorLow` / `terrainColorHigh` config fields.
  *
  * The lib no longer carries any resource vocabulary, so anchor selection is
  * the caller's concern: callers compute defaults (e.g. from the body's mean
  * equilibrium temperature) and write them back onto the config before
  * calling `useBody`. The playground ships a reference implementation via
- * `deriveTemperatureAnchors` / `deriveLavaColor`.
+ * `deriveTemperatureAnchors`.
  *
- * When the caller omits the anchors, the rocky palette falls back to neutral
- * charcoal / pewter defaults; when `lavaColor` is omitted, a generic dark
- * red is used.
+ * When the caller omits the anchors, the palette falls back to neutral
+ * charcoal / pewter defaults. Lava colour is not part of this resolver
+ * anymore — it lives on `BodyVariation.lavaColor` (caller-pushable).
  */
 export function rockyColors(
-  config: BodyConfig,
-): { colorA: string; colorB: string; lavaColor: string } {
-  const colorA    = normaliseColorInput(config.terrainColorLow)  ?? DEFAULT_ROCKY_COLOR_A
-  const colorB    = normaliseColorInput(config.terrainColorHigh) ?? DEFAULT_ROCKY_COLOR_B
-  const lavaColor = normaliseColorInput(config.lavaColor)        ?? DEFAULT_LAVA_COLOR
-
-  return { colorA, colorB, lavaColor }
+  config: PlanetConfig,
+): { colorA: string; colorB: string } {
+  const colorA = normaliseColorInput(config.terrainColorLow)  ?? DEFAULT_ROCKY_COLOR_A
+  const colorB = normaliseColorInput(config.terrainColorHigh) ?? DEFAULT_ROCKY_COLOR_B
+  return { colorA, colorB }
 }
 
 /**
@@ -155,7 +149,7 @@ function normaliseHex(input: ColorInput): string {
  * pass the already-blended stops through `config.bandColors`. A neutral
  * warm-tan default is substituted when the field is omitted.
  */
-export function gasColorPalette(config: BodyConfig): Record<string, string> {
+export function gasColorPalette(config: PlanetConfig): Record<string, string> {
   const b = config.bandColors
   if (!b) return { ...DEFAULT_GAS_BANDS }
   return {
@@ -183,7 +177,7 @@ const DEFAULT_METALLIC_SHADER_B = '#c4ccd4'
  * `BodyConfig.metallicBands` (see the playground's metallic composition
  * helper for a reference implementation).
  */
-export function metallicShaderColors(config: BodyConfig): { baseA: string; baseB: string } {
+export function metallicShaderColors(config: PlanetConfig): { baseA: string; baseB: string } {
   const bands = config.metallicBands
   if (!bands) return { baseA: DEFAULT_METALLIC_SHADER_A, baseB: DEFAULT_METALLIC_SHADER_B }
   return {

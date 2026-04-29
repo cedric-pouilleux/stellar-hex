@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { useBody, type LibBodyType, type PlanetBody, DEFAULT_CORE_RADIUS_RATIO, terrainBandLayout, resolveTerrainLevelCount, resolveAtmosphereThickness } from '@lib'
-import type { PlaygroundBodyConfig } from '../lib/state'
+import { toLibBodyConfig, type PlaygroundBodyConfig } from '../lib/state'
 import type { ParamMap } from '../lib/state'
 import { installOrbitCamera, applyCamera } from '../lib/orbitCamera'
 import { startRenderLoop } from '../lib/renderLoop'
@@ -11,10 +11,11 @@ import { attachBodyRings, detachBodyRings, mergeRingVariation } from '../lib/bod
 import { syncRingShadowSun } from '../lib/ringShadowSunSync'
 import { findDominantLightWorldPos } from '@lib'
 import type { BodyRingsHandle, RingVariation } from '@lib'
+import { buildPlaygroundVariation } from '../lib/state'
 import {
   ringOverrides, lastDigMutation,
   resourcePatternOverrides, disabledResourceIds, resourceWeights,
-  totalResources, coronaHeadroom, atmoTileColorMix, liquidCoronaOpacity,
+  totalResources, atmoTileColorMix,
   sphereDetail, shaderQuality, resolveShaderPixelRatio,
 } from '../lib/state'
 import { playgroundGraphicsUniforms } from '../lib/playgroundUniforms'
@@ -39,6 +40,14 @@ const props = defineProps<{
 
 const hostEl = ref<HTMLDivElement | null>(null)
 const fps    = ref(0)
+
+/**
+ * Lib-shape projection of the playground's wide editing config — recovers
+ * the strict {@link BodyConfig} union the lib expects (drops cross-branch
+ * fields). Re-derived on every dependent change so any reactive read of
+ * the underlying `props.config` propagates automatically.
+ */
+const libConfig = computed(() => toLibBodyConfig(props.config))
 
 let renderer: THREE.WebGLRenderer | null = null
 let scene:    THREE.Scene | null = null
@@ -65,22 +74,75 @@ let ro:       ResizeObserver | null = null
 
 const spin = createBodySpin()
 
-// Apply user shader overrides to the current smooth-sphere material.
-// Uses `planetMaterial.setParams`, which is a live-update path (no rebuild).
+/**
+ * Cloud-pattern presets — combine `bandiness`, `turbulence`, `storms` and
+ * `bandFreq` of the atmo shell so the user picks an identity in one click
+ * (Vénus voilée, Jupiter banded, Terre cycloned). Index aligns with the
+ * `cloudPattern` shader-param `options` order in `BODY_PARAMS.rocky`.
+ */
+const CLOUD_PRESETS: ReadonlyArray<{
+  bandiness:  number
+  turbulence: number
+  storms:     number
+  bandFreq:   number
+}> = [
+  // 0 — Dispersé : cumulus FBm classique. Reproduit l'ancien comportement
+  // exactement (turbulence haute, bandiness faible).
+  { bandiness: 0.20, turbulence: 0.70, storms: 0.10, bandFreq: 4.0 },
+  // 1 — Cyclones : Terre / Saturne — 3 vortex marqués. Storms fortement
+  // boosté pour que _stormField soit visible dans cloudWeight.
+  { bandiness: 0.00, turbulence: 0.50, storms: 0.90, bandFreq: 4.0 },
+  // 2 — Voile : Vénus opaque — couverture dense uniforme. Turbulence
+  // basse pour que coverageLo chute à 0.20 (couverture quasi totale).
+  { bandiness: 0.00, turbulence: 0.10, storms: 0.00, bandFreq: 2.0 },
+]
+
+/** Type-narrowing helpers — keep `applyShaderOverrides` readable. */
+function pickNum(o: Record<string, unknown>, k: string): number | undefined {
+  const v = o[k]; return typeof v === 'number' ? v : undefined
+}
+function pickStr(o: Record<string, unknown>, k: string): string | undefined {
+  const v = o[k]; return typeof v === 'string' ? v : undefined
+}
+
+/**
+ * Pushes the current shader-param snapshot into the live material(s).
+ *
+ * Two destinations:
+ *   1. Smooth-sphere `planetMaterial` — receives every param via `setParams`,
+ *      mapping `camelCase` → `uCamelCase` uniforms.
+ *   2. Atmo shell — receives the subset that drives the halo / cloud layer
+ *      (cloud cover, halo tint/opacity/colorMix, pattern preset). No-op when
+ *      the body has no shell (gas / metallic without atmo / star).
+ *
+ * Live-update path — no body rebuild. The `atmoColorMix` value is mirrored
+ * into the shared `atmoTileColorMix` ref so HexaPane picks up the change too.
+ */
 function applyShaderOverrides() {
   const pm = (body as any)?.planetMaterial
   pm?.setParams?.({ ...props.params })
 
-  // Cloud cover lives on the atmo shell now — forward the rocky
-  // `wave*` slider values into the shell's cloud uniforms so the user
-  // sees live updates without rebuilding the body. No-op when the body
-  // has no atmo shell (gas / metallic / star).
-  const params = props.params as Record<string, unknown>
-  planet()?.atmoShell?.setParams({
-    cloudAmount: typeof params.waveAmount === 'number' ? params.waveAmount : undefined,
-    cloudColor:  typeof params.waveColor  === 'string' ? params.waveColor  : undefined,
-    cloudScale:  typeof params.waveScale  === 'number' ? params.waveScale  : undefined,
+  const params     = props.params as Record<string, unknown>
+  const patternIdx = pickNum(params, 'cloudPattern') ?? 0
+  const preset     = CLOUD_PRESETS[patternIdx] ?? CLOUD_PRESETS[0]
+  const shell      = planet()?.atmoShell
+  shell?.setParams({
+    cloudAmount: pickNum(params, 'waveAmount'),
+    cloudColor:  pickStr(params, 'waveColor'),
+    cloudScale:  pickNum(params, 'waveScale'),
+    driftSpeed:  pickNum(params, 'waveSpeed'),
+    tint:        pickStr(params, 'atmoTint'),
+    bandiness:   preset.bandiness,
+    turbulence:  preset.turbulence,
+    storms:      preset.storms,
+    bandFreq:    preset.bandFreq,
   })
+  const opacity = pickNum(params, 'atmoOpacity')
+  if (opacity !== undefined) shell?.setOpacity(opacity)
+  // Mirror into the shared ref so HexaPane's watcher picks up the change too
+  // (both panes paint into the same atmo shell concept).
+  const colorMix = pickNum(params, 'atmoColorMix')
+  if (colorMix !== undefined) atmoTileColorMix.value = colorMix
 }
 
 function rebuildBody() {
@@ -92,14 +154,14 @@ function rebuildBody() {
     body = null
   }
   try {
-    body = useBody(props.config, props.tileSize, {
+    const cfg = libConfig.value
+    body = useBody(cfg, props.tileSize, {
       graphicsUniforms: playgroundGraphicsUniforms,
-      coronaHeadroom:   coronaHeadroom.value,
       quality:          { sphereDetail: sphereDetail.value },
+      variation:        buildPlaygroundVariation(cfg),
     })
     const p = planet()
     p?.atmoShell?.setParams({ tileColorMix: atmoTileColorMix.value })
-    p?.liquidCorona?.setOpacity(liquidCoronaOpacity.value)
   } catch (e) {
     console.error('[ShaderPane] useBody failed:', e)
     return
@@ -129,16 +191,17 @@ function rebuildBody() {
   scene.add(body.group)
   baseRingVariation = body.variation?.rings ?? null
   const merged = baseRingVariation ? mergeRingVariation(baseRingVariation, ringOverrides) : null
+  // Mutable Vector3 refreshed from the dominant directional light's position
+  // before every render (see the loop below). Wired by reference into both
+  // the rings shader (via `attachBodyRings`) and the per-frame shadow sync.
+  sunWorldPos = new THREE.Vector3()
   rings = attachBodyRings(
     body.group,
     props.config.radius,
     props.config.rotationSpeed,
     merged,
+    sunWorldPos,
   )
-  // Mutable Vector3 refreshed from the dominant directional light's position
-  // before every render (see the loop below) so the ring-shadow sync tracks
-  // the sun without manual plumbing.
-  sunWorldPos = new THREE.Vector3()
 
   // The shader pane is the **non-interactive** preview — flip into the
   // dedicated `'shader'` view so the smooth sphere + procedural atmo
@@ -163,10 +226,11 @@ function applySeaLevel(fraction: number): void {
   const p = planet()
   if (!p) return
   const core      = p.getCoreRadius()
-  const coreRatio = props.config.coreRadiusRatio ?? DEFAULT_CORE_RADIUS_RATIO
-  const atmoThick = resolveAtmosphereThickness(props.config)
-  const bandCount = resolveTerrainLevelCount(props.config.radius, coreRatio, atmoThick)
-  const layout    = terrainBandLayout(props.config.radius, coreRatio, bandCount, atmoThick)
+  const cfg       = libConfig.value
+  const coreRatio = cfg.coreRadiusRatio ?? DEFAULT_CORE_RADIUS_RATIO
+  const atmoThick = resolveAtmosphereThickness(cfg)
+  const bandCount = resolveTerrainLevelCount(cfg.radius, coreRatio, atmoThick)
+  const layout    = terrainBandLayout(cfg.radius, coreRatio, bandCount, atmoThick)
   // Map `fraction ∈ [0, 1]` linearly to `band ∈ [0, N]`, then project to
   // world radius via `bandToRadius`. `band = N` sits one `unit` above the
   // tallest tile so fraction=1 fully submerges every surface band.
@@ -281,7 +345,6 @@ watch(() => props.config.atmosphereOpacity, (v) => {
   if (typeof v === 'number') planet()?.atmoShell?.setOpacity(v)
 })
 watch(atmoTileColorMix, (v) => planet()?.atmoShell?.setParams({ tileColorMix: v }))
-watch(liquidCoronaOpacity, (v) => planet()?.liquidCorona?.setOpacity(v))
 
 // Live shader-quality preset → renderer pixel ratio. `setSize` repushes the
 // canvas drawing buffer dimensions so the new ratio takes effect on the
@@ -291,9 +354,6 @@ watch(shaderQuality, (q) => {
   const host = hostEl.value
   renderer.setPixelRatio(resolveShaderPixelRatio(q))
   if (host) renderer.setSize(host.clientWidth, host.clientHeight)
-})
-watch(() => props.config.liquidColor, (c) => {
-  if (c !== undefined) planet()?.liquidCorona?.setColor(c)
 })
 
 /**

@@ -12,7 +12,6 @@
 
 import * as THREE from 'three'
 import type { RingVariation } from './ringVariation'
-import { findSceneRoot, findDominantLightWorldPos } from '../lighting/findDominantLight'
 
 const VERT = /* glsl */`
   varying vec3 vWorldPos;
@@ -196,6 +195,15 @@ export interface BodyRingsConfig {
    * per-frame copy is needed.
    */
   planetWorldPos: THREE.Vector3
+  /**
+   * Mutable world-space position of the dominant light — same contract
+   * as {@link planetWorldPos}: caller owns the vector, mutates it every
+   * frame, the lib reads by reference. Drives the rings' backlight halo
+   * and shadow ray. Callers that want auto-discovery in a Vue/Tres scene
+   * can use `findDominantLightWorldPos` (exported from the lib) to feed
+   * the vector before each tick.
+   */
+  sunWorldPos:    THREE.Vector3
 }
 
 /**
@@ -249,10 +257,10 @@ export function buildBodyRings(config: BodyRingsConfig): BodyRingsHandle {
     uNoiseSeed:      { value: config.variation.noiseSeed },
     uColorInner:     { value: new THREE.Color(config.variation.colorInner) },
     uColorOuter:     { value: new THREE.Color(config.variation.colorOuter) },
-    // Wired directly to the caller's mutable Vector3 — no per-frame copy.
+    // Wired directly to the caller's mutable Vector3s — no per-frame copy.
     uPlanetWorldPos: { value: config.planetWorldPos },
     uPlanetRadius:   { value: config.radius },
-    uSunWorldPos:    { value: new THREE.Vector3(0, 0, 0) },
+    uSunWorldPos:    { value: config.sunWorldPos },
   }
 
   const mat = new THREE.ShaderMaterial({
@@ -287,10 +295,9 @@ export function buildBodyRings(config: BodyRingsConfig): BodyRingsHandle {
     // track the same accumulated phase — both stay in lockstep.
     uniforms.uRotationPhase.value = spinAngle
 
-    // `uPlanetWorldPos` is wired by reference to `config.planetWorldPos` —
-    // the caller mutates it from its own loop, the shader sees the change
-    // next render with no copy.
-    if (mesh.parent) findDominantLightWorldPos(findSceneRoot(mesh), uniforms.uSunWorldPos.value)
+    // `uPlanetWorldPos` and `uSunWorldPos` are wired by reference to the
+    // caller's mutable Vector3s — the caller refreshes them from its own
+    // loop, the shader reads the up-to-date values with no copy.
   }
 
   function updateVariation(v: RingVariation): void {

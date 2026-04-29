@@ -10,17 +10,19 @@ import type { BodyType } from '../types/surface.types'
 /**
  * Single source of truth for "does this body carry a surface liquid?".
  *
- * Only `rocky` bodies can hold a liquid surface — gaseous, metallic and
- * stars are explicitly excluded regardless of the `liquidState` value on
- * the config. Using this helper everywhere keeps the sim layer (liquid
- * coverage, sea level) and the render layer (liquid sphere, sea anchors,
- * shore basements) in lockstep — a gas giant accidentally configured with
- * `liquidState: 'liquid'` still renders dry.
+ * Stars never carry a surface liquid — there is no solid surface for one
+ * to sit on. Every other body type (`rocky`, `gaseous`, `metallic` and
+ * any future planetary archetype) honours `liquidState`: a metallic body
+ * with `liquidState: 'liquid'` produces a liquid metal surface, a gaseous
+ * body with `liquidState: 'liquid'` produces a deep ocean under its
+ * envelope, and so on. Picking when that makes sense (composition,
+ * temperature, biome) is a caller-side decision; the lib only carries the
+ * resolved state.
  */
 export function hasSurfaceLiquid(config: {
   type:         BodyType
   liquidState?: 'liquid' | 'frozen' | 'none'
 }): boolean {
-  if (config.type !== 'rocky') return false
+  if (config.type === 'star') return false
   return (config.liquidState ?? 'none') !== 'none'
 }

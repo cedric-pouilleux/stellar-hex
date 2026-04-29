@@ -65,7 +65,7 @@ onMounted(async () => {
   orbit.autoRotateSpeed = 0.6
 
   const config = {
-    type:                'rocky' as const,
+    type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'playable-demo',
     radius:               1,
     rotationSpeed:        0,
@@ -115,8 +115,8 @@ onMounted(async () => {
   function onClick() {
     if (mode.value === 'shader') return
     raycaster.setFromCamera(pointer, camera)
-    const id = body.interactive.queryHover(raycaster)
-    if (id != null) body.tiles.applyTileOverlay('sol', new Map([[id, GOLD]]))
+    const ref = body.interactive.queryHover(raycaster)
+    if (ref?.layer === 'sol') body.tiles.sol.applyOverlay(new Map([[ref.tileId, GOLD]]))
   }
   renderer.domElement.addEventListener('pointermove',  onPointerMove)
   renderer.domElement.addEventListener('pointerleave', onPointerLeave)
@@ -136,8 +136,9 @@ onMounted(async () => {
 
     if (pointerIn && mode.value !== 'shader') {
       raycaster.setFromCamera(pointer, camera)
-      const id = body.interactive.queryHover(raycaster)
-      body.hover.setTile(id)
+      const ref = body.interactive.queryHover(raycaster)
+      body.hover.setBoardTile(ref)
+      const id  = ref?.layer === 'sol' ? ref.tileId : null
       if (id != null) {
         const state = body.sim.tileStates.get(id)
         if (state) {

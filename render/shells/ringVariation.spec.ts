@@ -9,7 +9,8 @@ import type { BodyConfig } from '../../types/body.types'
 function makeRockyConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
   return {
     name:           'TestRocky',
-    type:           'rocky',
+    type:           'planetary',
+    surfaceLook:    'terrain',
     radius:         1,
     rotationSpeed:  0.01,
     axialTilt:      0.2,
@@ -21,7 +22,8 @@ function makeRockyConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
 function makeGasConfig(overrides: Partial<BodyConfig> = {}): BodyConfig {
   return {
     name:           'TestGas',
-    type:           'gaseous',
+    type:           'planetary',
+    surfaceLook:    'bands',
     radius:         3,
     rotationSpeed:  0.01,
     axialTilt:      0.1,
@@ -151,7 +153,7 @@ describe('generateRingVariation', () => {
       const gas      = generateRingVariation(makeGasConfig(),  seededPrng(seed))!
       const rocky    = generateRingVariation(makeRockyConfig({ hasRings: true }), seededPrng(seed))!
       const metallic = generateRingVariation(
-        makeRockyConfig({ type: 'metallic', hasRings: true }),
+        makeRockyConfig({ surfaceLook: 'metallic', hasRings: true }),
         seededPrng(seed),
       )!
       if (gas.colorInner !== rocky.colorInner && gas.colorInner !== metallic.colorInner) differs++

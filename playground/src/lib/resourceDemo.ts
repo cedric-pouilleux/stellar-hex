@@ -5,8 +5,8 @@ import { registerResourceVisual } from './paint/resourceVisualRegistry'
 import type { ResourceRules, TileResources } from './paint/tileResourceBlend'
 import type { TileResourceDistribution, LayeredDistribution } from './paint/paintBody'
 import { applyPattern, type DistributionPattern, type PatternTile } from './distributionPatterns'
-import { VOLATILES, type VolatileId } from './volatileCatalog'
-import { assignResourceMix, extractGasVolatiles, T_avgK } from './resourceMix'
+import { VOLATILES, VOLATILE_IDS, type VolatileId } from './volatileCatalog'
+import { resolveExtraResources } from './extraResources'
 import {
   assignGaseousTiles,
   patternForKind,
@@ -42,13 +42,23 @@ type SeedTile = PatternTile
  * of its reactive overrides so distribution stays a pure function.
  */
 interface DistributeInput {
+  /** Sol board hexasphere tiles — ground biome / mineral distribution. */
   tiles:             readonly SeedTile[]
+  /**
+   * Atmo board hexasphere tiles — independent from `tiles`. Atmo board
+   * lives on its own (denser) hexasphere, so the gas distribution must
+   * walk these ids, not the sol ids. Empty when the body has no
+   * atmosphere.
+   */
+  atmoTiles:         readonly SeedTile[]
   elevations:        ReadonlyMap<number, number>
   config:            BodyConfig
   /**
    * Caller-side thermal metadata. The lib's `BodyConfig` no longer
-   * carries temperature fields — the playground keeps them as a
-   * separate input here so the gas-mix derivations stay pure.
+   * carries temperature fields — the playground keeps them here so the
+   * sol biome classifier (`classifyBiome`) can decide which biome each
+   * tile belongs to. The atmo path is intentionally temperature-agnostic
+   * (see {@link runAtmoDistribution}).
    */
   temperatureMin:    number
   temperatureMax:    number
@@ -114,7 +124,7 @@ function runSolDistribution(
   const skipBiomeFilter = biomeMap.size === 0
 
   const layerMaps = new Map<string, Map<number, number>>()
-  for (const spec of DEMO_RESOURCES) {
+  for (const spec of resolveExtraResources()) {
     if (resourceLayer(spec.phase) !== 'sol') continue
     if (disabled?.has(spec.id)) continue
     const eligible = skipBiomeFilter
@@ -146,52 +156,50 @@ function runSolDistribution(
 
 /**
  * Atmo path — winner-takes-all exclusive assignment for gas-phase resources.
- * Runs on every body type: rocky / metallic bodies get their thin-atmosphere
- * gas mix (N₂, CO₂, H₂O vapour when temperature allows…) and gaseous bodies
- * get the full Jovian pattern. Stars skip — they have no atmosphere.
+ * Runs on every body type except stars. The gas mix is built directly from
+ * the user's reactive resource state (toggles + per-resource weights) — the
+ * playground deliberately decouples the atmo layer from temperature/physics
+ * so the user can add and test any volatile freely (e.g. water vapour on a
+ * cold body where it would normally be frozen out).
  *
  * Each tile is claimed by exactly one volatile so the atmosphere reads as
- * clean bands / blocks / spots. Returns empty when no volatile is in gas
- * phase at the body's temperature (e.g. ultra-cold worlds where everything
- * has frozen out).
+ * clean bands / blocks / spots. Returns empty when every volatile is
+ * disabled or has weight 0.
  */
 function runAtmoDistribution(input: DistributeInput): TileResourceDistribution {
-  const { tiles, config } = input
+  const { atmoTiles: tiles, config } = input
   if (config.type === 'star') return new Map()
+  if (tiles.length === 0)    return new Map()
 
-  const physics = {
-    tempMin: input.temperatureMin,
-    tempMax: input.temperatureMax,
-    radius:  config.radius,
-    mass:    config.mass ?? 1,
-  }
-  const mix = assignResourceMix(physics)
-  let gasMix: Partial<Record<VolatileId, number>> = extractGasVolatiles(mix, T_avgK(physics))
-
-  // Strip disabled gases from the mix BEFORE the winner-takes-all pass — a
-  // user-disabled gas must not steal tiles from its neighbours. Weight = 0
-  // is treated the same way: it removes the gas from the mix entirely.
   const disabled = input.disabledResources
   const weights  = input.weights
-  if (disabled?.size || weights) {
-    const filtered: Partial<Record<VolatileId, number>> = {}
-    for (const [id, w] of Object.entries(gasMix)) {
-      if (disabled?.has(id)) continue
-      const scale = weights?.[id] ?? 1
-      if (scale <= 0) continue
-      filtered[id as VolatileId] = (w ?? 0) * scale
-    }
-    gasMix = filtered
+  const gasMix: Partial<Record<string, number>> = {}
+  for (const id of VOLATILE_IDS) {
+    if (disabled?.has(id)) continue
+    const w = weights?.[id] ?? 1
+    if (w <= 0) continue
+    gasMix[id] = w
+  }
+  // Custom atmo resources (phase = 'gas' but not in `VOLATILE_IDS`) are
+  // treated as additional gases — same winner-takes-all assignment as the
+  // shipped volatiles.
+  for (const spec of resolveExtraResources()) {
+    if (spec.phase !== 'gas') continue
+    if (VOLATILES[spec.id as VolatileId]) continue
+    if (disabled?.has(spec.id)) continue
+    const w = weights?.[spec.id] ?? 1
+    if (w <= 0) continue
+    gasMix[spec.id] = w
   }
   if (Object.keys(gasMix).length === 0) return new Map()
 
   const assignment = assignGaseousTiles({
     tiles,
     gasMix,
-    overrides: input.patternOverrides as Partial<Record<VolatileId, GasPatternKind>> | undefined,
+    overrides: input.patternOverrides,
     hashKey:   config.name,
     radius:    config.radius,
-    weights:   input.weights as Partial<Record<VolatileId, number>> | undefined,
+    weights:   input.weights,
   })
 
   const out = new Map<number, TileResources>()
@@ -229,9 +237,10 @@ function runDistribution(input: DistributeInput): LayeredDistribution {
 /** Optional knobs forwarded into {@link runDistribution} from caller code. */
 export interface GenerateDemoDistributionOptions {
   /**
-   * Caller-side thermal metadata used by the atmo gas-mix derivation.
-   * Required because the lib's `BodyConfig` no longer carries
-   * `temperatureMin/Max` (climate is caller-owned).
+   * Caller-side thermal metadata consumed by the sol biome classifier.
+   * Atmo distribution ignores temperature entirely (see
+   * {@link runAtmoDistribution}). Required because the lib's
+   * `BodyConfig` no longer carries `temperatureMin/Max`.
    */
   temperatureMin:    number
   temperatureMax:    number
@@ -267,6 +276,7 @@ export function generateDemoDistribution(
   for (const [tileId, state] of sim.tileStates) elevations.set(tileId, state.elevation)
   return runDistribution({
     tiles:              sim.tiles,
+    atmoTiles:          sim.atmoTiles,
     elevations,
     config:             sim.config,
     temperatureMin:     options.temperatureMin,
@@ -336,13 +346,15 @@ export function getDemoResourceDisplay(): DemoResourceDisplay {
       // demo resource carries that flag anymore (surface liquids are driven
       // by the volatile catalogue). The `gas` phase is the natural proxy
       // when a caller asks for surface-solid resources.
-      return DEMO_RESOURCES
+      return resolveExtraResources()
         .filter(r => !solidSurfaceOnly || r.phase !== 'gas')
         .map(r => ({ id: r.id, color: r.color }))
     },
     getResourceDisplay(id) {
       const r = RESOURCE_BY_ID.get(id)
       if (r) return { label: r.label, color: r.color }
+      const custom = resolveExtraResources().find(s => s.id === id)
+      if (custom) return { label: custom.label, color: custom.color }
       // Volatile fallback — gaseous-body tiles carry volatile ids (h2o, ch4,
       // …) that aren't in `DEMO_RESOURCES`. Surface their gas-phase tint and
       // catalogue label so the hover popover stays informative.

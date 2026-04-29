@@ -11,7 +11,7 @@ import OrbitControlsBridge from './OrbitControlsBridge.vue'
  */
 
 const config: BodyConfig = {
-  type:           'gaseous',
+  type:           'planetary', surfaceLook: 'bands',
   name:           'gas-body-demo',
   radius:         1,
   rotationSpeed:  0.004,

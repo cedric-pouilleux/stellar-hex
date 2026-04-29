@@ -1,5 +1,5 @@
-/**
- * Snippet — generate a deterministic body simulation server-side.
+﻿/**
+ * Snippet â€” generate a deterministic body simulation server-side.
  * No Three.js, no DOM. Run in Node, in a worker, or as a CLI step.
  */
 export const headlessGenerateCode = `import {
@@ -10,7 +10,7 @@ export const headlessGenerateCode = `import {
 const { tiles } = generateHexasphere(1, 6)
 const sim = initBodySimulation(tiles, {
   name:           'Worker-Body-42',
-  type:           'rocky',
+  type:           'planetary', surfaceLook: 'terrain',
   radius:          1,
   rotationSpeed:   0.005,
   axialTilt:       0.41,

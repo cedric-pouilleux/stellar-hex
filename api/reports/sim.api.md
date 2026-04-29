@@ -5,18 +5,15 @@
 ```ts
 
 // @public
-export type BodyConfig = BodyIdentity & BodyPhysics & BodyNoiseProfile & BodyVisualProfile;
+export type BodyConfig = PlanetConfig | StarConfig;
 
 // @public
-export interface BodyIdentity {
-    // (undocumented)
-    name: string;
-    // (undocumented)
-    type: BodyType;
-}
+export type BodyIdentity = PlanetIdentity | StarIdentity;
 
 // @public
 export interface BodyNoiseProfile {
+    continentAmount?: number;
+    continentScale?: number;
     noiseLacunarity?: number;
     noiseOctaves?: number;
     noisePersistence?: number;
@@ -27,22 +24,20 @@ export interface BodyNoiseProfile {
 }
 
 // @public
-export interface BodyPhysics {
-    atmosphereOpacity?: number;
-    atmosphereThickness?: number;
+export type BodyPhysics = PlanetPhysics | StarPhysics;
+
+// @public
+export interface BodyPhysicsCore {
     axialTilt: number;
     coreRadiusRatio?: number;
-    gasMassFraction?: number;
-    liquidCoverage?: number;
-    liquidState?: 'liquid' | 'frozen' | 'none';
     mass?: number;
     radius: number;
     rotationSpeed: number;
-    spectralType?: SpectralType;
 }
 
 // @public
 export interface BodySimulation {
+    readonly atmoTiles: readonly Tile[];
     readonly bandToNoiseThreshold: (band: number) => number;
     // (undocumented)
     readonly config: BodyConfig;
@@ -58,30 +53,10 @@ export interface BodySimulation {
 }
 
 // @public
-export type BodyType = 'rocky' | 'gaseous' | 'metallic' | 'star';
+export type BodyType = 'planetary' | 'star';
 
-// @public
-export interface BodyVisualProfile {
-    bandColors?: {
-        colorA: ColorInput;
-        colorB: ColorInput;
-        colorC: ColorInput;
-        colorD: ColorInput;
-    };
-    hasCracks?: boolean;
-    hasLava?: boolean;
-    hasRings?: boolean;
-    lavaColor?: ColorInput;
-    liquidColor?: ColorInput;
-    metallicBands?: readonly [
-    MetallicBand,
-    MetallicBand,
-    MetallicBand,
-    MetallicBand
-    ];
-    terrainColorHigh?: ColorInput;
-    terrainColorLow?: ColorInput;
-}
+// @public @deprecated
+export type BodyVisualProfile = PlanetVisualProfile;
 
 // @public
 export function buildNeighborMap(tiles: readonly Tile[]): Map<number, number[]>;
@@ -102,6 +77,12 @@ export function generateHexasphere(radius: number, subdivisions: number): Hexasp
 export function getNeighbors(tileId: number, neighborMap: Map<number, number[]>): number[];
 
 // @public
+export function hasAtmosphere(config: {
+    type: BodyType;
+    atmosphereThickness?: number;
+}): boolean;
+
+// @public
 export function hasSurfaceLiquid(config: {
     type: BodyType;
     liquidState?: 'liquid' | 'frozen' | 'none';
@@ -115,7 +96,7 @@ export interface HexasphereData {
 }
 
 // @public
-export function initBodySimulation(tiles: Tile[], config: BodyConfig): BodySimulation;
+export function initBodySimulation(tiles: Tile[], config: BodyConfig, atmoTiles?: readonly Tile[]): BodySimulation;
 
 // @public
 export interface MetallicBand {
@@ -125,6 +106,48 @@ export interface MetallicBand {
     height?: number;
     metalness?: number;
     roughness?: number;
+}
+
+// @public
+export type PlanetConfig = PlanetIdentity & PlanetPhysics & BodyNoiseProfile & PlanetVisualProfile;
+
+// @public
+export interface PlanetIdentity {
+    // (undocumented)
+    name: string;
+    // (undocumented)
+    surfaceLook?: SurfaceLook;
+    // (undocumented)
+    type: 'planetary';
+}
+
+// @public
+export interface PlanetPhysics extends BodyPhysicsCore {
+    atmosphereOpacity?: number;
+    atmosphereThickness?: number;
+    gasMassFraction?: number;
+    liquidCoverage?: number;
+    liquidState?: 'liquid' | 'frozen' | 'none';
+}
+
+// @public
+export interface PlanetVisualProfile {
+    bandColors?: {
+        colorA: ColorInput;
+        colorB: ColorInput;
+        colorC: ColorInput;
+        colorD: ColorInput;
+    };
+    hasRings?: boolean;
+    liquidColor?: ColorInput;
+    metallicBands?: readonly [
+    MetallicBand,
+    MetallicBand,
+    MetallicBand,
+    MetallicBand
+    ];
+    terrainColorHigh?: ColorInput;
+    terrainColorLow?: ColorInput;
 }
 
 // @public
@@ -158,7 +181,7 @@ export function resolveCoreRadiusRatio(config: {
 }): number;
 
 // @public
-export function resolveStarData(cfg: StarConfig): ResolvedStarData;
+export function resolveStarData(cfg: StarPhysicsInput): ResolvedStarData;
 
 // @public (undocumented)
 export const SPECTRAL_TABLE: Record<SpectralType, {
@@ -167,18 +190,35 @@ export const SPECTRAL_TABLE: Record<SpectralType, {
     color: string;
 }>;
 
-// @public (undocumented)
+// @public
 export type SpectralType = 'O' | 'B' | 'A' | 'F' | 'G' | 'K' | 'M';
 
-// @public (undocumented)
-export interface StarConfig {
+// @public
+export type StarConfig = StarIdentity & StarPhysics & BodyNoiseProfile;
+
+// @public
+export interface StarIdentity {
     // (undocumented)
-    radius?: number;
+    name: string;
     // (undocumented)
     spectralType: SpectralType;
     // (undocumented)
+    type: 'star';
+}
+
+// @public
+export type StarPhysics = BodyPhysicsCore;
+
+// @public
+export interface StarPhysicsInput {
+    radius?: number;
+    // (undocumented)
+    spectralType: SpectralType;
     tempK?: number;
 }
+
+// @public
+export type SurfaceLook = 'terrain' | 'bands' | 'metallic';
 
 // @public
 export interface Tile {
@@ -196,7 +236,7 @@ export interface TileState {
 }
 
 // @public
-export function toStarParams(cfg: StarConfig): {
+export function toStarParams(cfg: StarPhysicsInput): {
     radius: number;
     tempK: number;
 };

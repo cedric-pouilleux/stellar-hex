@@ -75,3 +75,43 @@ export function buildPrismGeometry(
   geo.setAttribute('normal',   new THREE.Float32BufferAttribute(normals,   3))
   return geo
 }
+
+/**
+ * Builds only the top fan of a hex prism — same vertex layout as the top
+ * fan of {@link buildPrismGeometry} (n × 3 vertices, fan from `centerPoint`),
+ * but no walls. Used by the liquid shell where the cap is a flat surface
+ * sitting at the waterline (no underwater "column" to draw).
+ */
+export function buildPrismTopFanGeometry(
+  tile:   Tile,
+  height: number,
+): THREE.BufferGeometry {
+  const { centerPoint, boundary } = tile
+  const extrudeRadial = (
+    p: { x: number; y: number; z: number },
+    delta: number,
+  ): THREE.Vector3 => {
+    const len = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z)
+    const scale = (len + delta) / len
+    return v(p.x * scale, p.y * scale, p.z * scale)
+  }
+
+  const topCenter   = extrudeRadial(centerPoint, height)
+  const topBoundary = boundary.map(p => extrudeRadial(p, height))
+  const topNormal   = new THREE.Vector3(centerPoint.x, centerPoint.y, centerPoint.z).normalize()
+
+  const positions: number[] = []
+  const normals:   number[] = []
+  const n = boundary.length
+  for (let i = 0; i < n; i++) {
+    pushVec(positions, topCenter)
+    pushVec(positions, topBoundary[i])
+    pushVec(positions, topBoundary[(i + 1) % n])
+    for (let k = 0; k < 3; k++) pushVec(normals, topNormal)
+  }
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geo.setAttribute('normal',   new THREE.Float32BufferAttribute(normals,   3))
+  return geo
+}

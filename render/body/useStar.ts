@@ -1,17 +1,20 @@
 import * as THREE from 'three'
 import type { BodySimulation } from '../../sim/BodySimulation'
-import type { BodyConfig } from '../../types/body.types'
+import type { StarConfig } from '../../types/body.types'
 import type { TerrainLevel } from '../../types/terrain.types'
-import type { StarBody } from '../../types/bodyHandle.types'
+import type { StarBody, BoardTileRef } from '../../types/bodyHandle.types'
 import type { BodyVariation } from './bodyVariation'
 import type { HoverChannel } from '../state/hoverState'
 import type { GraphicsUniforms } from '../hex/hexGraphicsUniforms'
 import type { RenderQuality } from '../quality/renderQuality'
+import type { BodyTypeStrategy } from './bodyTypeStrategy'
 import { buildPlanetMesh, buildStarSmoothMesh } from './buildPlanetMesh'
 import { buildInteractiveMesh } from './buildInteractiveMesh'
 import { buildBodyHoverOverlay } from '../shells/buildBodyHoverOverlay'
 import { makeInteractiveController } from './interactiveController'
 import { accelerateRaycast } from '../lighting/accelerateRaycast'
+import { mountHoverCursor } from '../hover/mountHoverCursor'
+import type { HoverCursorConfig, HoverCursorPresets } from '../../types/hoverCursor.types'
 
 /**
  * Stars use a different visual radius than the hex tile reference, so the
@@ -28,7 +31,7 @@ export const STAR_TILE_REF: Record<string, number> = { M: 2.0, K: 2.5, G: 3.0, F
  */
 export interface UseStarInputs {
   /** Original body config — needed for radius, coreRadiusRatio fallback. */
-  config:    BodyConfig
+  config:    StarConfig
   /** Initialised body simulation (tile states + sea level). */
   sim:       BodySimulation
   /** Resolved terrain palette for this star. */
@@ -43,6 +46,18 @@ export interface UseStarInputs {
   graphicsUniforms: GraphicsUniforms
   /** Optional render-quality bag — propagated to the smooth-sphere builder. */
   quality?:         RenderQuality
+  /**
+   * Pre-resolved body-type strategy. Forwarded to the interactive mesh so
+   * the lookup is shared with the dispatcher (`useBody` resolves it once,
+   * passes it through).
+   */
+  strategy:         BodyTypeStrategy
+  /** Optional hover cursor parameters — ring / emissive (no column on stars). */
+  hoverCursor?:     HoverCursorConfig
+  /** Optional named cursor presets, swappable via `body.hover.useCursor(name)`. */
+  hoverCursors?:    HoverCursorPresets
+  /** Initial preset name when `hoverCursors` is supplied. */
+  defaultCursor?:   string
 }
 
 /**
@@ -59,12 +74,16 @@ export interface UseStarInputs {
  * @returns      Star-specific body handle.
  */
 export function useStar(inputs: UseStarInputs): StarBody {
-  const { config, sim, palette, variation, tileCount, hoverChannel, graphicsUniforms, quality } = inputs
+  const {
+    config, sim, palette, variation, tileCount,
+    hoverChannel, graphicsUniforms, quality, strategy,
+    hoverCursor, hoverCursors, defaultCursor,
+  } = inputs
   const group = new THREE.Group()
 
   const { mesh: displayMesh, tick, planetMaterial: starMat } = buildStarSmoothMesh(sim, palette, variation, { quality })
   const { mesh: raycastProxy, faceToTileId }                  = buildPlanetMesh(sim, palette)
-  const interactive                                            = buildInteractiveMesh(sim, palette, { hoverChannel, graphicsUniforms })
+  const interactive                                            = buildInteractiveMesh(sim, palette, { hoverChannel, graphicsUniforms, strategy })
   // Accelerate the raycast proxy with a single-layer BVH (stars have no
   // atmo band). `firstHitOnly` in the controller then resolves hovers in
   // sub-millisecond time instead of walking every triangle.
@@ -77,6 +96,29 @@ export function useStar(inputs: UseStarInputs): StarBody {
   const ctrl                                                   = makeInteractiveController(group, displayMesh, () => raycastState, interactive)
   const bodyHover                                              = buildBodyHoverOverlay(group, config.radius)
 
+  // Stars carry a single sol-like board. Cursor uses the palette height
+  // for the cap radius so prism-relative positioning stays correct on
+  // ridge tiles.
+  const tileById = new Map(sim.tiles.map(t => [t.id, t] as const))
+  const { cursor, useCursor } = mountHoverCursor(
+    { hoverCursor, hoverCursors, defaultCursor },
+    {
+      group,
+      bodyRadius:   config.radius,
+      hoverChannel,
+      sol: {
+        getTile:        id => tileById.get(id) ?? null,
+        getCapRadius:   id => {
+          const info = interactive.tileGeometry(id)
+          return config.radius + (info?.level.height ?? 0)
+        },
+        getFloorRadius: () => config.radius * (config.coreRadiusRatio ?? 0),
+      },
+      liquid: null,
+      atmo:   null,
+    },
+  )
+
   let starElapsed = 0
   function tickStar(dt: number): void {
     starElapsed += dt
@@ -85,6 +127,7 @@ export function useStar(inputs: UseStarInputs): StarBody {
   }
 
   function dispose(): void {
+    cursor.dispose()
     releaseRaycastBVH()
     bodyHover.dispose()
     displayMesh.geometry.dispose()
@@ -115,16 +158,31 @@ export function useStar(inputs: UseStarInputs): StarBody {
     interactive: {
       activate:   ctrl.activateInteractive,
       deactivate: ctrl.deactivateInteractive,
-      queryHover: ctrl.queryHover,
+      // Stars only carry a single board (sol-like). Wrap the legacy id
+      // result into the discriminated `BoardTileRef` so callers can use a
+      // single hover-handling code path across stars and planets.
+      queryHover(raycaster): BoardTileRef | null {
+        const id = ctrl.queryHover(raycaster)
+        return id === null ? null : { layer: 'sol', tileId: id }
+      },
     },
     hover: {
-      setTile:       interactive.setHover,
-      setPinnedTile: interactive.setPinnedTile,
+      setTile: (id, opts) => {
+        cursor.setBoardTile(id === null ? null : { layer: 'sol', tileId: id }, opts)
+      },
+      setBoardTile(ref, options) {
+        // Stars carry a single sol-like board — non-sol refs collapse to
+        // a clear (no liquid, no atmo on stars).
+        cursor.setBoardTile(ref && ref.layer === 'sol' ? ref : null, options)
+      },
       setBodyHover:  bodyHover.setVisible,
-      onChange:      interactive.onHoverChange,
+      onChange:      cursor.onHoverChange,
+      updateCursor:  cursor.updateConfig,
+      useCursor,
     },
     tiles: {
       surfaceOffset:  interactive.surfaceOffset,
+      tiles:          sim.tiles,
       tileGeometry:   interactive.tileGeometry,
       writeTileColor: interactive.writeTileColor,
       tileBaseVisual: interactive.tileBaseVisual,

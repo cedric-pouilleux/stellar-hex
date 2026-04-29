@@ -10,18 +10,16 @@ export interface MutableRef<T> {
 }
 
 /**
- * Per-body hover / pin publication channel.
+ * Per-body hover publication channel.
  *
- * Body factories write into the four refs when the user hovers or pins a
- * tile; scene-level projectors (e.g. `TileCenterProjector`,
- * `PinnedTileProjector`) read them every frame to project the local-space
- * tile center to screen pixels.
+ * Body factories write into the two refs when the user hovers a tile;
+ * scene-level projectors (e.g. `TileCenterProjector`) read them every
+ * frame to project the local-space tile center to screen pixels.
  *
  * Each body owns its own channel — multi-body scenes can therefore host
- * several hovered or pinned tiles concurrently without cross-body
- * interference. Callers that want a single global hover slot (popover UX)
- * can pass the same channel into multiple bodies via
- * `useBody(config, tileSize, { hoverChannel })`.
+ * several hovered tiles concurrently without cross-body interference.
+ * Callers that want a single global hover slot (popover UX) can pass the
+ * same channel into multiple bodies via `useBody(config, tileSize, { hoverChannel })`.
  */
 export interface HoverChannel {
   /**
@@ -35,15 +33,6 @@ export interface HoverChannel {
    * world space. Set to the body's root group when a tile is hovered.
    */
   hoverParentGroup: MutableRef<THREE.Object3D | null>
-  /**
-   * Local-space position of the tile currently pinned by the popover, or
-   * `null`. Tracked independently from the hover ring so the popover
-   * anchor keeps following the planet's rotation even after the cursor
-   * leaves the tile.
-   */
-  pinLocalPos:      MutableRef<THREE.Vector3 | null>
-  /** Parent group whose `matrixWorld` transforms {@link pinLocalPos} to world space. */
-  pinParentGroup:   MutableRef<THREE.Object3D | null>
 }
 
 /**
@@ -66,7 +55,5 @@ export function createHoverChannel(): HoverChannel {
   return {
     hoverLocalPos:    { value: null },
     hoverParentGroup: { value: null },
-    pinLocalPos:      { value: null },
-    pinParentGroup:   { value: null },
   }
 }

@@ -33,13 +33,13 @@ console.log(sim.seaLevelElevation)
 | `buildNeighborMap`     | fonction | Graphe d'adjacence 6-way |
 | `getNeighbors`         | fonction | Voisins d'une tuile par id |
 | `resolveStarData`      | fonction | Lookup spectral → temp/rayon/luminosité |
-| `toStarParams`         | fonction | StarConfig → params shader |
+| `toStarParams`         | fonction | `StarPhysicsInput` → params shader |
 | `hasSurfaceLiquid`     | fonction | Predicate liquide en surface (lit `liquidState`) |
 | `deriveCoreRadiusRatio`| fonction | `gasMassFraction` → ratio noyau/visuel |
 | `resolveCoreRadiusRatio` | fonction | Ordre de résolution explicite → dérivé → défaut |
 | `SPECTRAL_TABLE`, `DEFAULT_TILE_SIZE`, `REF_STAR_*`, `REF_*_DENSITY` | constantes | Catalogues et références |
 
-Plus tous les types : `BodyConfig`, `BodyIdentity`, `BodyPhysics`, `BodyNoiseProfile`, `BodyVisualProfile`, `Tile`, `HexasphereData`, `TileState`.
+Plus tous les types : `BodyConfig` (union discriminée `PlanetConfig | StarConfig`), `PlanetConfig`, `StarConfig`, `BodyIdentity`, `PlanetIdentity`, `StarIdentity`, `BodyPhysics`, `BodyPhysicsCore`, `PlanetPhysics`, `StarPhysics`, `BodyNoiseProfile`, `PlanetVisualProfile` (alias `BodyVisualProfile`), `StarPhysicsInput`, `Tile`, `HexasphereData`, `TileState`.
 
 ## Pourquoi headless ?
 

@@ -1,4 +1,4 @@
-export const gasGiantThreeCode = `\
+﻿export const gasGiantThreeCode = `\
 import * as THREE from 'three'
 import {
   useBody,
@@ -14,7 +14,7 @@ scene.add(sun)
 
 const body = useBody(
   {
-    type:           'gaseous',
+    type:           'planetary', surfaceLook: 'bands',
     name:           'Jovian',
     radius:         2,
     rotationSpeed:  0.003,
@@ -28,6 +28,7 @@ scene.add(body.group)
 // body.variation.rings is auto-generated from the seed when hasRings is true.
 let rings: ReturnType<typeof buildBodyRings> | null = null
 const planetWorldPos = new THREE.Vector3()
+const sunWorldPos    = new THREE.Vector3()
 
 if (body.variation.rings) {
   rings = buildBodyRings({
@@ -35,6 +36,7 @@ if (body.variation.rings) {
     rotationSpeed:  body.config.rotationSpeed,
     variation:      body.variation.rings,
     planetWorldPos,
+    sunWorldPos,
   })
   // Attach the carrier (not the mesh) so the rings inherit tilt + spin.
   body.group.add(rings.carrier)
@@ -44,6 +46,7 @@ if (body.variation.rings) {
 function tick(dt: number) {
   body.tick(dt)
   body.group.getWorldPosition(planetWorldPos)
+  sun.getWorldPosition(sunWorldPos)
   rings?.tick(dt)
 }
 `

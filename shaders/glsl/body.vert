@@ -1,6 +1,13 @@
 uniform float uTime;
 uniform float uSeed;
 uniform float uHeightScale;
+/**
+ * Terrain archetype index — 0 smooth, 1 ridged, 2 billow, 3 hybrid.
+ * Same value as the fragment shader uniform; declared here so vertex
+ * displacement matches the colour pattern. Falls back to 0 when the
+ * material has no terrain archetype param (e.g. star, gas).
+ */
+uniform float uTerrainArchetype;
 
 varying vec3  vPosition;
 varying vec3  vNormal;
@@ -23,14 +30,16 @@ void main() {
   float freq = 3.0;
 
   // Height at this point — 4 octaves suffice for vertex displacement
-  // (high octaves produce sub-vertex detail, wasted in the vertex stage)
-  float h0 = fbm4(position * freq + seed3, 2.0, 0.5);
+  // (high octaves produce sub-vertex detail, wasted in the vertex stage).
+  // Archetype-aware: keeps geometry consistent with the colour pattern
+  // sampled in the fragment shader.
+  float h0 = fbmArchetype4(position * freq + seed3, 2.0, 0.5, uTerrainArchetype);
 
   // Finite-difference gradient to perturb the normal
   float eps = 0.003;
-  float hpx = fbm4((position + vec3(eps, 0.0, 0.0)) * freq + seed3, 2.0, 0.5);
-  float hpy = fbm4((position + vec3(0.0, eps, 0.0)) * freq + seed3, 2.0, 0.5);
-  float hpz = fbm4((position + vec3(0.0, 0.0, eps)) * freq + seed3, 2.0, 0.5);
+  float hpx = fbmArchetype4((position + vec3(eps, 0.0, 0.0)) * freq + seed3, 2.0, 0.5, uTerrainArchetype);
+  float hpy = fbmArchetype4((position + vec3(0.0, eps, 0.0)) * freq + seed3, 2.0, 0.5, uTerrainArchetype);
+  float hpz = fbmArchetype4((position + vec3(0.0, 0.0, eps)) * freq + seed3, 2.0, 0.5, uTerrainArchetype);
   vec3 grad = vec3(hpx - h0, hpy - h0, hpz - h0) / eps;
 
   // Perturbed normal: remove the radial component of the gradient,

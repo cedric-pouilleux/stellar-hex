@@ -1,4 +1,4 @@
-import type { BodyConfig }    from '../../types/body.types'
+import type { BodyConfig, PlanetConfig, StarConfig } from '../../types/body.types'
 import type { BodyVariation } from './bodyVariation'
 import { SHADER_RANGES } from '../../shaders'
 import type { ParamMap } from '../../shaders/BodyMaterial'
@@ -12,6 +12,7 @@ import {
 import { clamp, lerp } from '../../internal/math'
 import { SPECTRAL_KELVIN, hasSurfaceLiquid } from '../../physics/body'
 import { strategyFor } from './bodyTypeStrategy'
+import { continentSeedFromName } from '../../internal/continents'
 
 // Shorthand aliases — single source of truth for all param bounds
 const RR = SHADER_RANGES.rocky
@@ -27,7 +28,7 @@ function seedFromName(name: string): number {
 
 /** @internal — exported for the body-type strategy table. Not part of the public API. */
 export function rockyShaderParams(
-  config:   BodyConfig,
+  config:   PlanetConfig,
   variation?: BodyVariation,
 ): ParamMap {
   const atmo    = config.atmosphereThickness ?? 0
@@ -62,23 +63,30 @@ export function rockyShaderParams(
   const lum      = variation?.luminance ?? 1.0
   const colorA   = shiftColor(base.colorA, colorMix, lum)
   const colorB   = shiftColor(base.colorB, colorMix, lum)
-  const { lavaColor } = base
 
-  // Cracks — gated by explicit `hasCracks` flag, intensity from variation.
-  const crackAmount = !config.hasCracks ? 0
-    : lerp(RR.crackAmount.min, RR.crackAmount.max, variation?.crackIntensity ?? 0.5)
+  // Cracks / lava are pure visual effects — intensity 0 disables the layer
+  // entirely. The caller (game logic) pushes a value > 0 when it wants the
+  // planet to display the effect; the lib has no opinion on when that
+  // should be.
+  const crackIntensity = variation?.crackIntensity ?? 0
+  const crackAmount    = crackIntensity <= 0 ? 0
+    : lerp(RR.crackAmount.min, RR.crackAmount.max, crackIntensity)
 
   const crackColor  = rockyCrackColor(colorA, colorB)
   const crackWidth  = clamp(variation?.crackWidth ?? 0.20, RR.crackWidth.min, RR.crackWidth.max)
   const crackScale  = clamp(variation?.crackScale ?? 2.00, RR.crackScale.min, RR.crackScale.max)
   const crackDepth  = clamp(variation?.crackDepth ?? 0.70, RR.crackDepth.min, RR.crackDepth.max)
 
-  // Lava — gated by explicit `hasLava` flag. Intensity is now an absolute
-  // value pushed by the caller via `variation.lavaIntensity` (no thermal
-  // baseline, no implicit cap from the lib).
-  const lavaAmount = !config.hasLava ? 0
-    : clamp(variation?.lavaIntensity ?? 0, 0, 0.80)
-  const lavaEmissive = variation?.lavaEmissive ?? 1.5
+  const lavaIntensity = variation?.lavaIntensity ?? 0
+  const lavaAmount    = lavaIntensity <= 0 ? 0
+    : clamp(lavaIntensity, 0, 0.80)
+  const lavaEmissive  = variation?.lavaEmissive ?? 1.5
+  const lavaColor     = variation?.lavaColor    ?? '#cc2200'
+
+  // Continent layer — same values consumed by `BodySimulation.noiseAt` so
+  // the GPU `liquidLandMask` matches the CPU tile classification on the
+  // shoreline. `continentAmount = 0` (default) leaves the legacy behaviour.
+  const continentSeed = continentSeedFromName(config.name)
 
   return {
     noiseSeed:  variation?.noiseSeed ?? [0, 0, 0],
@@ -90,6 +98,9 @@ export function rockyShaderParams(
     colorA,        colorB,
     waveAmount,
     waveScale: variation?.waveScale ?? 1.2,
+    continentAmount: config.continentAmount ?? 0,
+    continentScale:  config.continentScale  ?? 1,
+    continentSeed,
   }
 }
 
@@ -98,7 +109,7 @@ export function rockyShaderParams(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** @internal — exported for the body-type strategy table. Not part of the public API. */
-export function gasShaderParams(config: BodyConfig, variation?: BodyVariation): ParamMap {
+export function gasShaderParams(config: PlanetConfig, variation?: BodyVariation): ParamMap {
   const rot   = config.rotationSpeed
   const mass  = config.mass ?? 1.0
 
@@ -143,8 +154,8 @@ export function gasShaderParams(config: BodyConfig, variation?: BodyVariation): 
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** @internal — exported for the body-type strategy table. Not part of the public API. */
-export function starShaderParams(config: BodyConfig): ParamMap {
-  const T_k = config.spectralType ? (SPECTRAL_KELVIN[config.spectralType] ?? 5778) : 5778
+export function starShaderParams(config: StarConfig): ParamMap {
+  const T_k = SPECTRAL_KELVIN[config.spectralType] ?? 5778
   const rot  = config.rotationSpeed
   const animSpeed           = clamp(rot * 40 + 0.50, 0.30, 3.00)
   const granulationContrast = T_k < 4000 ? 0.85 : T_k < 6000 ? 0.65 : lerp(0.65, 0.30, (T_k - 6000) / 10000)
@@ -160,7 +171,7 @@ export function starShaderParams(config: BodyConfig): ParamMap {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** @internal — exported for the body-type strategy table. Not part of the public API. */
-export function metallicShaderParams(config: BodyConfig, variation?: BodyVariation): ParamMap {
+export function metallicShaderParams(config: PlanetConfig, variation?: BodyVariation): ParamMap {
   // Caller-owned palette anchors — variation shifts warm/cool + luminance within the family.
   // `metallicShaderColors` reads the deep+peak stops from `config.metallicBands` (or falls
   // back to a neutral grey pair when the caller omits them).
@@ -176,25 +187,26 @@ export function metallicShaderParams(config: BodyConfig, variation?: BodyVariati
   const physRoughness = clamp(0.65, MR.roughness.min, MR.roughness.max)
   const roughness     = clamp(physRoughness * (variation?.roughnessMod ?? 1), MR.roughness.min, MR.roughness.max)
 
-  const crackAmount = config.hasCracks
-    ? lerp(MR.crackAmount.min, MR.crackAmount.max, variation?.crackIntensity ?? 0.5)
-    : 0
+  // Cracks — intensity 0 disables the layer; caller pushes > 0 to display.
+  const crackIntensity = variation?.crackIntensity ?? 0
+  const crackAmount    = crackIntensity <= 0 ? 0
+    : lerp(MR.crackAmount.min, MR.crackAmount.max, crackIntensity)
   const crackColor  = variation?.crackColor ?? baseB
   const crackWidth  = clamp(variation?.crackWidth ?? 0.15, MR.crackWidth.min, MR.crackWidth.max)
   const crackScale  = clamp(variation?.crackScale ?? 2.0,  MR.crackScale.min, MR.crackScale.max)
   const crackDepth  = clamp(variation?.crackDepth ?? 0.70, MR.crackDepth.min, MR.crackDepth.max)
 
-  // Lava — gated by `hasLava`, intensity is now an absolute value pushed
-  // by the caller via `variation.lavaIntensity` (no thermal baseline).
-  const lavaAmount  = config.hasLava
-    ? clamp(variation?.lavaIntensity ?? 0, MR.lavaAmount.min, MR.lavaAmount.max)
-    : 0
-  const lavaEmissive = clamp(variation?.lavaEmissive ?? 1.5, MR.lavaEmissive.min, MR.lavaEmissive.max)
-  // Lava color — caller pushes via `config.lavaColor` for a heated look;
-  // otherwise falls back to the metallic peak stop (baseB) without boost.
-  const lavaColor    = config.lavaColor ?? baseB
-  const lavaScale    = clamp(variation?.lavaScale ?? 0.60, MR.lavaScale.min, MR.lavaScale.max)
-  const lavaWidth    = clamp(variation?.lavaWidth ?? 0.08, MR.lavaWidth.min, MR.lavaWidth.max)
+  // Lava — intensity 0 disables; caller pushes a value > 0 for molten flows.
+  // `lavaColor` lives on `variation` now (was `config.lavaColor`); when the
+  // caller leaves it at the seeded default, we fall back to the metallic peak
+  // stop (baseB) so the lava reads as molten metal rather than dark red.
+  const lavaIntensity = variation?.lavaIntensity ?? 0
+  const lavaAmount    = lavaIntensity <= 0 ? 0
+    : clamp(lavaIntensity, MR.lavaAmount.min, MR.lavaAmount.max)
+  const lavaEmissive  = clamp(variation?.lavaEmissive ?? 1.5, MR.lavaEmissive.min, MR.lavaEmissive.max)
+  const lavaColor     = variation?.lavaColor ?? baseB
+  const lavaScale     = clamp(variation?.lavaScale ?? 0.60, MR.lavaScale.min, MR.lavaScale.max)
+  const lavaWidth     = clamp(variation?.lavaWidth ?? 0.08, MR.lavaWidth.min, MR.lavaWidth.max)
 
   const metalness = variation?.metalness ?? 0.90
 
@@ -236,5 +248,5 @@ export function configToLibParams(
   variation?: BodyVariation,
 ): ParamMap {
   const seed = seedFromName(config.name)
-  return strategyFor(config.type).buildShaderParams(config, seed, variation)
+  return strategyFor(config).buildShaderParams(config, seed, variation)
 }

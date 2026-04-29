@@ -8,7 +8,6 @@
  */
 
 import type { BodyType } from '../types/surface.types'
-import { MAX_ATMOSPHERE_THICKNESS_BY_TYPE } from './atmosphere'
 
 /**
  * Default ratio of the solid core radius to the visual surface radius.
@@ -100,14 +99,10 @@ export function resolveCoreRadiusRatio(config: {
   } else {
     raw = DEFAULT_CORE_RADIUS_RATIO
   }
-  // Apply the body-type cap to atmosphereThickness when `type` is supplied
-  // — keeps the sol-band guard consistent with whatever the renderer will
-  // actually use (which always clamps via `resolveAtmosphereThickness`).
-  const atmoRaw = Math.max(0, Math.min(1, config.atmosphereThickness ?? 0))
-  const atmoCap = config.type !== undefined
-    ? (MAX_ATMOSPHERE_THICKNESS_BY_TYPE[config.type] ?? 1)
-    : 1
-  const atmo    = Math.min(atmoRaw, atmoCap)
+  // Sol-band guard: whatever the caller asked for, the radial partition
+  // `[core | sol | atmo]` must keep at least `MIN_SOL_BAND_FRACTION` for
+  // the sol layer so the layered prism mesh stays non-degenerate.
+  const atmo    = Math.max(0, Math.min(1, config.atmosphereThickness ?? 0))
   const maxCore = Math.max(0, 1 - atmo - MIN_SOL_BAND_FRACTION)
   return Math.max(0, Math.min(raw, maxCore))
 }

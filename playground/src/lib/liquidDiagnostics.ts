@@ -8,7 +8,7 @@
  * Pure module — no Vue dependency so the logic stays trivially testable.
  */
 
-import type { BodyConfig } from '@lib'
+import type { BodyConfig, PlanetConfig } from '@lib'
 import type { SurfaceLiquidType } from './liquidCatalog'
 
 /** Re-export for UI files that previously pulled this type from here. */
@@ -28,12 +28,15 @@ export interface LiquidState {
  * Resolve the liquid state from the lib config (`liquidState`) plus the
  * playground-owned substance selection. `liquidType` is now caller-owned
  * state — the lib does not know water from methane.
+ *
+ * Accepts the wide {@link BodyConfig} union and narrows internally — star
+ * configs (which carry no `liquidState`) short-circuit to a dry profile.
  */
 export function resolveLiquidState(
-  config:     Pick<BodyConfig, 'type' | 'liquidState'>,
+  config:     Pick<BodyConfig, 'type'> & Partial<Pick<PlanetConfig, 'liquidState'>>,
   liquidType: SurfaceLiquidType | undefined,
 ): LiquidState {
-  if (config.type !== 'rocky' || !config.liquidState || config.liquidState === 'none') {
+  if (config.type === 'star' || !config.liquidState || config.liquidState === 'none') {
     return { liquidType: undefined, hasLiquid: false, hasSurfaceBody: false }
   }
   return {

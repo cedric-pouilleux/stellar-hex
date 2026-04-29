@@ -10,7 +10,6 @@ La racine `@cedric-pouilleux/stellar-hex` ajoute des **composants Vue** par-dess
 | `<BodyController>`      | Animation interne (rotation, drag, pose externe) |
 | `<BodyRings>`           | Disque d'anneaux planétaires |
 | `<ShadowUpdater>`       | Mise à jour des uniforms d'ombres entre corps |
-| `<PinnedTileProjector>` | Marqueur 3D→2D au-dessus d'une tuile épinglée |
 | `<TileCenterProjector>` | Projecteur du centre d'une tuile |
 
 ## Usage minimal — `<Body>` dans TresJS
@@ -62,7 +61,7 @@ const body = useBody(config, DEFAULT_TILE_SIZE)
 
 // Primitives communes (planètes ET étoiles)
 body.interactive.activate()
-body.hover.setTile(42)
+body.hover.setBoardTile({ layer: 'sol', tileId: 42 })
 const tiles = body.sim.tileStates // Map<id, TileState>
 
 // Namespaces planet-only — narrow le union avant d'y toucher
@@ -87,7 +86,6 @@ La simulation vit sur `body.sim` — vous pouvez piloter une UI overlay depuis l
 | `showShadow`     | `boolean` | Mount `<ShadowUpdater>` (corps satellite ombrant son parent) |
 | `parentBody`     | `RenderableBody \| null` | Parent pour le calcul d'ombres |
 | `hoveredTileId`  | `number \| null` | État de tuile survolée (contrôlé) |
-| `pinnedTileId`   | `number \| null` | État de tuile épinglée (contrôlé) |
 | `bodyHover`      | `boolean` | Ring de hover au niveau du corps |
 | `interactive`    | `boolean` | Active le mesh hex (raycast + tile colors) |
 

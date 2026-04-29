@@ -20,7 +20,7 @@ const star = useBody({
 
 const planets = [
   { body: useBody({
-      type: 'rocky', name: 'rocky-1',
+      type: 'planetary', surfaceLook: 'terrain', name: 'rocky-1',
       radius: 0.45, 
       rotationSpeed: 0.02, axialTilt: 0.4,
     reliefFlatness:       0.55,
@@ -28,14 +28,14 @@ const planets = [
     } as BodyConfig, DEFAULT_TILE_SIZE),
     orbitRadius: 4.5, orbitSpeed: 0.30, phase: 0 },
   { body: useBody({
-      type: 'metallic', name: 'metal-2',
+      type: 'planetary', surfaceLook: 'metallic', name: 'metal-2',
       radius: 0.6, 
       rotationSpeed: 0.012, axialTilt: 0.2,
     reliefFlatness:       0.55,
     } as BodyConfig, DEFAULT_TILE_SIZE),
     orbitRadius: 7.0, orbitSpeed: 0.18, phase: 1.5 },
   { body: useBody({
-      type: 'gaseous', name: 'jovian-3',
+      type: 'planetary', surfaceLook: 'bands', name: 'jovian-3',
       radius: 1.0, 
       rotationSpeed: 0.005, axialTilt: 0.05,
     reliefFlatness:       0.55,
@@ -44,8 +44,7 @@ const planets = [
 ]
 
 const poses = ref(planets.map(p => ({
-  quaternion: new THREE.Quaternion(),
-  position:   new THREE.Vector3(p.orbitRadius, 0, 0),
+  position: new THREE.Vector3(p.orbitRadius, 0, 0),
 })))
 
 let animId: number | null = null
