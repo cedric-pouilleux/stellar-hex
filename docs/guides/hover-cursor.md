@@ -150,4 +150,4 @@ Aucune des primitives n'impacte le rendu shader ou le pipeline post-process — 
 - [Mode jouable](/examples/hex-tiles/playable-mode) — exemple complet avec interactions
 - [Visualiseur interactif](/examples/hex-tiles/interactive-viewer) — pattern raycast minimal
 - [API : `BodyHover`](/api/core/interfaces/BodyHover)
-- [API : `HoverCursorConfig`](/api/core/type-aliases/HoverCursorConfig)
+- [API : `HoverCursorConfig`](/api/core/interfaces/HoverCursorConfig)

@@ -2,7 +2,13 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
-export default defineConfig({
+// Mounted under the VitePress site at `<docs base>/playground/`. The
+// `PLAYGROUND_BASE` env var lets a standalone deploy override the default;
+// dev always resolves to `/` (Vite ignores `base` in serve mode anyway).
+const productionBase = process.env.PLAYGROUND_BASE ?? '/stellar-hex/playground/'
+
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? productionBase : '/',
   plugins: [vue()],
   resolve: {
     alias: {
@@ -18,4 +24,4 @@ export default defineConfig({
       allow: [fileURLToPath(new URL('..', import.meta.url))],
     },
   },
-})
+}))

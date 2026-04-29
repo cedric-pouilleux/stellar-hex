@@ -37,9 +37,12 @@ export default defineConfig({
 
   themeConfig: {
     nav: [
-      { text: 'Guides',   link: '/guides/getting-started'        },
-      { text: 'Exemples', link: '/examples/body-types/rocky'     },
-      { text: 'API',      link: '/api/'                          },
+      { text: 'Guides',     link: '/guides/getting-started'    },
+      { text: 'Exemples',   link: '/examples/body-types/rocky' },
+      { text: 'API',        link: '/api/'                      },
+      // Sibling SPA built separately and embedded under `/playground/` at
+      // deploy time. VitePress treats it as a plain external link.
+      { text: 'Playground', link: '/playground/', target: '_self' },
       {
         text: 'GitHub',
         link: 'https://github.com/cedric-pouilleux/stellar-hex',
