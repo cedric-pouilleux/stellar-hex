@@ -38,7 +38,7 @@ export interface BodyVariation {
   // ── Rocky / Metallic: cracks ────────────────────────────────────────
   /**
    * 0–1 lerp factor between the shader's `crackAmount` min / max. `0` disables
-   * the effect entirely — the caller (game logic) pushes a value > 0 when it
+   * the effect entirely — the caller (game logic) pushes a value \> 0 when it
    * wants the planet to display crust fractures. Default `0`.
    */
   crackIntensity: number   // 0..1
@@ -55,7 +55,7 @@ export interface BodyVariation {
   // ── Rocky / Metallic: lava ──────────────────────────────────────────
   /**
    * Lava intensity in `[0, 1]`. `0` disables the lava layer; the caller pushes
-   * a value > 0 when it wants the planet to display molten flows. Default `0`.
+   * a value \> 0 when it wants the planet to display molten flows. Default `0`.
    */
   lavaIntensity:  number
   lavaEmissive:   number   // 0.80–2.80

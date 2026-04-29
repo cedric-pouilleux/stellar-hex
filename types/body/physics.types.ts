@@ -59,8 +59,8 @@ export interface PlanetPhysics extends BodyPhysicsCore {
    *   - atmosphere: `[solOuterRadius, radius]`
    *
    * So `atmosphereThickness = 0.6` on a gas giant carves 60 % of the radius
-   * for the atmo layer; the sol band is squeezed into the remaining `1 −
-   * atmosphereThickness − coreRadiusRatio`. The lib clamps `coreRadiusRatio`
+   * for the atmo layer; the sol band is squeezed into the remaining
+   * `1 − atmosphereThickness − coreRadiusRatio`. The lib clamps `coreRadiusRatio`
    * so at least 5 % of the radius stays available for the sol band, even
    * when both knobs request more than 100 % combined.
    */

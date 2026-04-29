@@ -14,8 +14,8 @@ import type * as THREE from 'three'
 /** Outline ring tracing the hovered tile's boundary. */
 export interface HoverCursorRingConfig {
   /**
-   * Outer radius scale of the ring vs the tile boundary. A value > 1
-   * inflates the ring outside the tile (visible as a halo); < 1 shrinks
+   * Outer radius scale of the ring vs the tile boundary. A value \> 1
+   * inflates the ring outside the tile (visible as a halo); \< 1 shrinks
    * it inside. Default `1.0` — flush on the boundary.
    */
   size?:    number

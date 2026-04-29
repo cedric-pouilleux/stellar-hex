@@ -36,8 +36,9 @@ export type StarConfig =
   & BodyNoiseProfile
 
 /**
- * Discriminated union of the two body shapes. Narrow on `config.type ===
- * 'star'` (or `'planetary'`) before reading type-specific fields.
+ * Discriminated union of the two body shapes. Narrow on
+ * `config.type === 'star'` (or `'planetary'`) before reading type-specific
+ * fields.
  *
  * The discriminant encodes every structural difference between the two
  * branches at compile time — assigning a planet-only field on a star

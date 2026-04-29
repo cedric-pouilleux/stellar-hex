@@ -144,8 +144,8 @@ function emitPrism(
 }
 
 /**
- * Builds the single-band hex prism for a tile — spans `[coreRadius,
- * coreRadius + solHeight]`, capped at the sol surface.
+ * Builds the single-band hex prism for a tile — spans
+ * `[coreRadius, coreRadius + solHeight]`, capped at the sol surface.
  *
  * `solHeight` is clamped to `[0, shellThickness]`. Callers pass the clamped
  * value — this function is the authority on the geometry layout, not on

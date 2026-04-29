@@ -68,8 +68,8 @@ export interface LayeredInteractiveMesh extends InteractiveMesh {
    * counts stay stable thanks to always-emitted walls in
    * {@link buildLayeredPrismGeometry}.
    *
-   * Silently skips unknown tile ids. Heights are clamped to `[0,
-   * maxTerrainHeight]`.
+   * Silently skips unknown tile ids. Heights are clamped to
+   * `[0, maxTerrainHeight]`.
    */
   updateTileSolHeight: (updates: Map<number, number>) => void
 

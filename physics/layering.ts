@@ -79,8 +79,9 @@ export const MIN_SOL_BAND_FRACTION = 0.05
  *   2. derivation from `gasMassFraction` via {@link deriveCoreRadiusRatio}
  *   3. {@link DEFAULT_CORE_RADIUS_RATIO}
  *
- * The result is then clamped so `coreRatio + atmosphereThickness ≤ 1 −
- * MIN_SOL_BAND_FRACTION`. The sol band is the part of the radius that
+ * The result is then clamped so that
+ * `coreRatio + atmosphereThickness ≤ 1 − MIN_SOL_BAND_FRACTION`.
+ * The sol band is the part of the radius that
  * carries the playable terrain prisms; collapsing it to zero (or worse,
  * negative) would leave the layered mesh with no room for the sol layer
  * — this clamp keeps the radial partition `[core | sol | atmo]` valid.

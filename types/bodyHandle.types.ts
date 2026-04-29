@@ -154,10 +154,10 @@ export interface BodyHover {
    * Switches the active cursor preset by name — must be one of the keys
    * registered in `useBody`'s `hoverCursors` option (or `'default'` when
    * the body was built with the single-cursor `hoverCursor` shortcut).
-   * Throws on unknown names. Each preset is a full {@link
-   * import('./hoverCursor.types').HoverCursorConfig} — switching applies
-   * the entire preset (any primitive not mentioned by the preset falls
-   * back to its lib default, NOT the previous preset's value).
+   * Throws on unknown names. Each preset is a full
+   * `HoverCursorConfig` — switching applies the entire preset (any
+   * primitive not mentioned by the preset falls back to its lib default,
+   * NOT the previous preset's value).
    */
   useCursor(name: string): void
   /**

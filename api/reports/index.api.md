@@ -134,6 +134,7 @@ export interface BodyHover {
     setBodyHover(visible: boolean): void;
     setTile(id: number | null, options?: HoverPlacementOptions): void;
     updateCursor(config: HoverCursorConfig): void;
+    useCursor(name: string): void;
 }
 
 // @public
@@ -638,6 +639,8 @@ export interface HoverCursorConfig {
     // (undocumented)
     emissive?: false | HoverCursorEmissiveConfig;
     // (undocumented)
+    floorRing?: false | HoverCursorRingConfig;
+    // (undocumented)
     ring?: false | HoverCursorRingConfig;
 }
 
@@ -649,8 +652,12 @@ export interface HoverCursorEmissiveConfig {
 }
 
 // @public
+export type HoverCursorPresets = Record<string, HoverCursorConfig>;
+
+// @public
 export interface HoverCursorRingConfig {
     color?: THREE.ColorRepresentation;
+    opacity?: number;
     size?: number;
 }
 
@@ -1321,6 +1328,8 @@ export function useBody(config: BodyConfig, tileSize: number, options?: {
     quality?: RenderQuality;
     variation?: BodyVariation;
     hoverCursor?: HoverCursorConfig;
+    hoverCursors?: HoverCursorPresets;
+    defaultCursor?: string;
 }): Body_3;
 
 // (No @packageDocumentation comment for this package)
