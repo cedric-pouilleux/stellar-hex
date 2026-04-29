@@ -4,7 +4,7 @@ import { buildLayeredInteractiveMesh, resolveSolHeight } from './buildLayeredInt
 import { generateHexasphere } from '../../geometry/hexasphere'
 import { initBodySimulation } from '../../sim/BodySimulation'
 import { generateBodyVariation } from '../body/bodyVariation'
-import { generateTerrainPalette } from '../../terrain/terrainPalette'
+import { generateTerrainPalette } from '../palettes/terrainPalette'
 import { DEFAULT_CORE_RADIUS_RATIO, resolveAtmosphereThickness } from '../../physics/body'
 import { computeLayeredShellMetrics } from './layeredShellMetrics'
 import { createHoverChannel } from '../state/hoverState'

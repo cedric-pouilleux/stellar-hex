@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 import type { BodySimulation } from '../../sim/BodySimulation'
 import type { StarConfig } from '../../types/body.types'
-import type { TerrainLevel } from '../../types/terrain.types'
-import type { StarBody, BoardTileRef } from '../../types/bodyHandle.types'
+import type { TerrainLevel } from '../types/terrain.types'
+import type { StarBody, BoardTileRef } from '../types/bodyHandle.types'
 import type { BodyVariation } from './bodyVariation'
 import type { HoverChannel } from '../state/hoverState'
 import type { GraphicsUniforms } from '../hex/hexGraphicsUniforms'
@@ -14,15 +14,7 @@ import { buildBodyHoverOverlay } from '../shells/buildBodyHoverOverlay'
 import { makeInteractiveController } from './interactiveController'
 import { accelerateRaycast } from '../lighting/accelerateRaycast'
 import { mountHoverCursor } from '../hover/mountHoverCursor'
-import type { HoverCursorConfig, HoverCursorPresets } from '../../types/hoverCursor.types'
-
-/**
- * Stars use a different visual radius than the hex tile reference, so the
- * subdivision count is computed against this table — keeping tile counts
- * stable across spectral types regardless of the (much larger) display
- * sphere. Used by the dispatcher in `useBody` before delegating here.
- */
-export const STAR_TILE_REF: Record<string, number> = { M: 2.0, K: 2.5, G: 3.0, F: 3.5 }
+import type { HoverCursorConfig, HoverCursorPresets } from '../types/hoverCursor.types'
 
 /**
  * Pre-computed inputs the star factory needs from the dispatcher. Receiving

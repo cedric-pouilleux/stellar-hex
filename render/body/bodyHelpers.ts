@@ -7,7 +7,7 @@
 
 import { resolveCoreRadiusRatio, resolveTerrainLevelCount, resolveAtmosphereThickness } from '../../physics/body'
 import type { BodyConfig } from '../../types/body.types'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 import { getTileLevel } from '../hex/hexMeshShared'
 import { strategyFor } from './bodyTypeStrategy'
 

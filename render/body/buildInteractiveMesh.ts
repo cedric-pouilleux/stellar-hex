@@ -12,12 +12,12 @@
 
 import * as THREE from 'three'
 import type { Tile } from '../../geometry/hexasphere.types'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 import type { BodySimulation } from '../../sim/BodySimulation'
 import { type HoverConfig, DEFAULT_HOVER } from '../../config/render'
 import type { HoverChannel } from '../state/hoverState'
 import type { GraphicsUniforms } from '../hex/hexGraphicsUniforms'
-import type { TileBaseVisual } from '../../types/bodyHandle.types'
+import type { TileBaseVisual } from '../types/bodyHandle.types'
 import {
   type TileGeometryInfo,
   getTileLevel,

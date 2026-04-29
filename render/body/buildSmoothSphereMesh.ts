@@ -9,7 +9,7 @@
 
 import * as THREE from 'three'
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 import type { BodySimulation } from '../../sim/BodySimulation'
 import type { BodyVariation } from './bodyVariation'
 import {
@@ -23,7 +23,7 @@ import { BodyMaterial } from '../../shaders'
 import { buildPermTable, permTableToTexture } from '../../shaders/simplexPerm'
 import { configToLibParams } from './configToLibParams'
 import { strategyFor, type BodyTypeStrategy } from './bodyTypeStrategy'
-import { resolveSeaAnchor } from '../../terrain/paletteRocky'
+import { resolveSeaAnchor } from '../palettes/paletteRocky'
 import { getTileLevel } from '../hex/hexMeshShared'
 import { buildSphericalNearestLookup } from '../hex/sphericalTileLookup'
 import { resolveSphereDetail, type RenderQuality } from '../quality/renderQuality'

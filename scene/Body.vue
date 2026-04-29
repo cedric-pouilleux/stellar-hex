@@ -44,7 +44,7 @@ import * as THREE from 'three'
 import BodyController from './BodyController.vue'
 import BodyRings from './BodyRings.vue'
 import ShadowUpdater from './ShadowUpdater.vue'
-import type { RenderableBody } from '../types/renderableBody'
+import type { RenderableBody } from '../render/types/renderableBody'
 
 const props = withDefaults(defineProps<{
   /** The body to render. */

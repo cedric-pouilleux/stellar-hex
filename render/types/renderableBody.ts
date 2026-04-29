@@ -1,10 +1,10 @@
 import type * as THREE from 'three'
-import type { BodyConfig } from './body.types'
+import type { BodyConfig } from '../../types/body.types'
 import type { TerrainLevel } from './terrain.types'
-import type { BodyVariation } from '../render/body/bodyVariation'
-import type { ShadowUniforms } from '../render/hex/hexMeshShared'
-import type { HoverChannel } from '../render/state/hoverState'
-import type { GraphicsUniforms } from '../render/hex/hexGraphicsUniforms'
+import type { BodyVariation } from '../body/bodyVariation'
+import type { ShadowUniforms } from '../hex/hexMeshShared'
+import type { HoverChannel } from '../state/hoverState'
+import type { GraphicsUniforms } from '../hex/hexGraphicsUniforms'
 import type { BodyInteractive, BodyHover, BodyLiquid, BodyView } from './bodyHandle.types'
 
 /**
@@ -24,7 +24,7 @@ import type { BodyInteractive, BodyHover, BodyLiquid, BodyView } from './bodyHan
 export interface RenderableBody {
   /** Root THREE group — meshes and shells attach under it. */
   group:     THREE.Group
-  /** Physical + display parameters (radius, temperatures, atmosphere, …). */
+  /** Physical + display parameters (radius, atmosphere, axial tilt, …). */
   config:    BodyConfig
   /** Deterministic visual variation (ring config, shader params). */
   variation: BodyVariation

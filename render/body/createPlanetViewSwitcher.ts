@@ -19,7 +19,7 @@
  */
 
 import * as THREE from 'three'
-import type { InteractiveView } from '../../types/bodyHandle.types'
+import type { InteractiveView } from '../types/bodyHandle.types'
 import type { PlanetSceneGraph } from './assemblePlanetSceneGraph'
 
 /** Public handle returned by {@link createPlanetViewSwitcher}. */

@@ -1,7 +1,20 @@
 import { seededPrng } from '../../internal/prng'
 import type { BodyConfig } from '../../types/body.types'
 import { generateRingVariation, type RingVariation } from '../shells/ringVariation'
-import { strategyFor } from './bodyTypeStrategy'
+import { strategyFor, type SolVariationRanges } from './bodyTypeStrategy'
+
+/**
+ * Default sol-side variation ranges used when the active strategy does
+ * not override `solVariationRanges`. Matches the historical rocky
+ * distribution so the seeded PRNG sequence stays bit-stable for every
+ * non-metallic body — only metallic strategies push their own ranges.
+ */
+const DEFAULT_SOL_RANGES: SolVariationRanges = {
+  crackWidth:     [0.10, 0.50],
+  crackScale:     [1.00, 4.00],
+  lavaScale:      [0.30, 2.50],
+  pickCrackBlend: (rng) => Math.floor(rng() * 5),
+}
 
 /**
  * Complete visual variation for a planet — covers every shader parameter
@@ -126,7 +139,7 @@ const DEFAULT_LAVA_COLOR = '#cc2200'
 export function generateBodyVariation(config: BodyConfig): BodyVariation {
   const rng     = seededPrng('var:' + config.name)
   const r       = (min: number, max: number) => min + rng() * (max - min)
-  const ranges  = strategyFor(config).variationRanges
+  const ranges  = strategyFor(config).solVariationRanges ?? DEFAULT_SOL_RANGES
 
   const cloudColor = randomColor(rng, GAS_CLOUD_DEFAULT_RANGE)
 

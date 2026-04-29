@@ -7,7 +7,7 @@
 
 import * as THREE from 'three'
 import type { Tile } from '../../geometry/hexasphere.types'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 
 /** Subset of tile geometry metadata exposed to external overlay renderers. */
 export interface TileGeometryInfo {

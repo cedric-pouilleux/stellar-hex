@@ -307,8 +307,8 @@ export interface BodyTypeStrategy {
     readonly flatSurface: boolean;
     readonly metallicSheen: number;
     readonly shaderType: LibBodyType;
+    readonly solVariationRanges?: SolVariationRanges;
     tileRefRadius(config: BodyConfig): number;
-    readonly variationRanges: VariationRanges;
 }
 
 // @public

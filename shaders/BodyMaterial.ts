@@ -9,7 +9,7 @@ import * as THREE from 'three'
 import { VERTEX_SHADER, FRAG_SHADERS } from './shaderSources'
 import { kelvinToThreeColor } from './kelvin'
 import { getDefaultParams, type LibBodyType } from './params'
-import type { TerrainLevel } from '../types/terrain.types'
+import type { TerrainLevel } from '../render/types/terrain.types'
 
 /**
  * Maximum number of palette entries passed to the rocky shader. Matches

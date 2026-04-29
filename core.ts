@@ -16,8 +16,8 @@
 export * from './sim'
 
 // ── Render-scoped types (THREE.js-coupled) ───────────────────────
-export type { TerrainLevel } from './types/terrain.types'
-export type { BodyRenderOptions } from './types/bodyRender.types'
+export type { TerrainLevel } from './render/types/terrain.types'
+export type { BodyRenderOptions } from './render/types/bodyRender.types'
 export type {
   Body,
   BodyBase,
@@ -33,7 +33,7 @@ export type {
   StarTiles,
   RGB,
   TileBaseVisual,
-} from './types/bodyHandle.types'
+} from './render/types/bodyHandle.types'
 
 // ── Render config (body-scoped) ──────────────────────────────────
 export {
@@ -55,14 +55,14 @@ export type {
 } from './config/render'
 
 // ── Render-scoped types ──────────────────────────────────────────
-export type { RenderableBody } from './types/renderableBody'
+export type { RenderableBody } from './render/types/renderableBody'
 export type {
   HoverCursorConfig,
   HoverCursorPresets,
   HoverCursorRingConfig,
   HoverCursorEmissiveConfig,
   HoverCursorColumnConfig,
-} from './types/hoverCursor.types'
+} from './render/types/hoverCursor.types'
 
 // ── Terrain palettes (produce THREE.Color) ───────────────────────
 // Consumers wanting to tweak relief defaults can call the generator,
@@ -76,12 +76,12 @@ export {
   generateTerrainPalette,
   buildMetallicPalette,
   buildGasPalette,
-} from './terrain/terrainPalette'
+} from './render/palettes/terrainPalette'
 export {
   DEFAULT_TERRAIN_LOW_COLOR,
   DEFAULT_TERRAIN_HIGH_COLOR,
-} from './terrain/paletteRocky'
-export { buildStarPalette } from './terrain/starPalette'
+} from './render/palettes/paletteRocky'
+export { buildStarPalette } from './render/palettes/starPalette'
 
 // ── Shaders (procedural planet + post-processing) ────────────────
 export {
@@ -142,7 +142,7 @@ export { buildLayeredInteractiveMesh, resolveSolHeight } from './render/layered/
 export type { LayeredInteractiveMesh, LayeredInteractiveMeshOptions } from './render/layered/buildLayeredInteractiveMesh'
 export { buildAtmoBoardMesh } from './render/atmo/buildAtmoBoardMesh'
 export type { AtmoBoardMesh, AtmoBoardMeshOptions } from './render/atmo/buildAtmoBoardMesh'
-export type { InteractiveLayer, InteractiveView, BoardTileRef } from './types/bodyHandle.types'
+export type { InteractiveLayer, InteractiveView, BoardTileRef } from './render/types/bodyHandle.types'
 export type { RingVariation, RingArchetype, Profile8 } from './render/shells/ringVariation'
 export { RING_RANGES, RING_ARCHETYPES, ARCHETYPE_PROFILES } from './render/shells/ringVariation'
 export { generateBodyVariation } from './render/body/bodyVariation'

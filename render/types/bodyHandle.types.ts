@@ -8,26 +8,27 @@
  * atmosphere view, sol-height digging), which keeps callers on a single
  * code path regardless of body type.
  *
- * Lives in `types/` (pure type module, no runtime) so the scene / docs /
- * tests can import just the interface without pulling the render stack.
+ * Lives under `render/types/` because the handle exposes Three.js meshes,
+ * materials and uniforms — it is the public type surface of the render
+ * layer, not part of the headless `sim` contract.
  */
 
 import type * as THREE from 'three'
-import type { Tile } from '../geometry/hexasphere.types'
-import type { BodyConfig, PlanetConfig, StarConfig } from './body.types'
+import type { Tile } from '../../geometry/hexasphere.types'
+import type { BodyConfig, PlanetConfig, StarConfig } from '../../types/body.types'
 import type { TerrainLevel } from './terrain.types'
-import type { BodySimulation } from '../sim/BodySimulation'
-import type { BodyVariation } from '../render/body/bodyVariation'
-import type { BodyMaterial } from '../shaders/BodyMaterial'
-import type { HoverChannel } from '../render/state/hoverState'
-import type { GraphicsUniforms } from '../render/hex/hexGraphicsUniforms'
-import type { AtmoShellHandle } from '../render/shells/buildAtmoShell'
+import type { BodySimulation } from '../../sim/BodySimulation'
+import type { BodyVariation } from '../body/bodyVariation'
+import type { BodyMaterial } from '../../shaders/BodyMaterial'
+import type { HoverChannel } from '../state/hoverState'
+import type { GraphicsUniforms } from '../hex/hexGraphicsUniforms'
+import type { AtmoShellHandle } from '../shells/buildAtmoShell'
 import type {
   ShadowUniforms,
   OccluderUniforms,
   TileGeometryInfo,
   HoverListener,
-} from '../render/hex/hexMeshShared'
+} from '../hex/hexMeshShared'
 
 /**
  * Layer selector for the multi-board model — sol terrain, liquid surface,

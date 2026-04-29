@@ -42,4 +42,5 @@ export {
   REF_STAR_RADIUS,
   REF_STAR_TEMP,
   SPECTRAL_KELVIN,
+  STAR_TILE_REF,
 } from './star'

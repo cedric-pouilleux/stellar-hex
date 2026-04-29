@@ -18,7 +18,7 @@
 
 import type { Tile } from '../../geometry/hexasphere.types'
 import type { BodySimulation } from '../../sim/BodySimulation'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 import {
   resolveCoreRadiusRatio,
   resolveTerrainLevelCount,

@@ -2,8 +2,8 @@ import * as THREE from 'three'
 import { generateHexasphere } from '../../geometry/hexasphere'
 import { initBodySimulation } from '../../sim/BodySimulation'
 import type { BodyConfig } from '../../types/body.types'
-import type { TerrainLevel } from '../../types/terrain.types'
-import type { Body, PlanetBody, BoardTileRef } from '../../types/bodyHandle.types'
+import type { TerrainLevel } from '../types/terrain.types'
+import type { Body, PlanetBody, BoardTileRef } from '../types/bodyHandle.types'
 import { generateBodyVariation } from './bodyVariation'
 import { useStar } from './useStar'
 import { strategyFor } from './bodyTypeStrategy'
@@ -15,7 +15,7 @@ import { assemblePlanetSceneGraph } from './assemblePlanetSceneGraph'
 import { createPlanetViewSwitcher } from './createPlanetViewSwitcher'
 import { hasAtmosphere, resolveAtmosphereThickness } from '../../physics/body'
 import { mountHoverCursor } from '../hover/mountHoverCursor'
-import type { HoverCursorConfig, HoverCursorPresets } from '../../types/hoverCursor.types'
+import type { HoverCursorConfig, HoverCursorPresets } from '../types/hoverCursor.types'
 
 // Re-exports for the public API surface — keep historical import paths
 // (`@cedric-pouilleux/stellar-hex/core` → `useBody`, `resolveTileHeight`, …)
@@ -130,9 +130,9 @@ export function useBody(
   // Track the active view so the public `queryHover` knows which board to
   // route the ray at. The view switcher mutates the visibility flags but
   // does not own the view enum — we intercept `set()` to keep this state.
-  let activeView: import('../../types/bodyHandle.types').InteractiveView = 'surface'
+  let activeView: import('../types/bodyHandle.types').InteractiveView = 'surface'
   const switcherSet = viewSwitcher.set
-  function setView(view: import('../../types/bodyHandle.types').InteractiveView): void {
+  function setView(view: import('../types/bodyHandle.types').InteractiveView): void {
     activeView = view
     switcherSet(view)
   }

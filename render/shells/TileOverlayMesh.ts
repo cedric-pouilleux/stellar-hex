@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { Tile } from '../../geometry/hexasphere.types'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 import {
   buildTileRing,
   buildFillPositions,

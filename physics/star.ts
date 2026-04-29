@@ -32,3 +32,11 @@ export const SPECTRAL_KELVIN: Record<string, number> = {
   K:  4_500,
   M:  3_000,
 }
+
+/**
+ * Tile-reference radius per spectral class — feeds the hexasphere
+ * subdivision count so tile counts stay stable across spectral types
+ * regardless of the (much larger) display sphere. Consumed by the star
+ * strategy in `bodyTypeStrategy.ts`.
+ */
+export const STAR_TILE_REF: Record<string, number> = { M: 2.0, K: 2.5, G: 3.0, F: 3.5 }

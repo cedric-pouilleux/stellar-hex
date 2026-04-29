@@ -25,7 +25,7 @@
 import * as THREE from 'three'
 import type { Tile } from '../../geometry/hexasphere.types'
 import type { BodySimulation } from '../../sim/BodySimulation'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 import type { BodyVariation } from '../body/bodyVariation'
 import { buildLayeredMergedGeometry } from './buildLayeredMesh'
 import { buildLayeredPrismGeometry } from './buildLayeredPrism'
@@ -39,7 +39,7 @@ import {
   getTileLevel,
 } from '../hex/hexMeshShared'
 import type { InteractiveMesh } from '../body/buildInteractiveMesh'
-import type { InteractiveLayer } from '../../types/bodyHandle.types'
+import type { InteractiveLayer } from '../types/bodyHandle.types'
 import { computeLayeredShellMetrics, resolveSolHeight } from './layeredShellMetrics'
 import { buildLayeredTileVisuals } from './layeredTileVisuals'
 import { buildLayeredMaterials } from './layeredMaterials'

@@ -6,7 +6,7 @@ import {
   DEFAULT_TERRAIN_LOW_COLOR,
   DEFAULT_TERRAIN_HIGH_COLOR,
 } from './paletteRocky'
-import { MIN_TERRAIN_LEVEL_COUNT, terrainBandLayout } from '../physics/body'
+import { MIN_TERRAIN_LEVEL_COUNT, terrainBandLayout } from '../../physics/body'
 
 // Neutral fallbacks the module hands out when the caller omits `liquidColor`.
 const NEUTRAL_SEA    = '#2a3a4a'

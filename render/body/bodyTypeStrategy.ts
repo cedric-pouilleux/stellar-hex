@@ -15,12 +15,12 @@
 import type { BodyConfig, PlanetConfig, StarConfig } from '../../types/body.types'
 import type { SurfaceLook } from '../../types/surface.types'
 import type { BodyVariation } from './bodyVariation'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 import type { ParamMap } from '../../shaders/BodyMaterial'
-import { generateTerrainPalette, buildMetallicPalette, buildGasPalette } from '../../terrain/terrainPalette'
-import { buildStarPalette } from '../../terrain/starPalette'
-import { subdividePalette } from '../../terrain/paletteSubdivide'
-import { terrainBandLayout, SPECTRAL_KELVIN, resolveAtmosphereThickness } from '../../physics/body'
+import { generateTerrainPalette, buildMetallicPalette, buildGasPalette } from '../palettes/terrainPalette'
+import { buildStarPalette } from '../palettes/starPalette'
+import { subdividePalette } from '../palettes/paletteSubdivide'
+import { terrainBandLayout, SPECTRAL_KELVIN, STAR_TILE_REF, resolveAtmosphereThickness } from '../../physics/body'
 import { getDefaultParams, type LibBodyType } from '../../shaders'
 import {
   rockyShaderParams,
@@ -28,14 +28,14 @@ import {
   metallicShaderParams,
   starShaderParams,
 } from './configToLibParams'
-import { STAR_TILE_REF } from './useStar'
 
 /**
- * Per-type variation ranges consumed by `generateBodyVariation`. Encodes
- * the rocky-vs-metallic differences in crack/lava distributions so the
- * generator stays agnostic of the body type.
+ * Per-type variation ranges for the **sol-side** procedural effects
+ * (cracks, lava, blend mode pick). Optional on {@link BodyTypeStrategy}:
+ * only metallic bodies override the defaults — every other strategy
+ * falls back to `DEFAULT_SOL_RANGES` defined in `bodyVariation.ts`.
  */
-export interface VariationRanges {
+export interface SolVariationRanges {
   /** `[min, max]` linear range for the crack width multiplier. */
   crackWidth: readonly [number, number]
   /** `[min, max]` linear range for the crack scale multiplier. */
@@ -86,8 +86,11 @@ export interface BodyTypeStrategy {
    *   - default vertex paint is skipped (caller paints atmo-flavoured colours)
    */
   readonly displayMeshIsAtmosphere: boolean
-  /** Per-type variation ranges consumed by `generateBodyVariation`. */
-  readonly variationRanges: VariationRanges
+  /**
+   * Per-type sol-side variation ranges. Omitted by every strategy that
+   * matches the lib's defaults — only metallic bodies override.
+   */
+  readonly solVariationRanges?: SolVariationRanges
   /**
    * Default atmosphere opacity for the `'shader'` view, in `[0, 1]`. The
    * config can override via `BodyConfig.atmosphereOpacity`. Gas giants land
@@ -193,12 +196,6 @@ const TERRAIN_STRATEGY: BodyTypeStrategy = {
   canHaveRings:            true,
   metallicSheen:           0.0,
   defaultAtmosphereOpacity: 0.45,
-  variationRanges: {
-    crackWidth:     [0.10, 0.50],
-    crackScale:     [1.00, 4.00],
-    lavaScale:      [0.30, 2.50],
-    pickCrackBlend: (rng) => Math.floor(rng() * 5),
-  },
   tileRefRadius: (config) => config.radius,
   buildPalette:  (config, count, coreRatio) => {
     const c = asPlanet(config)
@@ -226,14 +223,6 @@ const BANDS_STRATEGY: BodyTypeStrategy = {
   canHaveRings:            true,
   metallicSheen:           0.0,
   defaultAtmosphereOpacity: 1.0,
-  // Gas bodies don't carry sol-side cracks/lava — values exposed for shape
-  // consistency only, never read by `generateBodyVariation` on this type.
-  variationRanges: {
-    crackWidth:     [0.10, 0.50],
-    crackScale:     [1.00, 4.00],
-    lavaScale:      [0.30, 2.50],
-    pickCrackBlend: (rng) => Math.floor(rng() * 5),
-  },
   tileRefRadius: (config) => config.radius,
   buildPalette:  (config, count, coreRatio) => {
     const c = asPlanet(config)
@@ -266,7 +255,7 @@ const METALLIC_STRATEGY: BodyTypeStrategy = {
   canHaveRings:            true,
   metallicSheen:           1.0,
   defaultAtmosphereOpacity: 0.0,
-  variationRanges: {
+  solVariationRanges: {
     crackWidth:     [0.10, 0.40],
     crackScale:     [1.60, 5.00],
     lavaScale:      [0.30, 1.00],
@@ -303,14 +292,6 @@ const STAR_STRATEGY: BodyTypeStrategy = {
   // Stars use a dedicated mesh pipeline (`useStar`) and never mount an
   // atmo halo — opacity 0 keeps the strategy table self-consistent.
   defaultAtmosphereOpacity: 0.0,
-  // Stars use a dedicated mesh pipeline; sol-side variation ranges are
-  // exposed for shape consistency but never read on this type.
-  variationRanges: {
-    crackWidth:     [0.10, 0.50],
-    crackScale:     [1.00, 4.00],
-    lavaScale:      [0.30, 2.50],
-    pickCrackBlend: (rng) => Math.floor(rng() * 5),
-  },
   tileRefRadius: (config) => STAR_TILE_REF[asStar(config).spectralType] ?? STAR_TILE_REF_FALLBACK,
   buildPalette:  (config, count, coreRatio) => {
     const c = asStar(config)

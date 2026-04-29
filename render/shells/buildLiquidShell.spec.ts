@@ -5,7 +5,7 @@ import { buildLiquidShell } from './buildLiquidShell'
 import { createGraphicsUniforms } from '../hex/hexGraphicsUniforms'
 import { topFanVertexCount } from './hexShellGeometry'
 import { buildPrismGeometry } from '../hex/hexPrismGeometry'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 
 // ── Fixtures ──────────────────────────────────────────────────────
 

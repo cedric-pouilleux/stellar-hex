@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { generateHexasphere } from '../../geometry/hexasphere'
 import { buildSolidShell } from './buildSolidShell'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 
 // ── Fixtures ──────────────────────────────────────────────────────
 

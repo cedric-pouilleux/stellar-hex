@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { TerrainLevel } from '../types/terrain.types'
-import type { MetallicBand } from '../types/body.types'
-import { METALLIC_PLAIN_THRESH, METALLIC_PEAK_THRESH } from '../physics/body'
+import type { MetallicBand } from '../../types/body.types'
+import { METALLIC_PLAIN_THRESH, METALLIC_PEAK_THRESH } from '../../physics/body'
 
 /**
  * Neutral 4-band metallic palette used when the caller omits

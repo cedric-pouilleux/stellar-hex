@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { TerrainLevel } from '../types/terrain.types'
-import { MIN_TERRAIN_LEVEL_COUNT, terrainBandLayout } from '../physics/body'
+import { MIN_TERRAIN_LEVEL_COUNT, terrainBandLayout } from '../../physics/body'
 
 // Neutral fallback used when the caller declares a liquid body but omits the
 // colour. Keeps the sphere visible without baking any chemistry assumption

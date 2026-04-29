@@ -116,7 +116,7 @@ describe('strategyFor', () => {
 
   it('tileRefRadius for stars is keyed on spectralType, not config.radius', () => {
     const s = star({ radius: 99, spectralType: 'M' })
-    // M-class fallback in `useStar.STAR_TILE_REF` is 2.0 — must not echo `radius`.
+    // M-class fallback in `STAR_TILE_REF` (physics/star) is 2.0 — must not echo `radius`.
     expect(strategyFor(s).tileRefRadius(s)).toBe(2.0)
     expect(strategyFor(s).tileRefRadius(s)).not.toBe(99)
   })

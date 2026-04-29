@@ -15,7 +15,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { Tile } from '../../geometry/hexasphere.types'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 import { buildPrismGeometry, buildPrismTopFanGeometry } from '../hex/hexPrismGeometry'
 
 /** Per-tile vertex slot in the merged shell buffer. */

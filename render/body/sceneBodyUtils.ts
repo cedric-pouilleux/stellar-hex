@@ -1,5 +1,5 @@
 import type { BodyConfig } from '../../types/body.types'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 
 // ── Body outer radius ─────────────────────────────────────────────
 

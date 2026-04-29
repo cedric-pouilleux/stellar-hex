@@ -20,12 +20,12 @@
 
 import * as THREE from 'three'
 import type { Tile } from '../../geometry/hexasphere.types'
-import type { HoverCursorConfig } from '../../types/hoverCursor.types'
+import type { HoverCursorConfig } from '../types/hoverCursor.types'
 import type {
   BoardTileRef,
   HoverPlacementOptions,
   InteractiveLayer,
-} from '../../types/bodyHandle.types'
+} from '../types/bodyHandle.types'
 import type { HoverChannel } from '../state/hoverState'
 import type { HoverListener } from '../hex/hexMeshShared'
 import { buildTileRing, buildBorderPositions } from '../hex/hexTileGeometry'

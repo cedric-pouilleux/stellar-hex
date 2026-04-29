@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { buildMetallicPalette } from './paletteMetallic'
-import type { MetallicBand } from '../types/body.types'
-import { METALLIC_PLAIN_THRESH, METALLIC_PEAK_THRESH } from '../physics/body'
+import type { MetallicBand } from '../../types/body.types'
+import { METALLIC_PLAIN_THRESH, METALLIC_PEAK_THRESH } from '../../physics/body'
 
 const customBands: readonly [MetallicBand, MetallicBand, MetallicBand, MetallicBand] = [
   { color: '#101010', metalness: 0.40, roughness: 0.80, height: 0.00 },

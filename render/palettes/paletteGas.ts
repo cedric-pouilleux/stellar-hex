@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { TerrainLevel } from '../types/terrain.types'
-import type { ColorInput } from '../types/body.types'
+import type { ColorInput } from '../../types/body.types'
 
 /**
  * Neutral 4-stop band palette used when the caller omits `bandColors` on a

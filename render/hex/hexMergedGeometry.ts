@@ -7,7 +7,7 @@
 
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import type { TerrainLevel } from '../../types/terrain.types'
+import type { TerrainLevel } from '../types/terrain.types'
 import type { BodySimulation } from '../../sim/BodySimulation'
 import { getTileLevel } from './hexMeshShared'
 import { buildPrismGeometry } from './hexPrismGeometry'

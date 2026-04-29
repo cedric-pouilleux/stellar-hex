@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { SpectralType } from '../types/body.types'
+import type { SpectralType } from '../../types/body.types'
 import type { TerrainLevel } from '../types/terrain.types'
 
 // ── Per-type granulation colors ───────────────────────────────────────────────

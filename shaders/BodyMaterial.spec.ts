@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { BodyMaterial, BODY_SHADER_PALETTE_MAX } from './BodyMaterial'
-import type { TerrainLevel } from '../types/terrain.types'
+import type { TerrainLevel } from '../render/types/terrain.types'
 
 function makePalette(n: number): TerrainLevel[] {
   const palette: TerrainLevel[] = []

@@ -24,7 +24,7 @@ import {
 import type {
   HoverCursorConfig,
   HoverCursorPresets,
-} from '../../types/hoverCursor.types'
+} from '../types/hoverCursor.types'
 
 /** Optional inputs forwarded by the body factories. */
 export interface MountHoverCursorOptions {
