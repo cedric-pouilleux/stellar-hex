@@ -18,7 +18,7 @@ import * as THREE from 'three'
 import type { Tile } from '../../geometry/hexasphere.types'
 import { buildSphericalKNearestLookup } from '../hex/sphericalTileLookup'
 
-/** Per-tile RGB triple consumed by {@link AtmoShellPainter.paintFromTiles}. */
+/** Per-tile RGB triple consumed by `AtmoShellPainter.paintFromTiles`. */
 export interface AtmoShellRGB {
   r: number
   g: number

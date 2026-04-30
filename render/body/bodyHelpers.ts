@@ -62,8 +62,8 @@ const DEFAULT_TILE_HEIGHT = 0.06
 
 /**
  * Resolves the visual height of a tile from the terrain palette.
- * Falls back to {@link DEFAULT_TILE_HEIGHT} when the palette returns no usable
- * height for the elevation (empty palette, missing/non-finite `height`).
+ * Falls back to a default tile height (`0.06`) when the palette returns no
+ * usable height for the elevation (empty palette, missing/non-finite `height`).
  *
  * @param config          - Planet body config (needed to choose the palette).
  * @param elevation       - Tile elevation — integer band index `[0, N-1]`.

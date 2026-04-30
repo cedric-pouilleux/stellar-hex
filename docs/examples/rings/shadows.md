@@ -13,7 +13,7 @@ const tabs = [
 
 Deux ombres distinctes sont en jeu :
 
-- **Planète → anneau** : le shader d'anneau (`buildBodyRings`) rayonne du fragment vers le soleil et atténue si la planète bouche le rayon. **Auto-câblé** : `<BodyRings>` (et `buildBodyRings` en vanille) auto-discover la lumière dominante via `findDominantLightWorldPos` chaque frame.
+- **Planète → anneau** : le shader d'anneau (`buildBodyRings`) rayonne du fragment vers le soleil et atténue si la planète bouche le rayon. **Auto-câblé** : `<BodyRings>` (et `buildBodyRings` en vanille) auto-discover la lumière dominante via `findDominantLightWorldPos` chaque frame, ou utilise une `sunLight` explicite si le caller en passe une.
 - **Anneau → planète** : le shader planète reçoit un patch GLSL via `injectRingShadow` (auto-appelé par `useBody` quand `hasRings: true`). Il rayonne du fragment vers le soleil et échantillonne le profil radial de l'anneau si le rayon le traverse. **Le caller doit pousser la position du soleil** dans `uRingSunWorldPos` — la lib n'a pas de hook auto pour cet uniform.
 
 <ClientOnly>

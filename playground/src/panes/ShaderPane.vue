@@ -63,9 +63,11 @@ function planet(): PlanetBody | null {
   return body?.kind === 'planet' ? body : null
 }
 let rings:    BodyRingsHandle | null = null
-// Promoted to component scope — kept around for ring-shadow sync (the sun
-// world position is refreshed each frame from the dominant scene light).
-let sun: THREE.DirectionalLight | null = null
+// Created eagerly so it can be wired into `useBody({ sunLight })` and
+// `attachBodyRings(..., sun)` synchronously inside `rebuildBody` — without
+// an order-of-mount race. Added to the scene in `onMounted`.
+const sun = new THREE.DirectionalLight(0xfff1dd, 2.0)
+sun.position.set(6, 4, 6)
 let sunWorldPos: THREE.Vector3 | null = null
 let baseRingVariation: RingVariation | null = null
 let stopLoop: (() => void) | null = null
@@ -159,6 +161,7 @@ function rebuildBody() {
       graphicsUniforms: playgroundGraphicsUniforms,
       quality:          { sphereDetail: sphereDetail.value },
       variation:        buildPlaygroundVariation(cfg),
+      sunLight:         sun,
     })
     const p = planet()
     p?.atmoShell?.setParams({ tileColorMix: atmoTileColorMix.value })
@@ -191,16 +194,17 @@ function rebuildBody() {
   scene.add(body.group)
   baseRingVariation = body.variation?.rings ?? null
   const merged = baseRingVariation ? mergeRingVariation(baseRingVariation, ringOverrides) : null
-  // Mutable Vector3 refreshed from the dominant directional light's position
-  // before every render (see the loop below). Wired by reference into both
-  // the rings shader (via `attachBodyRings`) and the per-frame shadow sync.
+  // The rings builder reads `sun.getWorldPosition()` itself — passing the
+  // light directly keeps a single source of truth (no Vector3 to refresh).
+  // `sunWorldPos` is still owned for `syncRingShadowSun`, the planet-side
+  // ring-shadow uniform that lives outside the rings builder.
   sunWorldPos = new THREE.Vector3()
   rings = attachBodyRings(
     body.group,
     props.config.radius,
     props.config.rotationSpeed,
     merged,
-    sunWorldPos,
+    sun,
   )
 
   // The shader pane is the **non-interactive** preview — flip into the
@@ -251,8 +255,6 @@ onMounted(() => {
   camera = new THREE.PerspectiveCamera(45, host.clientWidth / host.clientHeight, 0.05, 400)
 
   scene.add(new THREE.AmbientLight(0x404857, 0.6))
-  sun = new THREE.DirectionalLight(0xfff1dd, 2.0)
-  sun.position.set(6, 4, 6)
   scene.add(sun)
 
   const orbit = installOrbitCamera(camera, renderer.domElement, { minDist: 3, maxDist: 60, initialDistance: 10 })

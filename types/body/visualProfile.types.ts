@@ -45,7 +45,7 @@ export interface MetallicBand {
  * in `BodyRenderOptions` (render-only, coupled to `THREE.Color`).
  *
  * Stars do not carry a visual profile: their look is fully driven by
- * {@link ./identity.types#SpectralType} — every visible knob (palette,
+ * {@link SpectralType} — every visible knob (palette,
  * granulation, corona, godrays) derives from it.
  */
 export interface PlanetVisualProfile {

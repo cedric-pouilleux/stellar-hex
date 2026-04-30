@@ -20,8 +20,8 @@ const MAX_TERRAIN_HEIGHT_FALLBACK = 0.06
  *
  * @param config  - Body configuration — supplies the base radius.
  * @param palette - Effective palette used by the body (e.g. `body.palette`).
- *                  When omitted, the {@link MAX_TERRAIN_HEIGHT_FALLBACK} is
- *                  used as an upper bound.
+ *                  When omitted, a safe fallback (`0.06`) is used as an upper
+ *                  bound.
  */
 export function bodyOuterRadius(config: BodyConfig, palette?: TerrainLevel[]): number {
   const maxTerrainH = palette?.length

@@ -67,7 +67,6 @@ onMounted(async () => {
     const baseVariation = body.variation.rings
     if (baseVariation) {
       const planetWorldPos = new THREE.Vector3()
-      const sunWorldPos    = new THREE.Vector3()
       const rings = buildBodyRings({
         radius:        config.radius,
         rotationSpeed: config.rotationSpeed,
@@ -77,7 +76,7 @@ onMounted(async () => {
           profile:   ARCHETYPE_PROFILES[spec.archetype],
         },
         planetWorldPos,
-        sunWorldPos,
+        sunLight:      sun,
       })
       body.group.add(rings.carrier)
 
@@ -91,7 +90,6 @@ onMounted(async () => {
         body.group.rotation.y += dt * 0.3
         body.tick(dt)
         body.group.getWorldPosition(planetWorldPos)
-        sun.getWorldPosition(sunWorldPos)
         rings.tick(dt)
         renderer.render(scene, camera)
       }

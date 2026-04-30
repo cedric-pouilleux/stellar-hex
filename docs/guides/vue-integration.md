@@ -88,6 +88,7 @@ La simulation vit sur `body.sim` — vous pouvez piloter une UI overlay depuis l
 | `hoveredTileId`  | `number \| null` | État de tuile survolée (contrôlé) |
 | `bodyHover`      | `boolean` | Ring de hover au niveau du corps |
 | `interactive`    | `boolean` | Active le mesh hex (raycast + tile colors) |
+| `sunLight`       | `THREE.PointLight \| THREE.DirectionalLight \| null` | Source de lumière forwardée à `<BodyRings>`. Omis → auto-discovery scène. |
 
 ::: tip Pause et vitesse
 La pause et le multiplicateur de vitesse ne sont **pas** des props de `<Body>`. C'est au caller de scaler le `dt` qu'il passe à `body.tick()` — pour mettre en pause, il suffit de ne pas appeler `tick`.

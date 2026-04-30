@@ -329,9 +329,8 @@ export const SURFACE_LOOK_STRATEGIES: Readonly<Record<SurfaceLook, BodyTypeStrat
 
 /**
  * Resolves the strategy for a body. Stars use a fixed strategy (their
- * pipeline is structurally different — see {@link useStar}); planetary
- * bodies pick a {@link SurfaceLook}, defaulting to `'terrain'` when the
- * config omits it.
+ * pipeline is structurally different); planetary bodies pick a
+ * {@link SurfaceLook}, defaulting to `'terrain'` when the config omits it.
  */
 export function strategyFor(config: BodyConfig): BodyTypeStrategy {
   if (config.type === 'star') return STAR_STRATEGY

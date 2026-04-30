@@ -11,7 +11,7 @@ import type { BodyType, SurfaceLook } from '../surface.types'
  * codes. Drives every star-specific derivation (palette, granulation,
  * godrays, tile-reference radius). Lives here because {@link StarIdentity}
  * is the canonical user; the physics layer also reads it via
- * {@link ../body.types#StarPhysicsInput}.
+ * {@link StarPhysicsInput}.
  */
 export type SpectralType = 'O' | 'B' | 'A' | 'F' | 'G' | 'K' | 'M'
 

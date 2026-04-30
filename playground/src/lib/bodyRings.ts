@@ -34,9 +34,9 @@ function strip<T extends object>(o: T): Partial<T> {
  * @param radius        - Planet visual radius (world units).
  * @param rotationSpeed - Ring self-spin in rad/s (typically the planet's).
  * @param variation     - Deterministic ring variation; `null` disables rings.
- * @param sunWorldPos   - Mutable Vector3 the caller refreshes each frame
- *                        with the dominant light's world-space position.
- *                        Wired by reference into the shadow uniform.
+ * @param sunLight      - Explicit light source. Pass `null` to let the
+ *                        builder auto-discover the dominant light each
+ *                        tick from the scene root.
  * @returns The handle when rings were attached, `null` otherwise.
  */
 export function attachBodyRings(
@@ -44,7 +44,7 @@ export function attachBodyRings(
   radius:        number,
   rotationSpeed: number,
   variation:     RingVariation | null | undefined,
-  sunWorldPos:   THREE.Vector3,
+  sunLight:      THREE.PointLight | THREE.DirectionalLight | null,
 ): BodyRingsHandle | null {
   if (!variation) return null
 
@@ -52,7 +52,7 @@ export function attachBodyRings(
   // wrapped `tick` refreshes it from the body's world matrix before
   // delegating, so callers stay on the original `tick(dt)` ergonomics.
   const planetWorldPos = new THREE.Vector3()
-  const inner = buildBodyRings({ radius, rotationSpeed, variation, planetWorldPos, sunWorldPos })
+  const inner = buildBodyRings({ radius, rotationSpeed, variation, planetWorldPos, sunLight })
   group.add(inner.carrier)
 
   const wrapped: BodyRingsHandle = {

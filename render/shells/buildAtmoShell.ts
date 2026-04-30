@@ -113,13 +113,13 @@ export interface AtmoShellHandle {
   /**
    * Toggles "halo mode" — collapses the volumetric shell to a thin
    * fresnel-driven liseré at the atmosphere's outer silhouette, in the
-   * pure body tint. See {@link createAtmoShellHaloMode} for the full
-   * contract (baseline restoration semantics).
+   * pure body tint. See `createAtmoShellHaloMode` for the full contract
+   * (baseline restoration semantics).
    */
   setHaloMode: (enabled: boolean) => void
   /**
    * Stamps per-tile RGB into the shell's vertex colour buffer using a
-   * K-nearest blend. See {@link createAtmoShellPainter}.
+   * K-nearest blend. See `createAtmoShellPainter`.
    *
    * No-op when the shell was built without `tiles` (decorative shell —
    * no gameplay link).

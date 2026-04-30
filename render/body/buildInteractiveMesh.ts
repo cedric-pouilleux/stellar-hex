@@ -27,10 +27,10 @@ import { applyHexShader } from '../hex/hexShaderOverride'
 import { strategyFor, type BodyTypeStrategy } from './bodyTypeStrategy'
 
 /**
- * Public surface returned by {@link buildInteractiveMesh}. Exposes reusable
- * primitives (tileGeometry / writeTileColor / computeTileBaseRGB /
- * onHoverChange / surfaceOffset) that any overlay renderer can consume to
- * paint tiles without knowing about the underlying mesh layout.
+ * Public surface of the interactive hex mesh. Exposes reusable primitives
+ * (tileGeometry / writeTileColor / computeTileBaseRGB / onHoverChange /
+ * surfaceOffset) that any overlay renderer can consume to paint tiles
+ * without knowing about the underlying mesh layout.
  */
 export interface InteractiveMesh {
   group:              THREE.Group
@@ -64,7 +64,7 @@ export interface InteractiveMesh {
   dispose:            () => void
 }
 
-/** Required dependencies + optional tuning for {@link buildInteractiveMesh}. */
+/** Required dependencies + optional tuning for the interactive hex mesh builder. */
 export interface InteractiveMeshOptions {
   /** Per-body hover/pin publication channel — written on hover/pin changes. */
   hoverChannel:     HoverChannel

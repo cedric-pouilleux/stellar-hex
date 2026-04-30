@@ -1,4 +1,4 @@
-﻿export const gasGiantThreeCode = `\
+export const gasGiantThreeCode = `\
 import * as THREE from 'three'
 import {
   useBody,
@@ -7,7 +7,6 @@ import {
 } from '@cedric-pouilleux/stellar-hex/core'
 
 const scene = new THREE.Scene()
-scene.add(new THREE.AmbientLight(0xffffff, 0.3))
 const sun = new THREE.DirectionalLight(0xffffff, 2)
 sun.position.set(5, 3, 3)
 scene.add(sun)
@@ -22,13 +21,14 @@ const body = useBody(
     hasRings:       true,
   },
   DEFAULT_TILE_SIZE,
+  // Pipes the same scene light into the body shader's planet→sun direction.
+  { sunLight: sun },
 )
 scene.add(body.group)
 
 // body.variation.rings is auto-generated from the seed when hasRings is true.
 let rings: ReturnType<typeof buildBodyRings> | null = null
 const planetWorldPos = new THREE.Vector3()
-const sunWorldPos    = new THREE.Vector3()
 
 if (body.variation.rings) {
   rings = buildBodyRings({
@@ -36,7 +36,7 @@ if (body.variation.rings) {
     rotationSpeed:  body.config.rotationSpeed,
     variation:      body.variation.rings,
     planetWorldPos,
-    sunWorldPos,
+    sunLight:       sun,
   })
   // Attach the carrier (not the mesh) so the rings inherit tilt + spin.
   body.group.add(rings.carrier)
@@ -46,7 +46,6 @@ if (body.variation.rings) {
 function tick(dt: number) {
   body.tick(dt)
   body.group.getWorldPosition(planetWorldPos)
-  sun.getWorldPosition(sunWorldPos)
   rings?.tick(dt)
 }
 `

@@ -32,7 +32,6 @@ onMounted(async () => {
   const camera = new THREE.PerspectiveCamera(50, el.clientWidth / 400, 0.1, 100)
   camera.position.set(0, 0.4, 3.4)
 
-  scene.add(new THREE.AmbientLight(0x101018, 0.3))
   const warmSun = new THREE.DirectionalLight(0xffaa55, 2.0)
   warmSun.position.set(-4, 1, 4)
   scene.add(warmSun)
@@ -57,7 +56,7 @@ onMounted(async () => {
     atmosphereThickness:  0.4,
     liquidState:         'liquid',
     liquidColor:         '#1d4d8c',
-  }, DEFAULT_TILE_SIZE)
+  }, DEFAULT_TILE_SIZE, { sunLight: warmSun })
   scene.add(body.group)
   setBodyCoreVisible(body, false)
 

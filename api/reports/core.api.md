@@ -12,21 +12,21 @@ export const ARCHETYPE_PROFILES: Record<RingArchetype, Profile8>;
 
 // @public
 export interface AtmoBoardMesh {
-    applyOverlay(colors: Map<number, RGB_2>): void;
+    applyOverlay(colors: Map<number, RGB>): void;
     dispose(): void;
     getRaycastState(): RaycastState;
     getTilePosition(tileId: number): THREE.Vector3 | null;
     group: THREE.Group;
     queryHover(raycaster: THREE.Raycaster, parentGroup: THREE.Object3D): number | null;
-    setHover(tileId: number | null, tint?: RGB_2): void;
+    setHover(tileId: number | null, tint?: RGB): void;
     setVisible(visible: boolean): void;
     tiles: readonly Tile[];
-    writeTileColor(tileId: number, rgb: RGB_2): void;
+    writeTileColor(tileId: number, rgb: RGB): void;
 }
 
 // @public
 export interface AtmoBoardMeshOptions {
-    defaultColor?: RGB_2;
+    defaultColor?: RGB;
     innerRadius: number;
     outerRadius: number;
     tiles: readonly Tile[];
@@ -57,6 +57,31 @@ export interface AtmoShellHandle {
     setParams: (params: AtmoShellParams) => void;
     setVisible: (value: boolean) => void;
     tick: (elapsed: number) => void;
+}
+
+// @public
+export interface AtmoShellParams {
+    bandFreq?: number;
+    bandiness?: number;
+    cloudAmount?: number;
+    cloudColor?: string;
+    cloudScale?: number;
+    driftSpeed?: number;
+    opacity?: number;
+    storms?: number;
+    tileColorMix?: number;
+    tint?: string;
+    turbulence?: number;
+}
+
+// @public
+export interface AtmoShellRGB {
+    // (undocumented)
+    b: number;
+    // (undocumented)
+    g: number;
+    // (undocumented)
+    r: number;
 }
 
 // @public
@@ -261,7 +286,7 @@ export interface BodyRingsConfig {
     planetWorldPos: THREE.Vector3;
     radius: number;
     rotationSpeed: number;
-    sunWorldPos: THREE.Vector3;
+    sunLight?: THREE.PointLight | THREE.DirectionalLight | null;
     variation: RingVariation;
 }
 
@@ -421,6 +446,12 @@ export function choosePalette(config: BodyConfig, paletteOverride?: TerrainLevel
 export type ColorInput = string | number;
 
 // @public
+export interface ColorUniform {
+    // (undocumented)
+    value: THREE.Color;
+}
+
+// @public
 export function computeBodyQuaternion(spinAngle: number, axialTilt: number, out: THREE.Quaternion): THREE.Quaternion;
 
 // @public
@@ -499,10 +530,25 @@ export function findSceneRoot(obj: THREE.Object3D): THREE.Object3D;
 export const FOCUS_LERP = 5;
 
 // @public
+export interface GasBandColors {
+    // (undocumented)
+    colorA: ColorInput;
+    // (undocumented)
+    colorB: ColorInput;
+    // (undocumented)
+    colorC: ColorInput;
+    // (undocumented)
+    colorD: ColorInput;
+}
+
+// @public
 export function generateBodyVariation(config: BodyConfig): BodyVariation;
 
 // @public
 export function generateHexasphere(radius: number, subdivisions: number): HexasphereData;
+
+// @public
+export function generateRingVariation(config: BodyConfig, rng: () => number): RingVariation | null;
 
 // @public
 export function generateTerrainPalette(levelCount: number, radius?: number, coreRadiusRatio?: number, lowColor?: THREE.ColorRepresentation, highColor?: THREE.ColorRepresentation, atmosphereThickness?: number): TerrainLevel[];
@@ -652,6 +698,14 @@ export interface HoverCursorRingConfig {
 }
 
 // @public
+export type HoverListener = (tileId: number | null) => void;
+
+// @public
+export interface HoverPlacementOptions {
+    capOffsetFromRadius?: number;
+}
+
+// @public
 export function initBodySimulation(tiles: Tile[], config: BodyConfig, atmoTiles?: readonly Tile[]): BodySimulation;
 
 // @public
@@ -693,6 +747,18 @@ export type InteractiveView = 'surface' | 'atmosphere' | 'shader';
 export function kelvinLabel(k: number): string;
 
 // @public
+export interface KelvinRGB {
+    // (undocumented)
+    b: number;
+    // (undocumented)
+    g: number;
+    // (undocumented)
+    hex: string;
+    // (undocumented)
+    r: number;
+}
+
+// @public
 export function kelvinToRGB(kelvin: number): KelvinRGB;
 
 // @public
@@ -732,6 +798,22 @@ export interface LayeredInteractiveMeshOptions {
 }
 
 // @public
+export interface LayeredMergedGeometry {
+    faceToTileId: number[];
+    geometry: THREE.BufferGeometry;
+    shellThickness: number;
+    tileRange: Map<number, LayeredTileRange>;
+}
+
+// @public
+export interface LayeredPrismGeometry {
+    // (undocumented)
+    geometry: THREE.BufferGeometry;
+    // (undocumented)
+    range: PrismRange;
+}
+
+// @public
 export interface LensFlareConfig {
     // (undocumented)
     enabled: boolean;
@@ -747,6 +829,14 @@ export interface LensFlareConfig {
 
 // @public
 export type LibBodyType = 'rocky' | 'gaseous' | 'metallic' | 'star';
+
+// @public
+export interface LiquidMaskOptions {
+    noiseScale: number;
+    permTexture: THREE.DataTexture;
+    radius: number;
+    seaLevel: number;
+}
 
 // @public
 export interface LiquidShellConfig {
@@ -775,6 +865,9 @@ export interface LiquidShellHandle {
 }
 
 // @public
+export const MAX_SPHERE_DETAIL = 7;
+
+// @public
 export interface MetallicBand {
     color: ColorInput;
     emissive?: ColorInput;
@@ -782,6 +875,21 @@ export interface MetallicBand {
     height?: number;
     metalness?: number;
     roughness?: number;
+}
+
+// @public
+export const MIN_TERRAIN_LEVEL_COUNT = 4;
+
+// @public
+export interface MutableRef<T> {
+    // (undocumented)
+    value: T;
+}
+
+// @public
+export interface NumberUniform {
+    // (undocumented)
+    value: number;
 }
 
 // @public
@@ -813,6 +921,9 @@ export interface ParamDef {
 }
 
 // @public
+export type ParamMap = Record<string, ParamValue>;
+
+// @public
 export interface ParamRange {
     // (undocumented)
     max: number;
@@ -821,6 +932,9 @@ export interface ParamRange {
     // (undocumented)
     step: number;
 }
+
+// @public
+export type ParamValue = number | string | number[] | boolean;
 
 // @public
 export interface PlanetBody extends BodyBase {
@@ -900,7 +1014,18 @@ export interface Point3D {
 export const PREVIEW_ORBIT_SPEED = 0.85;
 
 // @public
+export interface PrismRange {
+    // (undocumented)
+    count: number;
+    // (undocumented)
+    start: number;
+}
+
+// @public
 export type Profile8 = readonly [number, number, number, number, number, number, number, number];
+
+// @public
+export type RangeMap = Record<string, ParamRange>;
 
 // @public
 export function raycastBodies(raycaster: THREE.Raycaster, bodies: RaycastBody[], options?: RaycastBodiesOptions): RaycastHit | null;
@@ -926,6 +1051,13 @@ export interface RaycastHit {
     bodyIndex: number;
     // (undocumented)
     intersection: THREE.Intersection;
+}
+
+// @public
+export interface RaycastState {
+    coreRadius: number;
+    faceToTileId: number[];
+    mesh: THREE.Mesh;
 }
 
 // @public
@@ -1119,6 +1251,9 @@ export interface SolBoardTiles extends BoardTiles {
 }
 
 // @public
+export type SolHeightFn = (tile: Tile) => number;
+
+// @public
 export interface SolidShellConfig {
     baseElevation: ReadonlyMap<number, number>;
     bodyRadius: number;
@@ -1143,6 +1278,14 @@ export interface SolidShellHandle {
     setTopElevation: (newTopBand: number) => void;
 }
 
+// @public
+export interface SolVariationRanges {
+    crackScale: readonly [number, number];
+    crackWidth: readonly [number, number];
+    lavaScale: readonly [number, number];
+    pickCrackBlend(rng: () => number): number;
+}
+
 // @public (undocumented)
 export const SPECTRAL_TABLE: Record<SpectralType, {
     tempK: number;
@@ -1155,6 +1298,9 @@ export type SpectralType = 'O' | 'B' | 'A' | 'F' | 'G' | 'K' | 'M';
 
 // @public
 export type SphereDetailQuality = 'standard' | 'high' | 'ultra';
+
+// @public
+export const STAR_TILE_REF: Record<string, number>;
 
 // @public
 export interface StarBody extends BodyBase {
@@ -1279,6 +1425,28 @@ export interface TileBaseVisual {
 }
 
 // @public
+export interface TileGeometryContext {
+    // (undocumented)
+    level: TerrainLevel;
+    // (undocumented)
+    tile: Tile;
+}
+
+// @public
+export interface TileGeometryInfo {
+    // (undocumented)
+    level: TerrainLevel;
+    // (undocumented)
+    tile: Tile;
+}
+
+// @public
+export type TileGeometryQuery = (tileId: number) => TileGeometryContext | null;
+
+// @public
+export type TileOverlayKind = 'fill' | 'border' | 'fill-sides' | 'border-sides';
+
+// @public
 export interface TileOverlayMesh {
     dispose(): void;
     mesh: THREE.Mesh;
@@ -1316,7 +1484,7 @@ export function toStarParams(cfg: StarPhysicsInput): {
 
 // @public
 export function useBody(config: BodyConfig, tileSize: number, options?: {
-    sunWorldPos?: THREE.Vector3;
+    sunLight?: THREE.PointLight | THREE.DirectionalLight | null;
     palette?: TerrainLevel[];
     hoverChannel?: HoverChannel;
     graphicsUniforms?: GraphicsUniforms;

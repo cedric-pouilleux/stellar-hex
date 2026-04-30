@@ -14,9 +14,34 @@ export function findSceneRoot(obj: THREE.Object3D): THREE.Object3D {
   return cur
 }
 
-const _tmpLightWP  = new THREE.Vector3()
 const _tmpTargetWP = new THREE.Vector3()
 const _tmpDir      = new THREE.Vector3()
+
+/**
+ * Writes the world-space position of a single light into `out`. For point
+ * lights, it's the literal world position. For directional lights, a virtual
+ * point is projected far behind the light along its shine axis so that
+ * `normalize(out - fragWorldPos)` yields a near-parallel direction —
+ * matching the expectation of shaders that model the sun as a point source.
+ *
+ * Used by `useBody` and `buildBodyRings` to resolve a caller-supplied
+ * `sunLight` into the same world-space sun position the auto-discovery path
+ * (`findDominantLightWorldPos`) produces.
+ */
+export function resolveLightWorldPos(
+  light: THREE.PointLight | THREE.DirectionalLight,
+  out:   THREE.Vector3,
+): void {
+  const dirLight = light as THREE.DirectionalLight
+  if (dirLight.isDirectionalLight && dirLight.target) {
+    light.getWorldPosition(out)
+    dirLight.target.getWorldPosition(_tmpTargetWP)
+    _tmpDir.copy(_tmpTargetWP).sub(out).normalize()
+    out.addScaledVector(_tmpDir, -1e5)
+    return
+  }
+  light.getWorldPosition(out)
+}
 
 /**
  * Writes the world-space position of the brightest `PointLight` or
@@ -47,18 +72,6 @@ export function findDominantLightWorldPos(
   })
 
   if (!best) return false
-  const b = best as THREE.Light & { isDirectionalLight?: boolean; target?: THREE.Object3D }
-
-  if (b.isDirectionalLight && b.target) {
-    // THREE convention: dir = target.position - light.position, normalized.
-    b.getWorldPosition(_tmpLightWP)
-    b.target.getWorldPosition(_tmpTargetWP)
-    _tmpDir.copy(_tmpTargetWP).sub(_tmpLightWP).normalize()
-    // Virtual sun: far behind the directional light, in the direction it shines from.
-    out.copy(_tmpLightWP).addScaledVector(_tmpDir, -1e5)
-    return true
-  }
-
-  b.getWorldPosition(out)
+  resolveLightWorldPos(best as THREE.PointLight | THREE.DirectionalLight, out)
   return true
 }

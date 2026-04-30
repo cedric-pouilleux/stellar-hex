@@ -12,7 +12,8 @@ export interface ParamRange {
   step: number
 }
 
-type RangeMap = Record<string, ParamRange>
+/** Map of numeric shader uniforms to their `{ min, max, step }` bounds. */
+export type RangeMap = Record<string, ParamRange>
 
 /**
  * Authoritative `{ min, max, step }` bounds for every numeric shader

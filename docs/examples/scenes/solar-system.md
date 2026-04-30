@@ -22,14 +22,17 @@ Trois planètes (rocheuse + métallique + gazeuse) en orbite autour d'une étoil
 ## Pattern d'orbite simple
 
 ```ts
-// Position monde de l'étoile — partagée par toutes les planètes pour
-// que leur shader recalcule la direction lumière chaque frame.
-const sunWorldPos = new THREE.Vector3(0, 0, 0)
+// Source de lumière unique : la même PointLight illumine la scène (cœur
+// molten, anneaux) ET pilote la direction soleil → planète dans le shader
+// de chaque corps via l'option `sunLight`.
+const sun = new THREE.PointLight(0xfff1cc, 4.5, 0, 0)
+sun.position.set(0, 0, 0)
+scene.add(sun)
 
 const planets = [
-  { body: useBody(rockyConfig, DEFAULT_TILE_SIZE, { sunWorldPos }), orbitRadius: 4.5, orbitSpeed: 0.30, phase: 0 },
-  { body: useBody(metalConfig, DEFAULT_TILE_SIZE, { sunWorldPos }), orbitRadius: 7.0, orbitSpeed: 0.18, phase: 1.5 },
-  { body: useBody(gasConfig,   DEFAULT_TILE_SIZE, { sunWorldPos }), orbitRadius: 11,  orbitSpeed: 0.10, phase: 3.2 },
+  { body: useBody(rockyConfig, DEFAULT_TILE_SIZE, { sunLight: sun }), orbitRadius: 4.5, orbitSpeed: 0.30, phase: 0 },
+  { body: useBody(metalConfig, DEFAULT_TILE_SIZE, { sunLight: sun }), orbitRadius: 7.0, orbitSpeed: 0.18, phase: 1.5 },
+  { body: useBody(gasConfig,   DEFAULT_TILE_SIZE, { sunLight: sun }), orbitRadius: 11,  orbitSpeed: 0.10, phase: 3.2 },
 ]
 planets.forEach(p => scene.add(p.body.group))
 
@@ -47,13 +50,11 @@ C'est minimaliste : pas d'ellipse, pas d'inclinaison orbitale, pas de précessio
 
 ## Comment l'étoile éclaire les planètes
 
-Le matériau des corps est un `THREE.ShaderMaterial` custom — il **n'écoute pas** les lumières de scène (`PointLight`, `DirectionalLight`). À la place, chaque corps lit son propre uniform `uLightDir`.
+Le matériau des corps est un `THREE.ShaderMaterial` custom — il **n'écoute pas** les lumières de scène standard (pas de calcul `MeshStandardMaterial`). À la place, chaque corps maintient son propre uniform `uLightDir`.
 
-Pour qu'une planète tourne sa face « jour » vers l'étoile au fil de l'orbite, on passe `sunWorldPos` à `useBody`. À chaque `body.tick(dt)`, la lib recalcule le vecteur planète → étoile et met à jour le shader (corps + atmosphère + anneaux).
+Pour pondre cette direction sans dupliquer la source de vérité, `useBody` accepte une option `sunLight: THREE.PointLight | THREE.DirectionalLight`. À chaque `body.tick(dt)`, la lib lit `sunLight.getWorldPosition()`, calcule le vecteur normalisé planète → soleil, et met à jour le shader (corps + atmosphère + anneaux). **Une seule** lumière scène pilote toute la scène — pas de `Vector3` séparé à synchroniser.
 
-L'étoile, elle, n'a pas besoin d'être éclairée : son shader est **émissif** (auto-lumineux). On peut donc placer l'étoile au centre sans se soucier d'une « lumière à l'intérieur de la sphère ».
-
-L'`AmbientLight` reste utile : elle remonte légèrement le côté nuit pour que les tuiles hex restent lisibles en mode jouable (vues `atmo` / `sol`). Une `PointLight` n'a d'effet que sur des meshes annexes utilisant les matériaux Three.js standard (anneaux décoratifs, marqueurs…).
+L'étoile, elle, n'a pas besoin d'être éclairée : son shader est **émissif** (auto-lumineux). On peut donc placer la `PointLight` au centre de la sphère étoile sans risque — le shader émissif ignore la scène lights, et les corps qui l'écoutent (via `sunLight`) lisent juste sa position.
 
 ## Avec `<Body>` et `pose`
 

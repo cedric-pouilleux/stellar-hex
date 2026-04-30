@@ -76,7 +76,10 @@ let renderer:        THREE.WebGLRenderer | null = null
 let scene:           THREE.Scene | null = null
 let camera:          THREE.PerspectiveCamera | null = null
 let ambientLight:    THREE.AmbientLight | null = null
-let directionalLight: THREE.DirectionalLight | null = null
+// Created eagerly so it can be wired into `useBody({ sunLight })`
+// synchronously inside `rebuildBody`. Added to the scene in `onMounted`.
+const directionalLight = new THREE.DirectionalLight(0xfff1dd, 2.0)
+directionalLight.position.set(6, 4, 6)
 let body:            Body | null = null
 
 /**
@@ -92,8 +95,8 @@ function planet(): PlanetBody | null {
 let rings:           BodyRingsHandle | null = null
 let solidShell:      SolidShellHandle | null = null
 // Mutable Vector3 refreshed each frame from the dominant directional
-// light — wired by reference into the rings shader (via `attachBodyRings`)
-// and the per-frame shadow sync (`syncRingShadowSun`).
+// light — fed into the body's `uRingSunWorldPos` uniform via
+// `syncRingShadowSun` (the rings builder owns its own auto-discovery).
 const sunWorldPos = new THREE.Vector3()
 /**
  * Per-tile state of the frozen ice cap when active. `top` and `base` are
@@ -187,6 +190,7 @@ function rebuildBody() {
       quality:          { sphereDetail: sphereDetail.value },
       variation:        buildPlaygroundVariation(cfg),
       hoverCursor:      resolveHoverCursorConfig(hoverCursorParams),
+      sunLight:         directionalLight,
     })
     pushAtmoVisualParams()
   } catch (e) {
@@ -215,7 +219,7 @@ function rebuildBody() {
     props.config.radius,
     props.config.rotationSpeed,
     merged,
-    sunWorldPos,
+    null,
   )
 
   // ── Planet-only build path ────────────────────────────────────────
@@ -812,8 +816,6 @@ onMounted(() => {
   // a contrasty rig for the realistic day/night terminator look.
   ambientLight = new THREE.AmbientLight(0x404857, 0.6)
   scene.add(ambientLight)
-  directionalLight = new THREE.DirectionalLight(0xfff1dd, 2.0)
-  directionalLight.position.set(6, 4, 6)
   scene.add(directionalLight)
   applyLightingForView()
 

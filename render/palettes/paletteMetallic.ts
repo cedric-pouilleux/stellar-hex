@@ -28,8 +28,7 @@ const BAND_THRESHOLDS = [METALLIC_PLAIN_THRESH, 0.55, METALLIC_PEAK_THRESH, Infi
  * Build a metallic-body {@link TerrainLevel} palette from four caller-supplied
  * bands. The lib stays agnostic about the body composition — the caller
  * computes the four bands from its own catalogue and passes the result in.
- * When `bands` is omitted, the neutral grey ladder in
- * {@link NEUTRAL_METALLIC_BANDS} is used.
+ * When `bands` is omitted, an internal neutral grey ladder is used.
  *
  * Thresholds and slot count are fixed (four bands — crater floor, plains,
  * highlands, peaks). Per-band `metalness / roughness / height` are

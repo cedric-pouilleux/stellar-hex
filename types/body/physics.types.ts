@@ -15,11 +15,10 @@ import type { SpectralType } from './identity.types'
  * temperature field to derive a visual or a phase. Callers that want a
  * climate-driven look (lava colour, ocean tint, gas turbulence) compute
  * those values from their own thermal model and push them via the
- * type-specific visual profile and {@link ../body.types#BodyVariation}
- * overrides.
+ * type-specific visual profile and `BodyVariation` overrides (render layer).
  */
 export interface BodyPhysicsCore {
-  /** Visual radius in world units. Also drives the terrain band count via {@link resolveTerrainLevelCount}. */
+  /** Visual radius in world units. Also drives the terrain band count via `resolveTerrainLevelCount`. */
   radius:           number
   /** Self-rotation speed (rad/s). */
   rotationSpeed:    number
@@ -98,7 +97,7 @@ export interface PlanetPhysics extends BodyPhysicsCore {
    * Physical state of the surface liquid body. Defaults to `'none'`.
    * Presence is encoded by `liquidState !== 'none'`; the substance
    * identity (water, methane, …) is entirely caller-owned and surfaced
-   * only as a colour via {@link ../body.types#PlanetVisualProfile.liquidColor}.
+   * only as a colour via {@link PlanetVisualProfile.liquidColor}.
    *
    *   - `'liquid'` — the lib stacks an animated hex liquid shell on
    *     submerged tiles via `buildLiquidShell` (top fan animated with
@@ -106,7 +105,7 @@ export interface PlanetPhysics extends BodyPhysicsCore {
    *   - `'frozen'` — no liquid shell is rendered. Frozen surfaces are a
    *     caller concern: the recommended pattern is to stack a hex ice
    *     cap on submerged tiles (top at `seaLevelElevation`) using
-   *     {@link buildSolidShell}, painted with the substance's
+   *     `buildSolidShell`, painted with the substance's
    *     solid-phase tint. The cap is mineable as a separate hex column
    *     above the underlying mineral tile.
    *   - `'none'` — dry surface, no shell rendered.
@@ -155,7 +154,7 @@ export type BodyPhysics = PlanetPhysics | StarPhysics
  * Inputs accepted by the star physics calculators (`resolveStarData`,
  * `toStarParams`). Spectral type + optional radius / temperature
  * overrides — sufficient for the lookup-table-driven star derivations
- * without requiring a full {@link ../body.types#StarConfig}.
+ * without requiring a full {@link StarConfig}.
  */
 export interface StarPhysicsInput {
   spectralType: SpectralType

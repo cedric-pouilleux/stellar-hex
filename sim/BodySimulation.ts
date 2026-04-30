@@ -91,7 +91,7 @@ export interface BodySimulation {
  *   1. Sample seeded simplex noise for every tile.
  *   2. Rank tiles into `N` equal-frequency bands (elevation 0..N-1), where
  *      `N` is derived from `(radius, coreRadiusRatio)` via
- *      {@link resolveTerrainLevelCount}.
+ *      `resolveTerrainLevelCount` (render layer).
  *   3. Resolve liquid coverage → a band-space sea waterline + assemble
  *      the immutable `TileState` map.
  *

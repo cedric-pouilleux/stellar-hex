@@ -77,6 +77,7 @@ export {
   buildMetallicPalette,
   buildGasPalette,
 } from './render/palettes/terrainPalette'
+export type { GasBandColors } from './render/palettes/paletteGas'
 export {
   DEFAULT_TERRAIN_LOW_COLOR,
   DEFAULT_TERRAIN_HIGH_COLOR,
@@ -101,6 +102,11 @@ export type {
   ParamDef,
   BodyParamsMap,
   ParamRange,
+  ParamMap,
+  ParamValue,
+  LiquidMaskOptions,
+  RangeMap,
+  KelvinRGB,
 } from './shaders'
 
 // ── Rendering ────────────────────────────────────────────────────
@@ -112,6 +118,8 @@ export {
   terrainBandLayout,
   type TerrainBandLayout,
 } from './physics/body'
+export { MIN_TERRAIN_LEVEL_COUNT } from './physics/terrain'
+export { STAR_TILE_REF } from './physics/star'
 export {
   useBody,
   tileSizeToSubdivisions,
@@ -124,16 +132,23 @@ export {
 // thumbnails) without having to build a full body. No GPU resource is
 // created — same function `useBody` runs internally.
 export { configToLibParams } from './render/body/configToLibParams'
-export type { ShadowUniforms, OccluderUniforms } from './render/hex/hexMeshShared'
+export type {
+  ShadowUniforms,
+  OccluderUniforms,
+  TileGeometryInfo,
+  HoverListener,
+} from './render/hex/hexMeshShared'
 export type { InteractiveMesh, InteractiveMeshOptions } from './render/body/buildInteractiveMesh'
 export { buildAtmoShell } from './render/shells/buildAtmoShell'
-export type { AtmoShellConfig, AtmoShellHandle } from './render/shells/buildAtmoShell'
+export type { AtmoShellConfig, AtmoShellHandle, AtmoShellParams } from './render/shells/buildAtmoShell'
 export { buildBodyRings } from './render/shells/buildBodyRings'
 export type { BodyRingsConfig, BodyRingsHandle } from './render/shells/buildBodyRings'
 export { buildCoreMesh } from './render/shells/buildCoreMesh'
 export type { CoreMesh, CoreMeshConfig } from './render/shells/buildCoreMesh'
 export { buildLayeredPrismGeometry } from './render/layered/buildLayeredPrism'
+export type { LayeredPrismGeometry, PrismRange } from './render/layered/buildLayeredPrism'
 export { buildLayeredMergedGeometry } from './render/layered/buildLayeredMesh'
+export type { LayeredMergedGeometry, SolHeightFn } from './render/layered/buildLayeredMesh'
 export { buildLiquidShell } from './render/shells/buildLiquidShell'
 export type { LiquidShellConfig, LiquidShellHandle } from './render/shells/buildLiquidShell'
 export { buildSolidShell } from './render/shells/buildSolidShell'
@@ -142,13 +157,31 @@ export { buildLayeredInteractiveMesh, resolveSolHeight } from './render/layered/
 export type { LayeredInteractiveMesh, LayeredInteractiveMeshOptions } from './render/layered/buildLayeredInteractiveMesh'
 export { buildAtmoBoardMesh } from './render/atmo/buildAtmoBoardMesh'
 export type { AtmoBoardMesh, AtmoBoardMeshOptions } from './render/atmo/buildAtmoBoardMesh'
-export type { InteractiveLayer, InteractiveView, BoardTileRef } from './render/types/bodyHandle.types'
+export type { AtmoShellRGB } from './render/shells/atmoShellPaint'
+export type { RaycastState } from './render/body/interactiveController'
+export type {
+  InteractiveLayer,
+  InteractiveView,
+  BoardTileRef,
+  HoverPlacementOptions,
+} from './render/types/bodyHandle.types'
 export type { RingVariation, RingArchetype, Profile8 } from './render/shells/ringVariation'
-export { RING_RANGES, RING_ARCHETYPES, ARCHETYPE_PROFILES } from './render/shells/ringVariation'
+export {
+  RING_RANGES,
+  RING_ARCHETYPES,
+  ARCHETYPE_PROFILES,
+  generateRingVariation,
+} from './render/shells/ringVariation'
 export { generateBodyVariation } from './render/body/bodyVariation'
 export type { BodyVariation } from './render/body/bodyVariation'
 export { createTileOverlayMesh } from './render/shells/TileOverlayMesh'
-export type { TileOverlayMesh, TileOverlayOptions } from './render/shells/TileOverlayMesh'
+export type {
+  TileOverlayMesh,
+  TileOverlayOptions,
+  TileOverlayKind,
+  TileGeometryQuery,
+  TileGeometryContext,
+} from './render/shells/TileOverlayMesh'
 export {
   computeBodyQuaternion,
   createBodyMotion,
@@ -159,11 +192,15 @@ export type {
 } from './render/body/bodyMotion'
 export { godRaysFromStar } from './render/lighting/godRaysFromStar'
 export { createGraphicsUniforms } from './render/hex/hexGraphicsUniforms'
-export type { GraphicsUniforms } from './render/hex/hexGraphicsUniforms'
-export { resolveSphereDetail } from './render/quality/renderQuality'
+export type {
+  GraphicsUniforms,
+  NumberUniform,
+  ColorUniform,
+} from './render/hex/hexGraphicsUniforms'
+export { resolveSphereDetail, MAX_SPHERE_DETAIL } from './render/quality/renderQuality'
 export type { RenderQuality, SphereDetailQuality } from './render/quality/renderQuality'
 export { createHoverChannel } from './render/state/hoverState'
-export type { HoverChannel } from './render/state/hoverState'
+export type { HoverChannel, MutableRef } from './render/state/hoverState'
 export { findSceneRoot, findDominantLightWorldPos } from './render/lighting/findDominantLight'
 
 // ── Surface-look strategy ──────────────────────────────────────
@@ -178,6 +215,7 @@ export {
 } from './render/body/bodyTypeStrategy'
 export type {
   BodyTypeStrategy,
+  SolVariationRanges,
 } from './render/body/bodyTypeStrategy'
 
 // ── Scene display helpers ───────────────────────────────────────

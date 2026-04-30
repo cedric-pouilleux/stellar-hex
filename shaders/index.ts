@@ -13,7 +13,13 @@
 
 // Main class
 export { BodyMaterial } from './BodyMaterial'
-export type { BodyMaterialOptions, BodyLightUpdate, ParamValue, ParamMap } from './BodyMaterial'
+export type {
+  BodyMaterialOptions,
+  BodyLightUpdate,
+  ParamValue,
+  ParamMap,
+  LiquidMaskOptions,
+} from './BodyMaterial'
 
 // Parameter schema (types, defaults). Display labels are caller-owned —
 // see the playground's `paramLabels.ts` for a reference dictionary.
@@ -22,10 +28,11 @@ export type { LibBodyType, ParamDef, BodyParamsMap } from './params'
 
 // Shader ranges (numeric slider bounds)
 export { SHADER_RANGES } from './shaderRanges'
-export type { ParamRange } from './shaderRanges'
+export type { ParamRange, RangeMap } from './shaderRanges'
 
 // Utilities
 export { kelvinToRGB, kelvinToThreeColor, kelvinLabel } from './kelvin'
+export type { KelvinRGB } from './kelvin'
 
 // Resolved GLSL sources (advanced use: custom materials, previews…)
 export { VERTEX_SHADER, FRAG_SHADERS } from './shaderSources'

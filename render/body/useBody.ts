@@ -15,6 +15,7 @@ import { assemblePlanetSceneGraph } from './assemblePlanetSceneGraph'
 import { createPlanetViewSwitcher } from './createPlanetViewSwitcher'
 import { hasAtmosphere, resolveAtmosphereThickness } from '../../physics/body'
 import { mountHoverCursor } from '../hover/mountHoverCursor'
+import { resolveLightWorldPos } from '../lighting/findDominantLight'
 import type { HoverCursorConfig, HoverCursorPresets } from '../types/hoverCursor.types'
 
 // Re-exports for the public API surface — keep historical import paths
@@ -29,8 +30,9 @@ export {
 
 // ── Public API ────────────────────────────────────────────────────
 
-const _wPos = new THREE.Vector3()
-const _dir  = new THREE.Vector3()
+const _planetWP = new THREE.Vector3()
+const _sunWP    = new THREE.Vector3()
+const _dir      = new THREE.Vector3()
 
 /**
  * Factory that builds a complete celestial body — hex mesh, interactive
@@ -39,20 +41,28 @@ const _dir  = new THREE.Vector3()
  *
  * Dispatches to the star sub-builder (which keeps its own smooth + hex
  * meshes) or to the dual-board planet path (rocky / metallic / gaseous all
- * share the same sol mesh + atmo board pair). Scene-graph assembly lives
- * in {@link assemblePlanetSceneGraph}; view toggles live in
- * {@link createPlanetViewSwitcher}.
+ * share the same sol mesh + atmo board pair).
  *
  * @param config    - Physics + visual configuration of the body.
  * @param tileSize  - Target world-space tile edge length (drives subdivisions
  *                    on both sol and atmo hexaspheres).
- * @param options   - Optional hooks — sun position provider, palette override.
+ * @param options   - Optional hooks — sun light source, palette override.
  */
 export function useBody(
   config: BodyConfig,
   tileSize: number,
   options?: {
-    sunWorldPos?:      THREE.Vector3
+    /**
+     * Light source illuminating the body. On every `tick()`, the lib reads
+     * `sunLight.getWorldPosition()`, computes a normalized planet→sun
+     * direction and pushes it into the body shader (and atmo shell). Pass
+     * a single `PointLight` shared across all bodies of the same star
+     * system — the same instance that lives in the scene as the visible
+     * light source. Bodies without rings or atmosphere simply ignore it
+     * if absent (the shader keeps its last known direction, defaulting to
+     * the +X axis at construction time).
+     */
+    sunLight?:         THREE.PointLight | THREE.DirectionalLight | null
     palette?:          TerrainLevel[]
     hoverChannel?:     HoverChannel
     graphicsUniforms?: GraphicsUniforms
@@ -68,7 +78,7 @@ export function useBody(
 ): Body {
   const hoverChannel     = options?.hoverChannel     ?? createHoverChannel()
   const graphicsUniforms = options?.graphicsUniforms ?? createGraphicsUniforms()
-  const sunWorldPos      = options?.sunWorldPos
+  const sunLight         = options?.sunLight         ?? null
   const quality          = options?.quality
   const strategy         = strategyFor(config)
   // Tile-reference radius is per-type — stars look up their spectral
@@ -252,9 +262,13 @@ export function useBody(
       interactive.tick(elapsed)
       coreMesh.tick(elapsed)
       atmoShell?.tick(elapsed)
-      if (sunWorldPos) {
-        group.getWorldPosition(_wPos)
-        _dir.copy(sunWorldPos).sub(_wPos).normalize()
+      if (sunLight) {
+        group.getWorldPosition(_planetWP)
+        // Resolve the light to a world-space sun position. PointLight →
+        // literal world pos; DirectionalLight → virtual point projected
+        // far behind so the resulting direction reads as near-parallel.
+        resolveLightWorldPos(sunLight, _sunWP)
+        _dir.copy(_sunWP).sub(_planetWP).normalize()
         planetMaterial.setLight({ direction: _dir })
         atmoShell?.setLight(_dir)
       }

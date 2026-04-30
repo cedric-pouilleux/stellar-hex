@@ -296,6 +296,53 @@ describe('useBody â€” core mesh (non-stellar bodies)', () => {
   })
 })
 
+// ── sunLight pipes the planet→sun direction into BodyMaterial ────
+
+describe('useBody — sunLight option', () => {
+  it('refreshes uLightDir from sunLight.getWorldPosition() on tick', () => {
+    // Drives BodyMaterial via setLight({ direction }). The shader keeps a
+    // default direction until the first tick; the explicit option must
+    // overwrite it with the normalized planet→sun vector each frame so
+    // the day/night terminator tracks the orbital motion.
+    const sun = new THREE.PointLight(0xffffff, 1)
+    sun.position.set(10, 0, 0)
+    const rocky = useBody(makeRockyConfig(), TILE_SIZE, { sunLight: sun })
+
+    rocky.tick(0.016)
+
+    const shader = rocky.planetMaterial.material as THREE.ShaderMaterial
+    const lightDir = shader.uniforms.uLightDir.value as THREE.Vector3
+    // Body sits at the origin, light at +X → uLightDir points planet→sun = +X.
+    expect(lightDir.x).toBeCloseTo(1, 5)
+    expect(lightDir.y).toBeCloseTo(0, 5)
+    expect(lightDir.z).toBeCloseTo(0, 5)
+
+    rocky.dispose()
+  })
+
+  it('honours light world transforms — not raw .position — when nested in a group', () => {
+    // Regression guard: reading `sunLight.position` directly would miss
+    // any parent group transform. `getWorldPosition` covers nested rigs
+    // (e.g. the light hung off an orbiting carrier in a binary system).
+    const carrier = new THREE.Group()
+    carrier.position.set(20, 0, 0)
+    const sun = new THREE.PointLight(0xffffff, 1)
+    sun.position.set(0, 0, 0) // origin in carrier-local space
+    carrier.add(sun)
+    carrier.updateMatrixWorld(true)
+
+    const rocky = useBody(makeRockyConfig(), TILE_SIZE, { sunLight: sun })
+    rocky.tick(0.016)
+
+    const shader = rocky.planetMaterial.material as THREE.ShaderMaterial
+    const lightDir = shader.uniforms.uLightDir.value as THREE.Vector3
+    // Sun's world position is (20, 0, 0); body at origin → +X direction.
+    expect(lightDir.x).toBeCloseTo(1, 5)
+
+    rocky.dispose()
+  })
+})
+
 // â”€â”€ Surface liquid honoured on every non-stellar type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('useBody â€” surface liquid', () => {

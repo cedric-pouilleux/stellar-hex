@@ -20,9 +20,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { Tile } from '../../geometry/hexasphere.types'
 import { accelerateRaycast } from '../lighting/accelerateRaycast'
 import type { RaycastState } from '../body/interactiveController'
-
-/** Plain RGB triple consumed by the overlay helpers. */
-export interface RGB { r: number; g: number; b: number }
+import type { RGB } from '../types/bodyHandle.types'
 
 /** Per-tile vertex range in the merged board buffer. */
 interface AtmoTileRange { start: number; count: number }

@@ -28,7 +28,7 @@ export type PlanetConfig =
 /**
  * Full configuration for a stellar body. Composed of identity + physics +
  * noise; carries no visual profile (the look is fully derived from
- * {@link ./identity.types#SpectralType}).
+ * {@link SpectralType}).
  */
 export type StarConfig =
   & StarIdentity

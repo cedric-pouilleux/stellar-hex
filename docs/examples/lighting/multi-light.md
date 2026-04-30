@@ -11,7 +11,7 @@ const tabs = [
 
 # Sources lumineuses multiples
 
-Les matériaux planète, étoile, atmo et anneau réagissent au **shading standard Three.js** : n'importe quel nombre de `DirectionalLight`, `PointLight` ou `AmbientLight` fonctionne sans configuration spéciale.
+Les matériaux planète, étoile, atmo et anneau utilisent des `ShaderMaterial` custom — ils **n'écoutent pas** les lumières scène standard de Three.js. Pour piloter la direction soleil → planète, on passe une lumière explicite via l'option `sunLight` :
 
 <ClientOnly>
   <DemoBlock :tabs="tabs">
@@ -19,11 +19,9 @@ Les matériaux planète, étoile, atmo et anneau réagissent au **shading standa
   </DemoBlock>
 </ClientOnly>
 
-## Câblage
+## Câblage à une lumière dominante
 
 ```ts
-scene.add(new THREE.AmbientLight(0x101018, 0.3))
-
 const warmSun = new THREE.DirectionalLight(0xffaa55, 2.0)
 warmSun.position.set(-4, 1, 4)
 scene.add(warmSun)
@@ -32,29 +30,38 @@ const coolSun = new THREE.DirectionalLight(0x55aaff, 1.5)
 coolSun.position.set(4, 1, -2)
 scene.add(coolSun)
 
-const body = useBody(config, DEFAULT_TILE_SIZE)
+// Une seule lumière pilote le shader du corps. Les autres restent
+// disponibles pour vos meshes annexes (markers, props, glow décoratifs).
+const body = useBody(config, DEFAULT_TILE_SIZE, { sunLight: warmSun })
 scene.add(body.group)
 ```
 
-Aucune autre étape. Les uniforms `uLightDir` du shader interne sont pilotés par THREE qui agrège toutes les lumières directionnelles.
+Le shader interne ne supporte qu'une direction lumière à la fois. Pour la varier dans le temps (jour/nuit, transit), il suffit de bouger la `DirectionalLight` ou la `PointLight` passée — `body.tick(dt)` lit sa position monde chaque frame.
 
-## Cas particulier des ombres / god rays
+## God rays & ring shadows
 
-Quand vous avez plusieurs sources, les couches « scénographiques » de la lib (god rays, ring shadows) ne suivent **qu'une seule lumière** — la dominante :
+Les couches scénographiques (god rays, ring shadows auto-câblées) suivent automatiquement la **lumière dominante** sous le scene root :
 
-- `findDominantLightWorldPos(scene)` retourne la position monde de la lumière la plus intense (point ou directional).
-- Les god rays partent de cette position.
-- Les ring shadows utilisent cette direction.
+- `findDominantLightWorldPos(scene, out)` retourne la position monde de la `PointLight` ou `DirectionalLight` la plus intense.
+- Les `<BodyRings>` (et `buildBodyRings` en vanille) auto-discover cette source si vous ne leur passez pas de `sunLight` explicite.
 
-Pour orchestrer plusieurs systèmes binaires, créez un EffectComposer + un `GodRaysShader` **par étoile** et compositez le résultat additivement.
+Pour un système binaire, alimentez chaque sous-système avec sa propre `sunLight` explicite ; le scan auto ne sait pas répartir entre deux étoiles concurrentes.
 
 ## Avec Vue / TresJS
 
 ```vue
-<TresAmbientLight :color="'#101018'" :intensity="0.3" />
-<TresDirectionalLight :position="[-4, 1, 4]"  :intensity="2.0" :color="'#ffaa55'" />
-<TresDirectionalLight :position="[4, 1, -2]"  :intensity="1.5" :color="'#55aaff'" />
-<Body :body="body" />
+<script setup lang="ts">
+const warmSun = new THREE.DirectionalLight(0xffaa55, 2.0)
+warmSun.position.set(-4, 1, 4)
+
+const body = useBody(config, DEFAULT_TILE_SIZE, { sunLight: warmSun })
+</script>
+
+<template>
+  <primitive :object="warmSun" />
+  <TresDirectionalLight :position="[4, 1, -2]" :intensity="1.5" :color="'#55aaff'" />
+  <Body :body="body" :sun-light="warmSun" />
+</template>
 ```
 
-C'est exactement la déclaration équivalente de la version Three.js — TresJS ne fait que mapper sur les noeuds Three.js sous-jacents.
+L'instance `warmSun` est partagée : montée dans la scène via `<primitive>` ET passée à `useBody({ sunLight })` + `<Body :sun-light>` pour piloter le shader et les anneaux. Une seule source de vérité, pas de `Vector3` à synchroniser.

@@ -15,7 +15,7 @@
     :radius="body.config.radius"
     :rotation-speed="body.config.rotationSpeed"
     :variation="body.variation.rings"
-    :sun-world-pos="sunWorldPos ?? undefined"
+    :sun-light="sunLight ?? undefined"
   />
 
   <ShadowUpdater
@@ -87,13 +87,13 @@ const props = withDefaults(defineProps<{
    */
   interactive?:     boolean
   /**
-   * Optional caller-driven sun world-space position, forwarded to the
-   * mounted `<BodyRings>` (when the body has rings). When omitted, the
-   * ring wrapper falls back to its own per-frame
-   * `findDominantLightWorldPos` traversal — fine for simple scenes with
-   * a single light. Multi-star scenes pass the resolved sun ref here.
+   * Optional explicit light source, forwarded to the mounted
+   * `<BodyRings>` (when the body has rings). When omitted, the ring
+   * builder auto-discovers the dominant light in the scene each frame —
+   * fine for single-light scenes. Multi-star scenes pass the resolved
+   * sun light here.
    */
-  sunWorldPos?:     THREE.Vector3 | null
+  sunLight?:        THREE.PointLight | THREE.DirectionalLight | null
 }>(), {
   parentBody:      null,
   pose:            null,
@@ -103,7 +103,7 @@ const props = withDefaults(defineProps<{
   hoveredTileId:   null,
   bodyHover:       false,
   interactive:     false,
-  sunWorldPos:     null,
+  sunLight:        null,
 })
 
 // ── Controlled tile-state watchers ────────────────────────────────

@@ -25,5 +25,10 @@
   "disableSources": true,
   "parametersFormat": "table",
   "enumMembersFormat": "table",
-  "typeDeclarationFormat": "list"
+  "typeDeclarationFormat": "list",
+  "externalSymbolLinkMappings": {
+    "@types/three": {
+      "PointLight": "https://threejs.org/docs/#api/en/lights/PointLight"
+    }
+  }
 }

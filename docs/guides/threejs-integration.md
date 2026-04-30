@@ -14,11 +14,14 @@ const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(innerWidth, innerHeight)
 document.body.appendChild(renderer.domElement)
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.2))
 const sun = new THREE.DirectionalLight(0xffffff, 2.5)
 sun.position.set(5, 3, 3)
 scene.add(sun)
 ```
+
+::: tip Une seule lumière pilote le shader
+Les matériaux de la lib sont custom : ils ne lisent pas l'`AmbientLight` et n'agrègent pas plusieurs `DirectionalLight`. Une seule source dirige la direction soleil → corps, soit explicitement via `useBody({ sunLight })`, soit par auto-discovery (scan de la lumière la plus intense). Voir [Sources lumineuses multiples](/examples/lighting/multi-light) pour les cas multi-étoiles.
+:::
 
 ## Générer le corps
 
@@ -33,6 +36,9 @@ const body = useBody(
     atmosphereThickness:  0.5,
   },
   DEFAULT_TILE_SIZE,
+  // Pipes the scene light into the body shader's planet→sun direction.
+  // Omit it and the lib auto-discovers the dominant scene light each tick.
+  { sunLight: sun },
 )
 
 scene.add(body.group)

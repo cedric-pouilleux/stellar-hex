@@ -12,6 +12,11 @@
 
 import * as THREE from 'three'
 import type { RingVariation } from './ringVariation'
+import {
+  findSceneRoot,
+  findDominantLightWorldPos,
+  resolveLightWorldPos,
+} from '../lighting/findDominantLight'
 
 const VERT = /* glsl */`
   varying vec3 vWorldPos;
@@ -196,14 +201,16 @@ export interface BodyRingsConfig {
    */
   planetWorldPos: THREE.Vector3
   /**
-   * Mutable world-space position of the dominant light — same contract
-   * as {@link planetWorldPos}: caller owns the vector, mutates it every
-   * frame, the lib reads by reference. Drives the rings' backlight halo
-   * and shadow ray. Callers that want auto-discovery in a Vue/Tres scene
-   * can use `findDominantLightWorldPos` (exported from the lib) to feed
-   * the vector before each tick.
+   * Light source illuminating the rings. Each `tick()`, the lib reads
+   * `sunLight.getWorldPosition()` and pushes it into the ring shader
+   * (drives backlight halo + shadow ray).
+   *
+   * When omitted (or `null`), `tick()` auto-discovers the dominant
+   * `PointLight` / `DirectionalLight` under the mesh's scene root via
+   * {@link findDominantLightWorldPos} — handy for simple scenes with a
+   * single light. Multi-star scenes pass the resolved light explicitly.
    */
-  sunWorldPos:    THREE.Vector3
+  sunLight?:      THREE.PointLight | THREE.DirectionalLight | null
 }
 
 /**
@@ -240,6 +247,11 @@ export function buildBodyRings(config: BodyRingsConfig): BodyRingsHandle {
   const profileA = new THREE.Vector4(p0, p1, p2, p3)
   const profileB = new THREE.Vector4(p4, p5, p6, p7)
 
+  // Sun world-space position lives in a builder-owned Vector3, refreshed
+  // each `tick()` from `config.sunLight` (or scene auto-discovery). The
+  // shader reads the uniform by reference — no per-frame copy.
+  const sunWorldPosUniform = new THREE.Vector3()
+
   const uniforms = {
     uInnerR:         { value: innerR },
     uOuterR:         { value: outerR },
@@ -257,10 +269,11 @@ export function buildBodyRings(config: BodyRingsConfig): BodyRingsHandle {
     uNoiseSeed:      { value: config.variation.noiseSeed },
     uColorInner:     { value: new THREE.Color(config.variation.colorInner) },
     uColorOuter:     { value: new THREE.Color(config.variation.colorOuter) },
-    // Wired directly to the caller's mutable Vector3s — no per-frame copy.
+    // `uPlanetWorldPos` is wired by reference to the caller's mutable
+    // Vector3; `uSunWorldPos` is owned by the builder and refreshed in tick.
     uPlanetWorldPos: { value: config.planetWorldPos },
     uPlanetRadius:   { value: config.radius },
-    uSunWorldPos:    { value: config.sunWorldPos },
+    uSunWorldPos:    { value: sunWorldPosUniform },
   }
 
   const mat = new THREE.ShaderMaterial({
@@ -295,9 +308,16 @@ export function buildBodyRings(config: BodyRingsConfig): BodyRingsHandle {
     // track the same accumulated phase — both stay in lockstep.
     uniforms.uRotationPhase.value = spinAngle
 
-    // `uPlanetWorldPos` and `uSunWorldPos` are wired by reference to the
-    // caller's mutable Vector3s — the caller refreshes them from its own
-    // loop, the shader reads the up-to-date values with no copy.
+    // Refresh the sun-position uniform: explicit `sunLight` wins; otherwise
+    // walk the scene root for the dominant light. Skip auto-discovery
+    // until the mesh has been attached (no parent → no scene to scan).
+    if (config.sunLight) {
+      resolveLightWorldPos(config.sunLight, sunWorldPosUniform)
+    } else if (mesh.parent) {
+      findDominantLightWorldPos(findSceneRoot(mesh), sunWorldPosUniform)
+    }
+    // `uPlanetWorldPos` stays wired by reference to the caller's mutable
+    // Vector3 — refreshed externally each frame.
   }
 
   function updateVariation(v: RingVariation): void {
