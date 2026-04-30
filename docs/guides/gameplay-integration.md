@@ -78,23 +78,24 @@ const RESOURCE_COLORS: Record<Resource, { r: number; g: number; b: number }> = {
 Vous itérez les `tileStates` du body et appliquez vos règles :
 
 ```ts
-import { buildNeighborMap } from '@cedric-pouilleux/stellar-hex/sim'
+import { seededPrng } from '@cedric-pouilleux/stellar-hex/sim'
 
 function distributeResources(body: PlanetBody): Map<number, Resource> {
   const out = new Map<number, Resource>()
   const sea = body.sim.seaLevelElevation
+  const rng = seededPrng(body.config.name + ':resources')
 
   for (const [id, state] of body.sim.tileStates) {
     if (state.elevation <= sea)              out.set(id, 'water')
     else if (state.elevation <= sea + 1)     out.set(id, 'coal')
-    else if (Math.random() < 0.25)           out.set(id, 'iron')   // remplacez par un PRNG seedé !
+    else if (rng() < 0.25)                   out.set(id, 'iron')
   }
   return out
 }
 ```
 
-::: warning Pas de `Math.random()` nu
-La règle `seededPrng(name)` s'applique aussi à votre code de distribution si vous voulez du déterminisme. Importez `seededPrng` (interne, ou écrivez le vôtre) et seedez-le sur `config.name + ':resources'`.
+::: tip Scopez vos seeds
+Préfixez le nom du body par un scope (`':resources'`, `':factions'`, …) pour que vos générateurs soient indépendants entre eux et reproductibles entre runs.
 :::
 
 ### 3. Peindre

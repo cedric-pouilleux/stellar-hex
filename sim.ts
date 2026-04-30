@@ -96,3 +96,11 @@ export type { StarPhysicsInput, ResolvedStarData } from './types/body.types'
 export type { BodySimulation } from './sim/BodySimulation'
 export type { TileState } from './sim/TileState'
 export { initBodySimulation } from './sim/BodySimulation'
+
+// ── Determinism ─────────────────────────────────────────────────
+// Same PRNG (FNV-1a + SplitMix32) used internally for noise seeding,
+// continent layout and ring variation. Exposed so callers writing
+// gameplay code (resource distribution, faction placement, …) can
+// stay deterministic by reusing the lib's PRNG. Scope your seeds:
+// `seededPrng(config.name + ':resources')`.
+export { seededPrng } from './internal/prng'

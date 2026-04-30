@@ -180,5 +180,5 @@ Pourquoi SplitMix32 et pas `Math.random()` (Mulberry32, xoshiro, etc.) :
 Si votre back est en Rust / Go / Python et doit reproduire les mêmes valeurs que la lib, **réimplémentez exactement ces deux étapes** : la séquence de bytes en entrée doit produire les mêmes 32 bits en sortie. Les `noiseSeed` et autres random offsets visibles dans `BodyVariation` reposent sur cette équivalence.
 
 ::: warning Pas de `Math.random()` nu
-La règle s'applique aussi au code que vous ajoutez côté caller si vous voulez du déterminisme. Importez `seededPrng` depuis votre code (ou écrivez votre propre PRNG seedé), et nommez vos seeds par scope (`seededPrng(name + ':resources')`, `seededPrng(name + ':factions')`, …) pour éviter que deux générateurs partagent leur état.
+La règle s'applique aussi au code que vous ajoutez côté caller si vous voulez du déterminisme. `seededPrng` est exposé par l'entry `sim` (`import { seededPrng } from '@cedric-pouilleux/stellar-hex/sim'`) ; nommez vos seeds par scope (`seededPrng(name + ':resources')`, `seededPrng(name + ':factions')`, …) pour éviter que deux générateurs partagent leur état.
 :::

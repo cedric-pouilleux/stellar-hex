@@ -74,7 +74,7 @@ Toutes les sources d'aléatoire (FBM, distribution des cratères, variation des 
 
 - Deux corps avec le même `name` produisent **exactement** les mêmes tuiles, le même niveau de la mer, les mêmes anneaux.
 - Vous pouvez encoder un état complet dans une URL en sérialisant uniquement le `BodyConfig` — le rendu est rejouable.
-- **Aucun appel à `Math.random()` nu** dans la lib. Si vous étendez le code, utilisez `prng(name)` (cf. `internal/prng.ts`).
+- **Aucun appel à `Math.random()` nu** dans la lib. Si vous étendez le code (resources, factions, …), importez `seededPrng` depuis l'entry `sim` et scopez vos seeds : `seededPrng(name + ':resources')`.
 
 ## 4. Le pipeline de rendu
 
