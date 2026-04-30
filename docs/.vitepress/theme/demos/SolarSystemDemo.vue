@@ -35,10 +35,16 @@ onMounted(async () => {
   const orbit = new OrbitControls(camera, renderer.domElement)
   orbit.enableDamping = true
 
+  // Ambient kept low — keeps atmo/sol tiles legible on the night side.
   scene.add(new THREE.AmbientLight(0x222233, 0.4))
+
+  // PointLight only feeds add-on meshes that use Three.js standard
+  // materials. Body shaders are driven by `sunWorldPos` below.
   const sun = new THREE.PointLight(0xfff1cc, 4.5, 0, 0)
   sun.position.set(0, 0, 0)
   scene.add(sun)
+
+  const sunWorldPos = new THREE.Vector3(0, 0, 0)
 
   const star = useBody({
     type:           'star',
@@ -62,7 +68,7 @@ onMounted(async () => {
         atmosphereThickness:  0.5,
         liquidState:         'liquid' as const,
         liquidColor:         '#1d4d8c',
-      }, DEFAULT_TILE_SIZE),
+      }, DEFAULT_TILE_SIZE, { sunWorldPos }),
       orbitRadius: 4.5,
       orbitSpeed:  0.30,
       phase:       0,
@@ -75,7 +81,7 @@ onMounted(async () => {
         rotationSpeed:   0.012,
         axialTilt:       0.2,
         reliefFlatness:  0.55,
-      }, DEFAULT_TILE_SIZE),
+      }, DEFAULT_TILE_SIZE, { sunWorldPos }),
       orbitRadius: 7.0,
       orbitSpeed:  0.18,
       phase:       1.5,
@@ -88,7 +94,7 @@ onMounted(async () => {
         rotationSpeed:   0.005,
         axialTilt:       0.05,
         hasRings:        true,
-      }, DEFAULT_TILE_SIZE),
+      }, DEFAULT_TILE_SIZE, { sunWorldPos }),
       orbitRadius: 11.0,
       orbitSpeed:  0.10,
       phase:       3.2,
@@ -109,13 +115,16 @@ onMounted(async () => {
 
     star.tick(dt)
     for (const p of planets) {
-      p.body.tick(dt)
       const angle = p.phase + elapsed * p.orbitSpeed
       p.body.group.position.set(
         Math.cos(angle) * p.orbitRadius,
         0,
         Math.sin(angle) * p.orbitRadius,
       )
+      // Tick after the orbital placement so the per-frame
+      // `sunWorldPos`-driven light direction reads the up-to-date
+      // world position.
+      p.body.tick(dt)
     }
     orbit.update()
     renderer.render(scene, camera)

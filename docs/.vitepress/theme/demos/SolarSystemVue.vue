@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount } from 'vue'
 import * as THREE from 'three'
 import { TresCanvas } from '@tresjs/core'
 import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
@@ -13,39 +13,42 @@ import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 const star = useBody({
   type: 'star', name: 'system-sun',
-  radius: 1.2, 
+  radius: 1.2,
   spectralType: 'G', rotationSpeed: 0.003, axialTilt: 0,
     reliefFlatness:       0.55,
 } as BodyConfig, DEFAULT_TILE_SIZE)
 
+// Drives the per-frame light direction inside each planet's custom
+// shader (scene PointLight is ignored by BodyMaterial).
+const sunWorldPos = new THREE.Vector3(0, 0, 0)
+
 const planets = [
   { body: useBody({
       type: 'planetary', surfaceLook: 'terrain', name: 'rocky-1',
-      radius: 0.45, 
+      radius: 0.45,
       rotationSpeed: 0.02, axialTilt: 0.4,
     reliefFlatness:       0.55,
       atmosphereThickness: 0.5, liquidState: 'liquid', liquidColor: '#1d4d8c',
-    } as BodyConfig, DEFAULT_TILE_SIZE),
+    } as BodyConfig, DEFAULT_TILE_SIZE, { sunWorldPos }),
     orbitRadius: 4.5, orbitSpeed: 0.30, phase: 0 },
   { body: useBody({
       type: 'planetary', surfaceLook: 'metallic', name: 'metal-2',
-      radius: 0.6, 
+      radius: 0.6,
       rotationSpeed: 0.012, axialTilt: 0.2,
     reliefFlatness:       0.55,
-    } as BodyConfig, DEFAULT_TILE_SIZE),
+    } as BodyConfig, DEFAULT_TILE_SIZE, { sunWorldPos }),
     orbitRadius: 7.0, orbitSpeed: 0.18, phase: 1.5 },
   { body: useBody({
       type: 'planetary', surfaceLook: 'bands', name: 'jovian-3',
-      radius: 1.0, 
+      radius: 1.0,
       rotationSpeed: 0.005, axialTilt: 0.05,
     reliefFlatness:       0.55,
-    } as BodyConfig, DEFAULT_TILE_SIZE),
+    } as BodyConfig, DEFAULT_TILE_SIZE, { sunWorldPos }),
     orbitRadius: 11.0, orbitSpeed: 0.10, phase: 3.2 },
 ]
 
-const poses = ref(planets.map(p => ({
-  position: new THREE.Vector3(p.orbitRadius, 0, 0),
-})))
+// Initial placement so the first frame is correct before the RAF loop kicks in.
+planets.forEach(p => p.body.group.position.set(p.orbitRadius, 0, 0))
 
 let animId: number | null = null
 let elapsed = 0
@@ -57,13 +60,19 @@ const tick = () => {
   const dt  = (now - last) / 1000
   last = now
   elapsed += dt
-  planets.forEach((p, i) => {
+  star.tick(dt)
+  planets.forEach((p) => {
     const angle = p.phase + elapsed * p.orbitSpeed
-    poses.value[i].position.set(
+    // Direct group write: needed because `body.tick` reads world position
+    // to recompute the sun direction. Going through <Body>'s `pose`
+    // would defer the position update to the TresJS render loop, after
+    // tick has already run.
+    p.body.group.position.set(
       Math.cos(angle) * p.orbitRadius,
       0,
       Math.sin(angle) * p.orbitRadius,
     )
+    p.body.tick(dt)
   })
 }
 
@@ -81,10 +90,9 @@ onBeforeUnmount(() => { if (animId) cancelAnimationFrame(animId) })
 
     <Body :body="(star as unknown as RenderableBody)" :preview-mode="true" />
     <Body
-      v-for="(p, i) in planets"
+      v-for="p in planets"
       :key="p.body.config.name"
       :body="(p.body as unknown as RenderableBody)"
-      :pose="poses[i]"
     />
   </TresCanvas>
 </template>
