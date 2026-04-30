@@ -1,6 +1,6 @@
 # @cedric-pouilleux/stellar-hex
 
-[npm](https://www.npmjs.com/package/@cedric-pouilleux/stellar-hex) · [GitHub](https://github.com/cedric-pouilleux/stellar-hex) · [Issues](https://github.com/cedric-pouilleux/stellar-hex/issues)
+[Docs](https://cedric-pouilleux.github.io/stellar-hex/) · [Playground](https://cedric-pouilleux.github.io/stellar-hex/playground/) · [API](https://cedric-pouilleux.github.io/stellar-hex/api/) · [npm](https://www.npmjs.com/package/@cedric-pouilleux/stellar-hex) · [GitHub](https://github.com/cedric-pouilleux/stellar-hex) · [Issues](https://github.com/cedric-pouilleux/stellar-hex/issues)
 
 Procedural celestial body — geometry, physics, simulation and rendering for Three.js and Vue 3.
 

@@ -13,6 +13,9 @@ hero:
       text: Voir les exemples
       link: /examples/body-types/rocky
     - theme: alt
+      text: Playground
+      link: /playground/
+    - theme: alt
       text: API
       link: /api/
     - theme: alt
