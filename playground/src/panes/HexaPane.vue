@@ -17,6 +17,12 @@ import {
 } from '../lib/resourceDemo'
 import { paintBody } from '../lib/paint/paintBody'
 import { createGameBodyState, type GameBodyState } from '../game/GameBodyState'
+import {
+  captureBodyStateSnapshot,
+  isTopologyCompatible,
+  replayIceColumns,
+  type BodyStateSnapshot,
+} from '../lib/bodyStateSnapshot'
 import { classifyBiome, biomeLabel } from '../lib/biomes'
 import { installOrbitCamera, applyCamera } from '../lib/orbitCamera'
 import { startRenderLoop } from '../lib/renderLoop'
@@ -172,7 +178,14 @@ function rebuildBody() {
   // Stale lock would reference a tile id that may no longer exist after the
   // rebuild (e.g. subdivision change, type switch).
   lockedHoverId = null
+  // Snapshot the live mutable state BEFORE dispose so we can replay it onto
+  // the freshly built body. Captured unconditionally on planet bodies (the
+  // topology guard at replay time decides whether the snapshot is usable).
+  let snapshot: BodyStateSnapshot | null = null
   if (body) {
+    if (gameState) {
+      snapshot = captureBodyStateSnapshot(gameState, iceColumns, body.config, props.tileSize)
+    }
     if (rings)      { detachBodyRings(body.group, rings); rings = null }
     if (solidShell) { body.group.remove(solidShell.group); solidShell.dispose(); solidShell = null }
     iceColumns.clear()
@@ -239,7 +252,15 @@ function rebuildBody() {
       disabledResources: disabledResourceIds(),
       weights:           resourceWeights(),
     })
-    gameState = createGameBodyState(planetBody, distribution)
+    // Replay dig + per-tile resource overrides when the new body's topology
+    // matches the snapshot. `gameState.restore` owns the seed (`name`) guard,
+    // so a deliberate rename still resets the dig — mismatched topology
+    // (radius / tileSize / atmoFraction / type) drops the snapshot here so
+    // we never feed overrides keyed on stale tile ids.
+    const replay = isTopologyCompatible(snapshot, libConfig.value, props.tileSize)
+      ? snapshot
+      : null
+    gameState = createGameBodyState(planetBody, distribution, replay?.game)
     // Publish per-resource totals so the resources column can display them
     // in real time. Recomputed on every rebuild — UI/sliders bump rebuildKey
     // already, so the figure stays in sync with what the user sees.
@@ -293,6 +314,13 @@ function rebuildBody() {
           metalness:     0.05,
         })
         planetBody.group.add(solidShell.group)
+      }
+      // Replay the cap mining state from the snapshot — the default build
+      // above extruded every submerged tile to the waterline, so any
+      // partially / fully consumed cap from before the rebuild needs its
+      // prism lowered (or removed) to match the user's pre-rebuild view.
+      if (replay && replay.ice.length > 0) {
+        replayIceColumns(replay.ice, iceColumns, solidShell, targetSeaBand)
       }
     }
   }
@@ -1021,6 +1049,34 @@ watch(
 
 watch(() => props.config.atmosphereOpacity, pushAtmoVisualParams)
 watch(atmoTileColorMix,                     pushAtmoVisualParams)
+
+// ── Live-patched body.config fields ──────────────────────────────
+// `liquidColor` and `bandColors` flow through the lib's existing setters
+// (no rebuild required), so the user can drag a colour swatch and see
+// the planet repaint at slider frequency. The frozen ice cap reads
+// `liquidColor` at build time only — it stays its old colour until the
+// next rebuild for another reason.
+
+watch(() => props.config.liquidColor, (color) => {
+  if (color === undefined) return
+  planet()?.liquid.setColor(color)
+})
+
+watch(
+  () => props.config.bandColors ? { ...props.config.bandColors } : null,
+  (next) => {
+    if (!next) return
+    const p = planet()
+    if (!p) return
+    p.planetMaterial.setParams({
+      colorA: next.colorA,
+      colorB: next.colorB,
+      colorC: next.colorC,
+      colorD: next.colorD,
+    })
+  },
+  { deep: true },
+)
 
 /**
  * Map the normalised sea-level fraction to a world-space radius and push

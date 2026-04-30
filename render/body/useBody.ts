@@ -313,6 +313,7 @@ export function useBody(
       },
       setVisible:      interactive.setLiquidVisible,
       setOpacity:      interactive.setLiquidOpacity,
+      setColor:        interactive.setLiquidColor,
       getRaycastState: interactive.getLiquidRaycastState,
     },
     view: {

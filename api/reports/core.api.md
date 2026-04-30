@@ -4,6 +4,7 @@
 
 ```ts
 
+import { ColorRepresentation } from 'three';
 import { Mesh } from 'three';
 import * as THREE from 'three';
 
@@ -193,6 +194,7 @@ export interface BodyLiquid {
         mesh: Mesh;
         faceToTileId: readonly number[];
     } | null;
+    setColor(color: ColorRepresentation): void;
     setOpacity(alpha: number): void;
     setSeaLevel(worldRadius: number): void;
     setVisible(visible: boolean): void;
@@ -782,6 +784,7 @@ export interface LayeredInteractiveMesh extends InteractiveMesh {
     getRaycastState: () => RaycastState;
     getSeaLevelRadius: () => number;
     getTilePosition: (tileId: number) => THREE.Vector3 | null;
+    setLiquidColor: (color: THREE.ColorRepresentation) => void;
     setLiquidOpacity: (alpha: number) => void;
     setLiquidVisible: (on: boolean) => void;
     setSeaLevel: (worldRadius: number) => void;
@@ -858,6 +861,7 @@ export interface LiquidShellHandle {
     group: THREE.Group;
     mesh: THREE.Mesh;
     setBaseElevation: (updates: ReadonlyMap<number, number>) => void;
+    setColor: (color: THREE.ColorRepresentation) => void;
     setOpacity: (alpha: number) => void;
     setTopElevation: (newTopBand: number) => void;
     setVisible: (on: boolean) => void;

@@ -112,6 +112,13 @@ export interface LayeredInteractiveMesh extends InteractiveMesh {
   /** Sets the liquid surface alpha in `[0, 1]`. No-op on dry bodies. */
   setLiquidOpacity: (alpha: number) => void
 
+  /**
+   * Live-patches the liquid surface tint. No-op on dry / frozen bodies.
+   * Substance-agnostic — the caller resolves the chemistry (h2o, ch4, …)
+   * and passes the resolved colour through.
+   */
+  setLiquidColor: (color: THREE.ColorRepresentation) => void
+
   /** Toggles the entire sol mesh visibility (sol + liquid). */
   setVisible: (on: boolean) => void
 
@@ -396,6 +403,9 @@ export function buildLayeredInteractiveMesh(
   function setLiquidOpacity(alpha: number): void {
     liquid?.setOpacity(alpha)
   }
+  function setLiquidColor(color: THREE.ColorRepresentation): void {
+    liquid?.setColor(color)
+  }
 
   function setVisible(on: boolean): void {
     hexMesh.visible = on
@@ -437,6 +447,7 @@ export function buildLayeredInteractiveMesh(
     getSeaLevelRadius,
     setLiquidVisible,
     setLiquidOpacity,
+    setLiquidColor,
     setVisible,
     getRaycastState,
     getLiquidRaycastState,

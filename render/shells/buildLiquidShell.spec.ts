@@ -282,6 +282,53 @@ describe('buildLiquidShell', () => {
     handle.dispose()
   })
 
+  it('setColor live-patches the material tint without recompiling the shader', () => {
+    const tiles = tilesAtRadius(2).slice(0, 2)
+    const baseElevation = new Map<number, number>()
+    for (const tile of tiles) baseElevation.set(tile.id, 0)
+
+    const handle = buildLiquidShell({
+      tiles, baseElevation,
+      topElevation:     5,
+      palette:          syntheticPalette(10),
+      bodyRadius:       1,
+      coreRadius:       0,
+      color:            0x175da1,
+      graphicsUniforms: gu(),
+    })
+    const material = handle.mesh.material as THREE.MeshStandardMaterial
+    expect(material.color.getHex()).toBe(0x175da1)
+
+    handle.setColor('#ff0000')
+    expect(material.color.getHex()).toBe(0xff0000)
+
+    handle.setColor(0x00ff00)
+    expect(material.color.getHex()).toBe(0x00ff00)
+
+    handle.setColor(new THREE.Color(0x123456))
+    expect(material.color.getHex()).toBe(0x123456)
+
+    handle.dispose()
+  })
+
+  it('setColor on the empty placeholder is a safe no-throw', () => {
+    const tiles = tilesAtRadius(2)
+    const handle = buildLiquidShell({
+      tiles,
+      baseElevation:    new Map(), // no eligible tile → placeholder branch
+      topElevation:     5,
+      palette:          syntheticPalette(10),
+      bodyRadius:       1,
+      coreRadius:       0,
+      color:            0x175da1,
+      graphicsUniforms: gu(),
+    })
+    expect(() => handle.setColor('#abcdef')).not.toThrow()
+    const material = handle.mesh.material as THREE.MeshStandardMaterial
+    expect(material.color.getHex()).toBe(0xabcdef)
+    handle.dispose()
+  })
+
   it('setVisible flips the mesh visibility', () => {
     const tiles = tilesAtRadius(2).slice(0, 2)
     const baseElevation = new Map<number, number>()

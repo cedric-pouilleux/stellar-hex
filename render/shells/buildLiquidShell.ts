@@ -84,6 +84,15 @@ export interface LiquidShellHandle {
   setVisible:      (on: boolean) => void
   /** Updates the alpha in `[0, 1]`. Syncs the per-body shader uniform. */
   setOpacity:      (alpha: number) => void
+  /**
+   * Live-patches the liquid tint without rebuilding the material. The
+   * caller resolves the substance (h2o, ch4, …) and passes the resolved
+   * color in any `THREE.ColorRepresentation` form (hex string, hex int,
+   * `THREE.Color`). The shader's per-fragment colour shifts (foam, depth
+   * darken) keep working unchanged — they read the diffuse base after
+   * this update.
+   */
+  setColor:        (color: THREE.ColorRepresentation) => void
   /** Advances the wave animation clock. */
   tick:            (elapsed: number) => void
   /** Releases GPU resources. */
@@ -276,6 +285,7 @@ export function buildLiquidShell(config: LiquidShellConfig): LiquidShellHandle {
       setBaseElevation: () => { /* no-op */ },
       setVisible:       () => { /* no-op */ },
       setOpacity:       () => { /* no-op */ },
+      setColor:         (color) => { mat.color.set(color) },
       tick:             () => { /* no-op */ },
       dispose() {
         empty.dispose()
@@ -364,6 +374,9 @@ export function buildLiquidShell(config: LiquidShellConfig): LiquidShellHandle {
       material.depthWrite  = clamped >= 1
       material.needsUpdate = true
       graphicsUniforms.uLiquidOpacity.value = clamped
+    },
+    setColor(color) {
+      material.color.set(color)
     },
     tick(elapsed) {
       tickRef.value = elapsed

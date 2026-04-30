@@ -22,7 +22,9 @@ import {
   allResources,
   addCustomResource,
   removeCustomResource,
+  activePane,
 } from '../lib/state'
+import { viewMode } from '../lib/viewMode'
 import {
   GAS_PATTERN_KINDS,
   GAS_PATTERN_SHORT_LABEL,
@@ -38,22 +40,32 @@ interface Section {
   specs: ResourceSpec[]
 }
 
+/**
+ * Resolves which catalogue sections are visible given the active pane +
+ * view. The Hexa pane mirrors the visible board: `'surface'` view shows
+ * sol resources only, `'atmosphere'` view shows atmo resources only —
+ * the panel only surfaces what the player can act on. The Shader pane
+ * paints both layers onto the smooth sphere preview, so both sections
+ * stay visible there.
+ */
 const sections = computed<Section[]>(() => {
   const all = allResources()
-  return [
-    {
-      layer: 'sol',
-      title:  'Surface',
-      empty:  'No surface resources in the catalogue.',
-      specs:  all.filter(r => r.phase !== 'gas'),
-    },
-    {
-      layer: 'atmo',
-      title:  'Atmosphère',
-      empty:  'No atmospheric resources in the catalogue.',
-      specs:  all.filter(r => r.phase === 'gas'),
-    },
-  ]
+  const sol: Section = {
+    layer: 'sol',
+    title:  'Surface',
+    empty:  'No surface resources in the catalogue.',
+    specs:  all.filter(r => r.phase !== 'gas'),
+  }
+  const atmo: Section = {
+    layer: 'atmo',
+    title:  'Atmosphère',
+    empty:  'No atmospheric resources in the catalogue.',
+    specs:  all.filter(r => r.phase === 'gas'),
+  }
+  if (activePane.value !== 'hexa') return [sol, atmo]
+  if (viewMode.value === 'atmosphere') return [atmo]
+  if (viewMode.value === 'surface')    return [sol]
+  return [sol, atmo]
 })
 
 function onColorInput(id: string, evt: Event) {

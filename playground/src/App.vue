@@ -157,9 +157,13 @@ watch(() => bodyConfig.name,                 () => rebuildKey.value++)
 // live — no rebuild needed.)
 watch(() => bodyConfig.atmosphereThickness,  () => rebuildKey.value++)
 watch(() => bodyConfig.liquidState,          () => rebuildKey.value++)
-watch(() => bodyConfig.liquidColor,          () => rebuildKey.value++)
+// `liquidColor` and `bandColors` are now live-patched by HexaPane / ShaderPane
+// via `body.liquid.setColor` and `body.planetMaterial.setParams`. The frozen
+// ice cap still reads `liquidColor` at build time — when the body is frozen,
+// changing the colour won't update the cap until the next rebuild for
+// another reason. Acceptable trade-off: water-state bodies are the common
+// case and now drag in real time.
 watch(() => bodyConfig.liquidCoverage,       () => rebuildKey.value++)
-watch(() => bodyConfig.bandColors,           () => rebuildKey.value++)
 watch(() => bodyConfig.spectralType,         () => rebuildKey.value++)
 watch(() => bodyConfig.temperatureMin,       () => rebuildKey.value++)
 watch(() => bodyConfig.temperatureMax,       () => rebuildKey.value++)

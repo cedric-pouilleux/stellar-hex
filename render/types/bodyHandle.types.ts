@@ -180,6 +180,13 @@ export interface BodyLiquid {
   /** Sets the liquid surface alpha in `[0, 1]`. */
   setOpacity(alpha: number): void
   /**
+   * Live-patches the liquid surface tint without rebuilding the body.
+   * Substance-agnostic — the caller resolves the chemistry (h2o, ch4,
+   * nh3, …) and pushes the resolved colour through. No-op on dry / frozen
+   * bodies.
+   */
+  setColor(color: import('three').ColorRepresentation): void
+  /**
    * Resolves the liquid shell's raycast target — `mesh` is the merged
    * water cap, `faceToTileId[i]` returns the tile id of the i-th
    * triangle. Returns `null` on dry / frozen bodies (no shell built).
