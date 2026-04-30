@@ -63,6 +63,7 @@ export default defineConfig({
           items: [
             { text: 'Three.js (vanille)',  link: '/guides/threejs-integration' },
             { text: 'Vue 3 + TresJS',      link: '/guides/vue-integration'     },
+            { text: 'Composants de scène', link: '/guides/scene-components'    },
             { text: 'Headless / serveur',  link: '/guides/headless-simulation' },
           ],
         },
@@ -71,7 +72,9 @@ export default defineConfig({
           items: [
             { text: 'Shaders & matériaux',     link: '/guides/shaders-and-materials' },
             { text: 'Palettes & terrain',      link: '/guides/palettes-and-terrain'  },
+            { text: 'Variation visuelle',      link: '/guides/variation'             },
             { text: 'Curseur de survol',       link: '/guides/hover-cursor'          },
+            { text: 'Intégrer du gameplay',    link: '/guides/gameplay-integration'  },
             { text: 'Performance',             link: '/guides/performance'           },
           ],
         },
@@ -102,8 +105,9 @@ export default defineConfig({
         {
           text: 'Liquides',
           items: [
-            { text: 'Océan', link: '/examples/liquids/ocean' },
-            { text: 'Lave',  link: '/examples/liquids/lava'  },
+            { text: 'Océan',         link: '/examples/liquids/ocean'  },
+            { text: 'Surface gelée', link: '/examples/liquids/frozen' },
+            { text: 'Lave',          link: '/examples/liquids/lava'   },
           ],
         },
         {

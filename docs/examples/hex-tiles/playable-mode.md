@@ -120,7 +120,30 @@ const hoveredTileId = ref<number | null>(null)
 
 Pour le hover, vous avez besoin d'un composant utilitaire qui tourne dans `<TresCanvas>` (accès au contexte caméra/renderer) — voir `HexRaycaster.vue` dans le repo pour une implémentation complète.
 
-## Vue atmosphère vs vue surface
+## Trois modes de vue
+
+`body.view.set(mode)` accepte trois valeurs mutuellement exclusives :
+
+| Mode | Sol mesh | Atmo board | Smooth sphere | Atmo halo | Cas d'usage |
+| ---- | -------- | ---------- | ------------- | --------- | ----------- |
+| `'surface'` | **visible** (cliquable) | masqué | masqué | masqué | Vue gameplay sol — relief + liquide cliquables |
+| `'atmosphere'` | masqué | **visible** (cliquable) | visible (fallback) | masqué | Vue gameplay atmo — pollution, météo, secteurs d'air |
+| `'shader'` | masqué | masqué | **visible** | superposé selon `atmosphereOpacity` | Vue d'ensemble — système solaire, scrolling multi-corps |
+
+Le mode `'shader'` est **non-interactif** (`queryHover` retourne `null`) — c'est ce qui permet de garder un corps lointain en mode draw-call minimal sans BVH ni mesh hex. Le passer en `'shader'` est l'optimisation principale pour les vues système avec beaucoup de corps.
+
+```ts
+// Vue système — tout le monde en shader
+for (const body of allBodies) {
+  if (body.kind === 'planet') body.view.set('shader')
+}
+
+// Focus sur un corps — passe en surface, active le hex
+focusBody.view.set('surface')
+focusBody.interactive.activate()
+```
+
+### Vue atmosphère — détail
 
 Ce que fait `body.view.set('atmosphere')` côté lib :
 
@@ -128,7 +151,7 @@ Ce que fait `body.view.set('atmosphere')` côté lib :
 2. Affiche la **smooth sphere de fallback** (même shader procédural que la vue d'ensemble) au rayon de surface, juste sous le shell atmo.
 3. Le noyau (`buildCoreMesh`) reste visible à `radius × coreRadiusRatio` — utile en gameplay pour visualiser jusqu'où on peut creuser.
 
-C'est le mode adapté à : visualisation de coupe géologique, vue interne pendant excavation, prévisualisation de la composition du noyau.
+Adapté à : visualisation de coupe géologique, vue interne pendant excavation, prévisualisation de la composition du noyau.
 
 ## Lien avec la simulation
 

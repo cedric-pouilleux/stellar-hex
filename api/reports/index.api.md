@@ -988,6 +988,14 @@ export function resolveCoreRadiusRatio(config: {
 }): number;
 
 // @public
+export interface ResolvedStarData {
+    color: string;
+    luminosity: number;
+    radius: number;
+    tempK: number;
+}
+
+// @public
 export function resolveSolHeight(tile: Tile, sim: BodySimulation, levels: TerrainLevel[], maxHeight: number): number;
 
 // @public

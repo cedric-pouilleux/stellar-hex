@@ -110,3 +110,5 @@ onBeforeUnmount(() => body.dispose())
 - **Pose autoritaire** — vous passez `pose`, `<Body>` l'applique verbatim et **désactive** l'anim interne. Typique pour : tick serveur, replay, UI de scrubbing.
 
 Les positions monde **ne sont jamais** dérivées par la lib — c'est au caller (orbites, formations, drag, etc.).
+
+Pour un contrôle plus fin (animation pilotée par un clock non-render-loop, replay scrub piloté à la main), passez par `createBodyMotion` directement — cf. [Composants de scène — animation headless](/guides/scene-components#animation-headless-replay--scrub).

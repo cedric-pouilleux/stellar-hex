@@ -121,7 +121,58 @@ Les élévations sont **quantifiées en bandes entières** :
 
 C'est cette quantification qui permet de raycaster une tuile et de connaître son altitude **sans** échantillonner le bruit.
 
-## 7. Cycle de vie des handles
+### Quantification équi-fréquence
+
+La sim utilise un ranking : les `n` tuiles sont triées par valeur de bruit, puis découpées en `N` paquets de taille égale. **Chaque bande reçoit ~le même nombre de tuiles**, indépendamment de la forme du bruit.
+
+Conséquences pratiques :
+
+- L'histogramme d'élévations est **plat par construction** — un déséquilibre signale une bande dégénérée (paliers très épars), pas un bruit mal réglé.
+- `noisePower` (le reshape exponentiel du bruit) **n'a aucun effet** sur les bandes hex — c'est une transformation monotone, et le ranking est invariant. Cf. [`BodyNoiseProfile.noisePower`](/api/sim/interfaces/BodyNoiseProfile). Son seul effet observable est sur les *readers de bruit brut* (le shader de la smooth sphere quand il calcule un masque océan).
+- `liquidCoverage` est résolu vers une bande exacte par cette même mécanique : on prend le seuil de bruit qui sépare les `coverage × 100 %` premières tuiles des autres. C'est pourquoi `0.5` produit toujours **exactement** la moitié des tuiles immergées (à un demi-bande près).
+
+### `reliefFlatness` — aplatir sans perdre de bandes
+
+[`BodyNoiseProfile.reliefFlatness`](/api/sim/interfaces/BodyNoiseProfile) (∈ `[0, 1]`) post-processe le ranking pour **contracter** les bandes basses vers le sommet — utile pour rendre une planète plate sans réduire le nombre de bandes (l'excavation peut toujours descendre jusqu'au noyau). À `1`, toutes les tuiles atterrissent sur la bande `N-1` (planète parfaitement lisse).
+
+## 7. Étoiles vs planètes
+
+Le pipeline étoile (`useStar`) est **structurellement différent** du pipeline planétaire — le compilateur le marque via la branche `kind: 'star'` du union `Body`. Tableau récapitulatif :
+
+| Trait | `PlanetBody` | `StarBody` |
+| ----- | ------------ | ---------- |
+| `kind` | `'planet'` | `'star'` |
+| `liquid` namespace | présent | **absent** |
+| `view` namespace (`'surface' \| 'atmosphere' \| 'shader'`) | présent | **absent** |
+| `atmoShell` | `AtmoShellHandle \| null` | **absent** |
+| `tiles.atmo` (bande atmo cliquable) | `BoardTiles \| null` | **absent** |
+| `tiles.updateTileSolHeight` | présent | **absent** |
+| `surfaceLook` config | requis (default `'terrain'`) | ignoré |
+| `spectralType` config | rejeté (TS) | requis |
+| `tick(dt)` avance | rotation propre + uniforms atmo | convection + corona + pulsation |
+| `canHaveRings` | `true` | `false` |
+| `flatSurface` | `false` | `true` (granulation = shader effect, pas relief) |
+| Tile-reference radius | `radius × (1 - atmoThickness)` | `STAR_TILE_REF[spectralType]` |
+
+Pourquoi le tile-ref change : sur une étoile, le rayon visible varie énormément entre une naine M (`~1`) et une géante O (`~5`). Indexer la subdivision sur le `radius` exact donnerait des tuiles minuscules sur les O et grosses sur les M. La table interne `STAR_TILE_REF` fournit un rayon de référence par classe spectrale qui stabilise le tile count.
+
+## 8. Trois invariants qui surprennent
+
+Trois choix discrets dans la lib peuvent étonner si on ne les a pas en tête :
+
+### a. `MIN_SOL_BAND_FRACTION` (5 %)
+
+[`resolveCoreRadiusRatio`](/api/sim/functions/resolveCoreRadiusRatio) garantit `coreRadiusRatio + atmosphereThickness ≤ 1 − 0.05`. Si vous demandez `coreRadiusRatio: 0.6` avec `atmosphereThickness: 0.5` (= 110 %), la lib **réduit silencieusement** `coreRadiusRatio` à `0.45` pour préserver 5 % de sol. C'est ce qui empêche la coquille `[core | sol | atmo]` de devenir dégénérée.
+
+### b. Tile-ref ≠ silhouette sur planètes à atmo épaisse
+
+Pour les planètes, `solRefRadius = radius × (1 - atmosphereThickness)`. Une planète à `radius = 1` et `atmosphereThickness = 0.6` a un tile-ref de `0.4` — le sol et l'atmo gardent le même footprint apparent par tuile (sinon le sol aurait des tuiles ridiculement petites par rapport à la couche atmo). Cf. [Performance](/guides/performance) pour les implications sur le tile count.
+
+### c. Séquence PRNG stable
+
+`generateBodyVariation` tire **toujours les mêmes échantillons dans le même ordre**, même quand `hasRings: false` (la lib génère la `RingVariation` puis la jette). Toggler `hasRings` ne décale donc pas le reste de l'apparence. Cf. [Variation visuelle](/guides/variation#garantie-de-stabilit%C3%A9-de-la-s%C3%A9quence-prng).
+
+## 9. Cycle de vie des handles
 
 ```ts
 const body = useBody(config, DEFAULT_TILE_SIZE)

@@ -92,6 +92,18 @@ const body = useBody(config, DEFAULT_TILE_SIZE, { palette })
 
 **Attention** : la longueur du tableau doit correspondre à `resolveTerrainLevelCount(radius, coreRadiusRatio)`. Sinon `getTileLevel` clampe et certaines tuiles partagent une bande.
 
+::: warning Précédence — `palette` gagne tout
+Quand `BodyRenderOptions.palette` est fourni, il **remplace entièrement** la palette auto-générée. Les ancres `terrainColorLow` / `terrainColorHigh` du `BodyConfig`, comme `bandColors` ou `metallicBands`, sont **ignorées** — la lib ne fusionne pas. Logique : `palette` est conçu pour les cas où vous classifiez par biome / climat / faction et avez besoin du contrôle total bande par bande ; mélanger silencieusement avec les ancres serait un footgun.
+
+Ordre de précédence pour le rocky :
+
+1. `BodyRenderOptions.palette` — full override, bande à bande
+2. `BodyConfig.terrainColorLow / High` — ancres de la rampe par défaut
+3. `DEFAULT_TERRAIN_LOW_COLOR / HIGH_COLOR` — fallback neutre
+
+Pour le métallique, `metallicBands` joue le rôle des ancres (4 stops) ; pour le gazeux, c'est `bandColors` (4 stops). Dans tous les cas, `palette` les overshadow tous quand il est passé.
+:::
+
 ## Continents discrets (rocheuses)
 
 Par défaut, l'élévation d'une rocheuse vient d'un FBm simplex continu — résultat sur une planète humide : un moiré d'îles éparpillées plutôt que de vraies masses terrestres. Pour produire **des continents discrets** (style Pangée, archipel, supercontinents), `BodyConfig` expose deux champs optionnels :

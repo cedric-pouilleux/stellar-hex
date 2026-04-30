@@ -150,3 +150,35 @@ Voir [God rays stellaires](/examples/lighting/star-godrays) pour un exemple comp
 ## Personnaliser un fragment shader
 
 Si vous avez besoin d'un look custom, `BodyMaterial` accepte un `fragmentOverride` qui remplace le shader par défaut. Vous gardez les uniforms standards (`uTime`, `uLightDir`, `uPalette`, …) ; à vous de définir ce que vous en faites. La liste exhaustive des uniforms exposés est documentée sur [`BodyMaterialOptions`](/api/core/interfaces/BodyMaterialOptions).
+
+## Le PRNG (pour les implémenteurs cross-stack)
+
+Toute la génération aléatoire de la lib passe par **un seul** PRNG : `seededPrng(seed: string)` ([internal/prng.ts](internal/prng.ts)). C'est :
+
+- **FNV-1a 32-bit** sur la string seed → état initial 32-bit
+- **SplitMix32** comme générateur (`h += 0x9e3779b9`, mix bit-shifts)
+- Sortie en `float ∈ [0, 1)` après division par `2^32`
+
+```ts
+// Pseudocode — l'implémentation exacte est dans internal/prng.ts
+let h = FNV1a(seed)
+return () => {
+  h = (h + 0x9e3779b9) >>> 0
+  let z = h
+  z = mul32(z ^ (z >>> 16), 0x85ebca6b)
+  z = mul32(z ^ (z >>> 13), 0xc2b2ae35)
+  return ((z ^ (z >>> 16)) >>> 0) / 4294967296
+}
+```
+
+Pourquoi SplitMix32 et pas `Math.random()` (Mulberry32, xoshiro, etc.) :
+
+- **Passes BigCrush et PractRand** — pas de motifs faibles sur les bits de poids faible (xorshift32 a ce défaut).
+- **Pas d'état multi-mot** — un seul `uint32`, donc trivial à porter.
+- **Vitesse comparable à `Math.random`** côté JS, et déterministe entre runtimes (V8, JSC, server, browser).
+
+Si votre back est en Rust / Go / Python et doit reproduire les mêmes valeurs que la lib, **réimplémentez exactement ces deux étapes** : la séquence de bytes en entrée doit produire les mêmes 32 bits en sortie. Les `noiseSeed` et autres random offsets visibles dans `BodyVariation` reposent sur cette équivalence.
+
+::: warning Pas de `Math.random()` nu
+La règle s'applique aussi au code que vous ajoutez côté caller si vous voulez du déterminisme. Importez `seededPrng` depuis votre code (ou écrivez votre propre PRNG seedé), et nommez vos seeds par scope (`seededPrng(name + ':resources')`, `seededPrng(name + ':factions')`, …) pour éviter que deux générateurs partagent leur état.
+:::

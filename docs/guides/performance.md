@@ -15,6 +15,12 @@ Ce guide rassemble les leviers concrets pour tenir 60 fps avec plusieurs corps e
 
 `DEFAULT_TILE_SIZE = 0.05` est un bon compromis pour un corps unique en plein écran.
 
+::: warning Tile-ref ≠ silhouette pour les planètes à atmo épaisse
+Pour les planètes, le tile count n'est pas calculé sur `radius` mais sur `radius × (1 - atmosphereThickness)` (cf. [useBody.ts:78](render/body/useBody.ts)). Une planète `radius = 1` à `atmosphereThickness = 0.6` aura ~40 % du tile count d'une planète sèche de même `radius`. Raison : sol et atmo doivent garder le même footprint apparent par tuile, sinon le sol aurait des tuiles minuscules. Pour les étoiles, le tile-ref vient de la table `STAR_TILE_REF[spectralType]` (un rayon de référence par classe) — toggler la classe spectrale change donc le tile count à `radius` constant.
+:::
+
+**Limite basse pratique** : à `tileSize = 0.025` (≈ subdivisions 9 sur radius=1), vous tournez autour de 20 000 tuiles. Descendre plus bas tape vite dans la limite de précision float du raycaster et l'upload du BVH devient sensible (~50 ms). En dessous de `0.015`, vous perdez la stabilité du `mergeVertices` (les hexagones partagent des bords sub-pixel). Si vous voulez une vue rapprochée plus dense, **scalez le `radius` du body** plutôt que de pousser `tileSize` à zéro.
+
 ## 2. Mode interactif uniquement quand nécessaire
 
 `useBody` construit par défaut une **smooth sphere** (mesh continu) — bien moins coûteuse que le mesh hexagonal. Le mesh hex (cliquable) n'est construit qu'au premier appel à `body.interactive.activate()` :
@@ -123,7 +129,28 @@ body.dispose()
 scene.remove(body.group)
 ```
 
-## 10. Profiler
+## 10. `RenderQuality` — bumper la finesse des sphères
+
+`useBody` accepte une option `quality` qui bump la subdivision **icosphère** de toutes les sphères du body (smooth surface, liquid sphere, atmo shell, corona, core, effect layer). Le mesh hex (qui dérive de `tileSize`) n'est **pas** affecté — c'est un knob purement visuel pour les couches lisses.
+
+```ts
+const body = useBody(config, DEFAULT_TILE_SIZE, { quality: { sphereDetail: 'high' } })
+```
+
+| Preset | Effet | Coût (≈ tris sur les sphères) |
+| ------ | ----- | ------------------------------- |
+| `'standard'` (défaut) | Aucun bump — niveau historique | référence |
+| `'high'` | +1 subdivision (~×4 tris) | × 4 |
+| `'ultra'` | +2 subdivisions (~×16 tris) | × 16 |
+
+Le plafond dur est `MAX_SPHERE_DETAIL = 7` (≈ 163 842 vertices après `mergeVertices`). `'ultra'` clamp à ce plafond — pousser plus loin (8 ≈ 655 k vertices) tue la GPU sans gain visuel correspondant.
+
+Quand l'utiliser :
+
+- **`'high'` ou `'ultra'`** : vue planétaire close-up + atmo épaisse (le shell atmo bénéficie particulièrement de la densité — moins de banding sur les gradients).
+- **`'standard'`** : tout le reste, particulièrement les vues système (multi-corps).
+
+## 11. Profiler
 
 - **Spector.js** pour inspecter les draw calls.
 - **DevTools Performance** + flamegraph sur `body.tick`.

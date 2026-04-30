@@ -66,4 +66,4 @@ Modélisée comme une **sphère distincte** plutôt qu'une bande de tuiles, l'oc
 - supporte des vagues animées indépendantes du terrain,
 - peut être rendu en alpha-blend avec un shader de Fresnel.
 
-Pour une glace solide qui suit le relief tuile par tuile, déclarez `liquidState: 'frozen'` et empilez vous-même un cap hex via `buildSolidShell` — c'est le pattern recommandé par la doctrine chemistry-agnostic (cf. le préambule de [`sim.ts`](/api/sim/) et la démo [`FrozenWorldDemo.vue`](https://github.com/cedric-pouilleux/stellar-hex/blob/main/docs/.vitepress/theme/demos/FrozenWorldDemo.vue)).
+Pour une glace solide qui suit le relief tuile par tuile, déclarez `liquidState: 'frozen'` et empilez vous-même un cap hex via `buildSolidShell` — voir la page dédiée [Surface gelée](/examples/liquids/frozen) pour le pattern complet.

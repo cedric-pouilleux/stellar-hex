@@ -181,6 +181,14 @@ export function resolveCoreRadiusRatio(config: {
 }): number;
 
 // @public
+export interface ResolvedStarData {
+    color: string;
+    luminosity: number;
+    radius: number;
+    tempK: number;
+}
+
+// @public
 export function resolveStarData(cfg: StarPhysicsInput): ResolvedStarData;
 
 // @public (undocumented)

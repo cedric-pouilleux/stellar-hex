@@ -144,3 +144,38 @@ Le noyau émet sa propre lumière (`PointLight` parentée au mesh) qui ne passe 
 ## Cas particulier : pas de noyau
 
 Quand `coreRadiusRatio = 0` (équivalent `gasMassFraction = 1`), `buildCoreMesh` détecte le cas et **skip** la création du mesh. Le rendu se réduit à : sphère smooth procédurale + shell atmosphère + (optionnel) anneau.
+
+### Anatomie d'une géante 100 % gaz
+
+```ts
+const jovian = useBody({
+  type:           'planetary',
+  surfaceLook:    'bands',
+  name:           'PureJovian',
+  radius:          1.5,
+  rotationSpeed:   0.003,
+  axialTilt:       0.18,
+  gasMassFraction: 1,                  // → coreRadiusRatio = 0
+  atmosphereThickness: 0.6,
+}, DEFAULT_TILE_SIZE)
+```
+
+À ce point :
+
+- **`buildCoreMesh` retourne un mesh placeholder vide** — pas de sphère opaque inner, pas de PointLight de noyau, zéro draw call.
+- **La sol band collapse** — sa hauteur radiale (`(1 - coreRatio - atmoThickness) × radius`) tombe sous `MIN_SOL_BAND_FRACTION × radius` (5 %), donc la lib ré-injecte la guard pour préserver une sliver de sol. En pratique, un body avec `gasMassFraction = 1` et `atmosphereThickness ≥ 0.95` aura un sol pratiquement inexistant.
+- **L'atmo shell occupe presque toute la silhouette visible** — `atmoOuterRadius = radius`, `atmoInnerRadius ≈ radius × (1 - atmoThickness)`.
+- **Aucune profondeur d'excavation utile** — `updateTileSolHeight(map)` reste utilisable mais la sol band est trop fine pour produire un effet visible.
+
+C'est le pattern à privilégier pour Jupiter, Neptune, et toute géante dont vous ne voulez **pas** que le noyau apparaisse à l'excavation. La distinction d'avec un `gasMassFraction = 0.93` (Jupiter réaliste) :
+
+| | `gasMassFraction: 0.93` | `gasMassFraction: 1` |
+| --- | --- | --- |
+| `coreRadiusRatio` résolu | ~0.20 | 0.0 |
+| Mesh noyau | Petit, visible si excavation | **Skipped** |
+| Cas pure-gas testable en gameplay | Oui (mining lent jusqu'au noyau) | Non |
+| Coût GPU | +1 sphère + 1 light | référence |
+
+### Toggle « pas d'atmo » pareil ?
+
+Symétrique : `atmosphereThickness = 0` (ou `hasAtmosphere(config) === false`) skip le shell atmo, le `atmoBoardMesh` (bande atmo cliquable) et le mesh atmo de la `LayeredInteractive`. Une planète tellurique sèche minimale (sans atmo, sans liquide) ne mount donc que le noyau + le sol hex + (option) un anneau.

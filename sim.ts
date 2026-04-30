@@ -90,7 +90,7 @@ export {
   REF_SOLID_DENSITY,
   REF_GAS_DENSITY,
 } from './physics/body'
-export type { StarPhysicsInput } from './types/body.types'
+export type { StarPhysicsInput, ResolvedStarData } from './types/body.types'
 
 // ── Simulation ───────────────────────────────────────────────────
 export type { BodySimulation } from './sim/BodySimulation'

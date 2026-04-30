@@ -51,9 +51,34 @@ console.log(sim.liquidCoverage)         // fraction de tuiles immergées (0–1)
 
 Le résultat est entièrement sérialisable : vous pouvez le générer côté serveur et l'expédier au client tel quel.
 
+## Pourquoi cette lib (et pas Three.js « tout court ») ?
+
+`stellar-hex` part d'un postulat simple : **un corps stellaire est composé de géométrie + état physique + apparence**, et ces trois préoccupations sont orthogonales. La lib industrialise les trois, et **s'arrête là**. Tout ce qui concerne le gameplay (orbites, factions, ressources, climat) reste dans votre code.
+
+Ce que vous gagnez :
+
+- **Déterminisme** — un seed (`name`) reproduit byte-à-byte la même planète, du serveur au client.
+- **Headless-ready** — la sim tourne sans WebGL (Node, worker, CI).
+- **Type safety** — `BodyConfig` est une union discriminée, le compilateur rejette à la compile les configs invalides (`spectralType` sur une planète, `metallicBands` sur une étoile).
+- **Pipeline visuel cohérent** — palette, atmo, anneaux, ombres analytiques, hover unifié — tout est branché par défaut.
+
+Ce que vous perdez (et c'est volontaire) :
+
+- **Pas de mécanique orbitale** — vous écrivez `body.group.position` chaque frame.
+- **Pas de chimie** — `liquidState`, `liquidColor`, `bandColors` sont des **états résolus** que votre catalogue calcule.
+- **Pas de pause/replay built-in** — vous gérez le `dt` que vous passez à `body.tick()`.
+- **Pas de catalogue de ressources** — vous projetez le vôtre via les hooks de paint.
+
+Si vous voulez juste afficher une sphère texturée dans Three.js, `THREE.SphereGeometry` + `MeshStandardMaterial` suffit. `stellar-hex` justifie son coût quand vous voulez : un système solaire procédural reproductible, des tuiles cliquables avec gameplay, une intégration headless serveur, des shaders procéduraux unifiés sur quatre types de corps.
+
+Le guide [Intégrer du gameplay](./gameplay-integration) détaille comment brancher votre catalogue par-dessus.
+
 ## Pour aller plus loin
 
 - [Concepts fondamentaux](./core-concepts) — `BodyConfig`, déterminisme, sim vs render
 - [Three.js (vanille)](./threejs-integration) — brancher la simulation sur une scène
 - [Vue 3 + TresJS](./vue-integration) — composants `<Body>`, `<BodyRings>`
+- [Composants de scène](./scene-components) — `<BodyController>`, `<TileCenterProjector>`, `<ShadowUpdater>` standalone
+- [Variation visuelle](./variation) — `BodyVariation` et le partage physics/visual
+- [Intégrer du gameplay](./gameplay-integration) — paint, distribution, persistance
 - [Headless / serveur](./headless-simulation) — workers, CLI, batch

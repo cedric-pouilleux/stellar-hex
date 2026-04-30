@@ -63,4 +63,30 @@ Trois corps animés ≈ 3 × `body.tick(dt)` par frame. Pour 50+ corps :
 
 - baissez `tileSize` (ex. `0.15`) sur les corps lointains,
 - mettez les corps statiques en pause (`paused: true`) — pas d'appel à `tick`,
+- passez les corps non-focus en mode `'shader'` (`body.view.set('shader')`) — pas de mesh hex, pas de BVH (cf. [Mode jouable](/examples/hex-tiles/playable-mode#trois-modes-de-vue)),
 - regroupez les corps identiques en `THREE.InstancedMesh` (cf. [Performance](/guides/performance)).
+
+## Raycasting multi-corps
+
+Pour détecter quel corps l'utilisateur survole dans une scène avec plusieurs planètes, la lib expose `raycastBodies` — un raycast filtré qui élimine automatiquement les hits derrière le corps focus :
+
+```ts
+import { raycastBodies, findBodyIndex } from '@cedric-pouilleux/stellar-hex/core'
+
+const raycaster = new THREE.Raycaster()
+raycaster.setFromCamera(pointer, camera)
+
+const bodies = planets.map(p => ({ group: p.body.group, config: p.body.config }))
+const hit    = raycastBodies(raycaster, bodies, { focusedIndex })
+
+if (hit) {
+  console.log(`Survol du corps #${hit.bodyIndex}`)
+}
+```
+
+Filtres appliqués :
+
+- **Distance > rayon du body** → écarté (évite les false hits sur les bords du mesh).
+- **Body focus** → écarté en candidat **et** utilisé comme occluder sphère — un hit sur un satellite caché derrière le focus est ignoré.
+
+`findBodyIndex(obj, bodies)` remonte le scene graph pour identifier le body owner d'un objet arbitraire — utile quand vous gérez votre propre raycast et voulez juste résoudre l'index.
