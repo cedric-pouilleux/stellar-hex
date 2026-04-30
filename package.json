@@ -2,7 +2,7 @@
   "name": "@cedric-pouilleux/stellar-hex",
   "version": "0.3.0",
   "type": "module",
-  "description": "Procedural celestial body — geometry, physics, simulation and rendering for Three.js / Vue 3.",
+  "description": "Deterministic, playable celestial body generator for Three.js and Vue 3.",
   "license": "SEE LICENSE IN LICENSE",
   "sideEffects": false,
   "repository": {
