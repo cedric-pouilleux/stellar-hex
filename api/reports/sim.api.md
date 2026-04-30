@@ -191,6 +191,9 @@ export interface ResolvedStarData {
 // @public
 export function resolveStarData(cfg: StarPhysicsInput): ResolvedStarData;
 
+// @public
+export function seededPrng(seed: string): () => number;
+
 // @public (undocumented)
 export const SPECTRAL_TABLE: Record<SpectralType, {
     tempK: number;

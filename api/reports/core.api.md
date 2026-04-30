@@ -1087,6 +1087,9 @@ export interface RingVariation {
 }
 
 // @public
+export function seededPrng(seed: string): () => number;
+
+// @public
 export const SHADER_RANGES: {
     rocky: RangeMap;
     gaseous: RangeMap;
