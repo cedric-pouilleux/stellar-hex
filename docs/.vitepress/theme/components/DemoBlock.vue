@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useImplMode } from '../composables/useImplMode'
 
 /**
@@ -45,6 +45,39 @@ const activeCode = computed({
 })
 
 const current = () => props.tabs[activeCode.value]
+
+// ── Syntax highlighting (Shiki, lazy-loaded) ──────────────────────
+// Shiki is shipped by VitePress already; we import it dynamically the
+// first time the user opens "Show code" so the bundle stays untouched
+// for visitors who never expand the panel.
+const highlightedHtml = shallowRef<string>('')
+let highlighter: ((code: string, lang: string) => Promise<string>) | null = null
+
+async function loadHighlighter() {
+  if (highlighter) return highlighter
+  const { codeToHtml } = await import('shiki')
+  highlighter = (code, lang) =>
+    codeToHtml(code, {
+      lang,
+      themes: { light: 'github-light', dark: 'github-dark' },
+    })
+  return highlighter
+}
+
+async function refreshHighlight() {
+  const tab = current()
+  const lang = tab.lang ?? 'vue'
+  const fn = await loadHighlighter()
+  const out = await fn(tab.code, lang)
+  // Re-check identity in case the user switched tabs while we awaited.
+  if (current().code === tab.code) highlightedHtml.value = out
+}
+
+watch(
+  [showCode, activeCode],
+  ([open]) => { if (open) refreshHighlight() },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -78,7 +111,12 @@ const current = () => props.tabs[activeCode.value]
 
       <div class="demo-block__code">
         <div class="demo-block__code-lang">{{ current().lang ?? 'vue' }}</div>
-        <pre class="demo-block__pre"><code>{{ current().code }}</code></pre>
+        <div
+          v-if="highlightedHtml"
+          class="demo-block__shiki"
+          v-html="highlightedHtml"
+        />
+        <pre v-else class="demo-block__pre"><code>{{ current().code }}</code></pre>
       </div>
     </template>
 
@@ -180,5 +218,29 @@ const current = () => props.tabs[activeCode.value]
   font-family: var(--vp-font-family-mono);
   color: var(--vp-c-text-1);
   white-space: pre;
+}
+
+/* Shiki output — share the layout with the plain <pre> above. */
+.demo-block__shiki :deep(pre.shiki) {
+  margin: 0;
+  padding: 1.5rem 1.25rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  font-family: var(--vp-font-family-mono);
+  white-space: pre;
+}
+.demo-block__shiki :deep(code) {
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  padding: 0;
+}
+/* Dual-theme switch — Shiki emits CSS vars for the dark variant when
+   `defaultColor: false`. Force-swap them under the VitePress dark class. */
+html.dark .demo-block__shiki :deep(pre.shiki),
+html.dark .demo-block__shiki :deep(pre.shiki span) {
+  background-color: var(--shiki-dark-bg) !important;
+  color:            var(--shiki-dark)    !important;
 }
 </style>
