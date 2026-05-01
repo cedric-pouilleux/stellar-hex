@@ -44,20 +44,7 @@ const activeCode = computed({
   },
 })
 
-/**
- * Strips the trailing `<style>` block(s) from the raw .vue source and
- * collapses any blank trailing lines. Demo `<style scoped>` blocks only
- * carry layout (canvas height, grid wrapper) — they are noise in the
- * "Show code" pane, which is meant to read as the minimal API usage.
- */
-function stripStyles(code: string): string {
-  return code.replace(/\s*<style\b[^>]*>[\s\S]*?<\/style>\s*$/g, '\n')
-}
-
-const current = () => {
-  const tab = props.tabs[activeCode.value]
-  return { ...tab, code: stripStyles(tab.code) }
-}
+const current = () => props.tabs[activeCode.value]
 </script>
 
 <template>
