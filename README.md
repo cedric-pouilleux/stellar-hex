@@ -30,12 +30,12 @@ The package exposes three entry points of increasing scope:
 ```ts
 import { initBodySimulation, generateHexasphere } from '@cedric-pouilleux/stellar-hex/sim'
 import { useBody, BodyMaterial }                  from '@cedric-pouilleux/stellar-hex/core'
-import { Body, CloudShell }                       from '@cedric-pouilleux/stellar-hex'
+import { Body, BodyRings, ShadowUpdater }         from '@cedric-pouilleux/stellar-hex'
 ```
 
 - **`@cedric-pouilleux/stellar-hex/sim`** — pure data & physics layer. No Three.js or Vue dependency, runtime or types; runs in workers, Node or any environment that can execute ES modules. Use for servers, CLIs, or deterministic tests.
 - **`@cedric-pouilleux/stellar-hex/core`** — adds the Three.js render layer (shaders, meshes, materials, raycasting). No Vue dependency — drop into a vanilla Three.js scene.
-- **`@cedric-pouilleux/stellar-hex`** — full Vue/TresJS component surface (`<Body>`, `<CloudShell>`, `<OrbitTrail>`, …).
+- **`@cedric-pouilleux/stellar-hex`** — full Vue/TresJS component surface (`<Body>`, `<BodyController>`, `<BodyRings>`, `<ShadowUpdater>`, `<TileCenterProjector>`).
 
 ## Quick start (headless)
 
@@ -154,6 +154,39 @@ exported from `/sim` for consumers that need to read the same invariant.
 ## Determinism
 
 Every generation step is seeded from `BodyConfig.name` — no raw `Math.random()`. Two clients with the same config produce identical tiles, elevations, resource maps and visual variation.
+
+## Documentation
+
+The full doc site lives at <https://cedric-pouilleux.github.io/stellar-hex/> — the
+guides below are the recommended entry points by use case.
+
+**Get started**
+
+- [Démarrer](https://cedric-pouilleux.github.io/stellar-hex/guides/getting-started) — installation + Hello World
+- [Concepts fondamentaux](https://cedric-pouilleux.github.io/stellar-hex/guides/core-concepts) — invariants, taxonomy, view modes, deterministic seeding
+
+**Wire it into your stack**
+
+- [Three.js (vanilla)](https://cedric-pouilleux.github.io/stellar-hex/guides/threejs-integration) — handle reference + `useBody` options
+- [Vue 3 + TresJS](https://cedric-pouilleux.github.io/stellar-hex/guides/vue-integration) — `<Body>` and friends
+- [Headless / server](https://cedric-pouilleux.github.io/stellar-hex/guides/headless-simulation) — Node, workers, CLIs without WebGL
+
+**Tune the look**
+
+- [Stars](https://cedric-pouilleux.github.io/stellar-hex/guides/stars) — spectral types, kelvin helpers, godrays calibration
+- [Palettes & terrain](https://cedric-pouilleux.github.io/stellar-hex/guides/palettes-and-terrain) — anchors, custom palettes, `MetallicBand`
+- [Variation visuelle](https://cedric-pouilleux.github.io/stellar-hex/guides/variation) — `BodyVariation` knobs (cracks, lava, gas turbulence, …)
+- [Graphics uniforms](https://cedric-pouilleux.github.io/stellar-hex/guides/graphics-uniforms) — shared cloud / liquid / terrain uniform bag
+- [Hover cursor](https://cedric-pouilleux.github.io/stellar-hex/guides/hover-cursor) — ring + floor ring + emissive presets, tile overlay highlight
+
+**Wire game logic on top**
+
+- [Intégrer du gameplay](https://cedric-pouilleux.github.io/stellar-hex/guides/gameplay-integration) — paint hooks, distribution, persistence
+- [Performance](https://cedric-pouilleux.github.io/stellar-hex/guides/performance) — `tileSize`, BVH, `RenderQuality`
+- [Advanced API](https://cedric-pouilleux.github.io/stellar-hex/guides/advanced-api) — strategies, geometry primitives, lighting helpers, FX configs
+
+For an interactive playground (sliders for every shader knob), open
+<https://cedric-pouilleux.github.io/stellar-hex/playground/>.
 
 ## Public API stability
 

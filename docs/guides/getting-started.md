@@ -80,6 +80,7 @@ Le guide [Intégrer du gameplay](./gameplay-integration) détaille comment branc
 - [Three.js (vanille)](./threejs-integration) — brancher la simulation sur une scène
 - [Vue 3 + TresJS](./vue-integration) — composants `<Body>`, `<BodyRings>`
 - [Composants de scène](./scene-components) — `<BodyController>`, `<TileCenterProjector>`, `<ShadowUpdater>` standalone
+- [Étoiles](./stars) — pipeline stellaire, classes spectrales, helpers Kelvin
 - [Variation visuelle](./variation) — `BodyVariation` et le partage physics/visual
 - [Intégrer du gameplay](./gameplay-integration) — paint, distribution, persistance
 - [Headless / serveur](./headless-simulation) — workers, CLI, batch

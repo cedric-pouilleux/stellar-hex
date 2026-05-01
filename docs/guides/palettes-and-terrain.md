@@ -156,11 +156,18 @@ L'effet reste actif sur les rocheuses sèches (visible via la palette d'élévat
 
 ```ts
 interface TerrainLevel {
-  color:   THREE.Color   // couleur affichée
-  height:  number        // hauteur visuelle (au-dessus du noyau)
-  liquid?: boolean       // true = la sphère liquide passe au-dessus de cette bande
-  // …d'autres champs métallique-spécifiques
+  threshold:          number        // borne supérieure de la bande (`elevation < threshold`)
+  height:             number        // hauteur monde au-dessus du noyau
+  color:              THREE.Color   // couleur affichée
+  emissive?:          THREE.Color   // canal émissif (palettes métalliques, peaks chauds)
+  emissiveIntensity?: number        // intensité du canal émissif (`0..1`, défaut `1.0`)
+  metalness?:         number        // PBR metalness (palettes métalliques)
+  roughness?:         number        // PBR roughness
 }
 ```
 
-L'attribut `liquid` est ce qui fait la différence entre fond marin et continent. La sim le pose automatiquement sur les bandes ≤ `seaLevelElevation`, mais vous pouvez l'overrider dans une palette custom (par exemple : océan multi-paliers).
+`threshold` et `height` sont **toujours** posés par les générateurs de palette ; les quatre champs PBR / émissifs sont optionnels et utilisés essentiellement par les palettes métalliques (cf. [Palette métallique avancée](#palette-m%C3%A9tallique-avanc%C3%A9e)).
+
+::: tip Le tag « liquide » vit ailleurs
+La distinction entre fond marin et continent **n'est pas** portée par la palette — elle est calculée au runtime par `BodySimulation` à partir de `seaLevelElevation`. C'est `body.liquid.setSeaLevel(...)` qui déplace la frontière, pas un champ de `TerrainLevel`.
+:::

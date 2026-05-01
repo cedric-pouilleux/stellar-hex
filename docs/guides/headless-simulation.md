@@ -27,20 +27,45 @@ console.log(sim.seaLevelElevation)
 
 ## Ce qui est exporté
 
-| Symbole | Type | Usage |
-| ------- | ---- | ----- |
-| `generateHexasphere`   | fonction | Subdivise une icosphère en tuiles hex |
-| `initBodySimulation`   | fonction | Calcule élévations quantifiées, niveau de la mer, couverture liquide |
-| `buildNeighborMap`     | fonction | Graphe d'adjacence 6-way |
-| `getNeighbors`         | fonction | Voisins d'une tuile par id |
-| `resolveStarData`      | fonction | Lookup spectral → temp/rayon/luminosité |
-| `toStarParams`         | fonction | `StarPhysicsInput` → params shader |
-| `hasSurfaceLiquid`     | fonction | Predicate liquide en surface (lit `liquidState`) |
-| `deriveCoreRadiusRatio`| fonction | `gasMassFraction` → ratio noyau/visuel |
-| `resolveCoreRadiusRatio` | fonction | Ordre de résolution explicite → dérivé → défaut |
-| `SPECTRAL_TABLE`, `DEFAULT_TILE_SIZE`, `REF_STAR_*`, `REF_*_DENSITY` | constantes | Catalogues et références |
+### Fonctions
 
-Plus tous les types : `BodyConfig` (union discriminée `PlanetConfig | StarConfig`), `PlanetConfig`, `StarConfig`, `BodyIdentity`, `PlanetIdentity`, `StarIdentity`, `BodyPhysics`, `BodyPhysicsCore`, `PlanetPhysics`, `StarPhysics`, `BodyNoiseProfile`, `PlanetVisualProfile` (alias `BodyVisualProfile`), `StarPhysicsInput`, `Tile`, `HexasphereData`, `TileState`.
+| Symbole | Usage |
+| ------- | ----- |
+| `generateHexasphere(radius, subdivisions)` | Subdivise une icosphère en tuiles hex |
+| `initBodySimulation(tiles, config, atmoTiles?)` | Calcule élévations quantifiées, niveau de la mer, couverture liquide |
+| `buildNeighborMap(tiles)`            | Graphe d'adjacence 6-way |
+| `getNeighbors(tileId, map)`          | Voisins d'une tuile par id |
+| `resolveStarData(input)`             | Lookup spectral → `{ tempK, radius, luminosity, color }` |
+| `toStarParams(input)`                | Forme minimaliste — `{ radius, tempK }` |
+| `hasSurfaceLiquid(config)`           | Predicate liquide en surface (lit `liquidState`) |
+| `hasAtmosphere(config)`              | Predicate `atmosphereThickness > 0` |
+| `deriveCoreRadiusRatio(f)`           | `gasMassFraction → ratio noyau/visuel` |
+| `resolveCoreRadiusRatio(config)`     | Ordre de résolution : explicite → dérivé → défaut |
+| `seededPrng(seed)`                   | PRNG FNV-1a + SplitMix32 — scopez vos seeds (`name + ':resources'`) |
+
+### Constantes
+
+| Symbole | Valeur | Usage |
+| ------- | ------ | ----- |
+| `DEFAULT_TILE_SIZE`     | `0.05`  | Taille de tuile par défaut (drives subdivisions) |
+| `REF_STAR_RADIUS`       | `3`     | Rayon visuel de référence (G-type) |
+| `REF_STAR_TEMP`         | `5778`  | Température de référence en Kelvin (G-type) |
+| `REF_SOLID_DENSITY`     | `5500`  | kg/m³ — référence densité solide (`deriveCoreRadiusRatio`) |
+| `REF_GAS_DENSITY`       | `100`   | kg/m³ — référence densité gaz |
+| `SPECTRAL_TABLE`        | `Record<SpectralType, …>` | Catalogue O–M : `tempK`, `radius`, `color` |
+
+### Types
+
+| Catégorie | Types |
+| --------- | ----- |
+| **Taxonomie** | `BodyType` (`'planetary' \| 'star'`), `SurfaceLook` (`'terrain' \| 'bands' \| 'metallic'`), `SpectralType` (`'O' \| 'B' \| … \| 'M'`) |
+| **Identity**  | `BodyIdentity`, `PlanetIdentity`, `StarIdentity` |
+| **Physics**   | `BodyPhysics`, `BodyPhysicsCore`, `PlanetPhysics`, `StarPhysics`, `StarPhysicsInput`, `ResolvedStarData` |
+| **Profils**   | `BodyNoiseProfile`, `PlanetVisualProfile` (alias deprecated `BodyVisualProfile`) |
+| **Config**    | `BodyConfig` (union discriminée), `PlanetConfig`, `StarConfig` |
+| **Visuel**    | `ColorInput` (string \| number), `MetallicBand` |
+| **Géométrie** | `Tile`, `Point3D`, `HexasphereData` |
+| **Sim**       | `BodySimulation`, `TileState` |
 
 ## Pourquoi headless ?
 
