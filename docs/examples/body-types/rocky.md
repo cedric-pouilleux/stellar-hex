@@ -13,6 +13,12 @@ const tabs = [
 
 Corps tellurique à terrain procédural FBM. Le relief est quantifié en bandes entières par `initBodySimulation` ; les cratères, les fissures et la lave sont des couches visuelles indépendantes pilotées par les flags `hasCracks` / `hasLava` et les paramètres shader.
 
+<ClientOnly>
+  <DemoBlock :tabs="tabs">
+    <BodyTypeRockyDemo />
+  </DemoBlock>
+</ClientOnly>
+
 ## Comportement
 
 La lib est **agnostique du climat** : elle ne lit aucun champ de température et ne dérive ni couleur ni phase à partir d'un modèle thermique. Tout ce qui dépend du climat (couleur de surface, présence d'un océan, lave) est résolu côté caller et poussé dans `BodyConfig` :
@@ -43,12 +49,6 @@ La lib est **agnostique du climat** : elle ne lit aucun champ de température et
 | `hasLava` | `boolean` | Active la lave dans les bandes basses |
 | `hasRings` | `boolean` | Ajoute un anneau visuel |
 | `terrainColorLow` / `terrainColorHigh` | `ColorInput` | Ancres de la rampe terrain par défaut |
-
-<ClientOnly>
-  <DemoBlock :tabs="tabs">
-    <BodyTypeRockyDemo />
-  </DemoBlock>
-</ClientOnly>
 
 ## Paramètres shader
 

@@ -13,6 +13,12 @@ const tabs = [
 
 Corps en fusion nucléaire avec granulation convective animée, corona et pulsation. La température de surface (en Kelvin) est dérivée de la classe spectrale (`SPECTRAL_KELVIN`) et la couleur en blackbody via `kelvinToThreeColor`.
 
+<ClientOnly>
+  <DemoBlock :tabs="tabs">
+    <BodyTypeStarDemo />
+  </DemoBlock>
+</ClientOnly>
+
 ## Info métier
 
 La classe spectrale (`spectralType`) est la propriété centrale d'une étoile — elle détermine simultanément la température, la couleur et les paramètres de rendu. La granulation convective (cellules de Bénard-Marangoni) est simulée par un bruit de Worley animé. La corona est un halo fresnel autour du disque. Le slider **Température** modifie directement l'uniform shader — glisser de 2500 K (rouge M) à 40 000 K (bleu O) change la teinte en temps réel.
@@ -35,12 +41,6 @@ La classe spectrale (`spectralType`) est la propriété centrale d'une étoile �
 | `spectralType` | `'O'\|'B'\|'A'\|'F'\|'G'\|'K'\|'M'` | Classe spectrale — dérive température (Kelvin) et couleur via la table `SPECTRAL_KELVIN` |
 | `rotationSpeed` | `number` | Vitesse de rotation (rad/s) — dérive `animSpeed` |
 | `radius` | `number` | Rayon visuel (unités monde) |
-
-<ClientOnly>
-  <DemoBlock :tabs="tabs">
-    <BodyTypeStarDemo />
-  </DemoBlock>
-</ClientOnly>
 
 ## Paramètres shader
 
