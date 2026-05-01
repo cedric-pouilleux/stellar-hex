@@ -92,19 +92,22 @@ const body = useBody(config, tileSize)
 
 // Caller owns the distribution strategy, the catalogue and the paint.
 const distribution = myGenerateDistribution(body.sim)
-myPaintBody(body, distribution)       // calls body.tiles.applyTileOverlay
+myPaintBody(body, distribution)       // calls body.tiles.sol.applyOverlay
                                       // + body.tiles.paintSmoothSphere
 ```
 
-Relevant `body.tiles` primitives:
+Relevant `body.tiles` primitives (planet branch — narrow on `body.kind === 'planet'`):
 
-- `tileBaseVisual(tileId)` — pre-blend palette snapshot (colour + PBR +
-  submerged flag). Lets consumers run their own resource-aware blend off-lib.
-- `applyTileOverlay(layer, Map<tileId, RGB>)` — stamps per-tile RGB into
-  the interactive layered mesh (live mutation-friendly).
-- `paintSmoothSphere(Map<tileId, RGB>)` — one-shot paint of the distant
-  view (frozen at generation).
-- `updateTileSolHeight(Map<tileId, height>)` — per-tile elevation mutation.
+- `body.tiles.sol.tileBaseVisual(tileId)` — pre-blend palette snapshot
+  (colour + PBR + submerged flag). Lets consumers run their own
+  resource-aware blend off-lib.
+- `body.tiles.sol.applyOverlay(Map<tileId, RGB>)` — stamps per-tile RGB
+  into the interactive layered mesh (live mutation-friendly). Same shape
+  on `body.tiles.atmo.applyOverlay` for the atmo board.
+- `body.tiles.paintSmoothSphere(Map<tileId, RGB>)` — one-shot paint of
+  the distant view (frozen at generation).
+- `body.tiles.sol.updateTileSolHeight(Map<tileId, height>)` — per-tile
+  elevation mutation.
 
 The playground ships a reference implementation (catalogue, cluster-based
 distribution, paint pipeline) under

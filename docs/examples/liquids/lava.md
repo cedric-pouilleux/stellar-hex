@@ -23,7 +23,8 @@ const tabs = [
 
 ```ts
 const body = useBody({
-  type: 'rocky',
+  type: 'planetary',
+  surfaceLook: 'terrain',
   name: 'lava-world',
   // ...
   hasCracks:      true,

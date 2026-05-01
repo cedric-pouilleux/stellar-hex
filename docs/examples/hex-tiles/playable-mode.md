@@ -32,7 +32,7 @@ Drag pour orbiter, scroll pour zoomer. Active **« Mode hex »** pour basculer l
 | `body.hover.useCursor(name)`          | Switch entre presets de curseur enregistrés au build |
 | `body.hover.updateCursor(partial)`    | Mutation live des params (couleur, opacité, intensité) |
 | `body.view.set('surface'|'atmosphere')` | Toggle terrain / vue atmosphère |
-| `body.tiles.applyTileOverlay(layer, colors)` | Stamp couleurs RGB par tuile sans rebuild |
+| `body.tiles.sol.applyOverlay(colors)` / `body.tiles.atmo?.applyOverlay(colors)` | Stamp couleurs RGB par tuile sans rebuild (un namespace par board) |
 | `body.liquid.setSeaLevel(worldRadius)` | Déplace le shell liquide en runtime |
 | `body.liquid.setVisible(true|false)`  | Cache/montre l'océan |
 
@@ -40,7 +40,7 @@ Drag pour orbiter, scroll pour zoomer. Active **« Mode hex »** pour basculer l
 La lib gère **ring + floorRing + emissive** automatiquement à partir du dispatch `setBoardTile`. Sur sol l'emissive est désactivé (terrain flat-lit) ; sur liquid le floorRing est dimmé à `opacity 0.20` et tinté en rouge si le sol sous-jacent est miné jusqu'au noyau. Pour personnaliser couleur / taille / presets, voir le [guide dédié](/guides/hover-cursor).
 :::
 
-Les namespaces `view`, `liquid` et la version étendue de `tiles` (incl. `applyTileOverlay`, `updateTileSolHeight`, …) ne sont présents que sur **`PlanetBody`** (`kind: 'planet'`). Sur une étoile (`StarBody`), TS rejette directement ces accès — narrow le union avant : `if (body.kind === 'planet') { body.view.set(...) }`.
+Les namespaces `view`, `liquid` et la version étendue de `tiles` (incl. `tiles.sol.updateTileSolHeight`, `tiles.sol.applyOverlay`, `tiles.atmo`, …) ne sont présents que sur **`PlanetBody`** (`kind: 'planet'`). Sur une étoile (`StarBody`), TS rejette directement ces accès — narrow le union avant : `if (body.kind === 'planet') { body.view.set(...) }`.
 
 ## Pattern Three.js (vanille)
 
@@ -178,7 +178,7 @@ La doctrine est minimaliste : `TileState` ne contient **que** `tileId` et `eleva
 Le mesh hex n'est construit qu'au **premier** appel à `activate()` (lazy). Une fois en mémoire, `activate`/`deactivate` ne fait plus que swap visibility + (dés)activer le raycast. Pour 5 000 tuiles standards :
 
 - BVH (auto-construit) → raycast en `O(log n)` (~0.1 ms par hover sur CPU mobile).
-- `applyTileOverlay` mute le buffer de couleur sans recompiler les shaders.
+- `tiles.sol.applyOverlay` mute le buffer de couleur sans recompiler les shaders.
 - `body.view.set('atmosphere')` ne réalloue rien — juste un toggle de visibility.
 
 Pour des centaines de planètes en système, gardez le mode hex désactivé sur les corps non-focus (cf. [Performance](/guides/performance)).

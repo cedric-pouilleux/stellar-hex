@@ -23,7 +23,8 @@ Les anneaux sont **opt-in** : la lib n'en génère que si `config.hasRings === t
 
 ```ts
 const body = useBody({
-  type:           'gaseous',
+  type:           'planetary',
+  surfaceLook:    'bands',
   name:           'Jovian',
   radius:          1.4,
   rotationSpeed:   0.003,

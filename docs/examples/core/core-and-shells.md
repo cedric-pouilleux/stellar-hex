@@ -60,13 +60,13 @@ L'ordre de priorité dans `resolveCoreRadiusRatio(config)` :
 
 ```ts
 // 1. Override direct — taille du noyau pilotée à la main
-useBody({ type: 'rocky', name: 'a', coreRadiusRatio: 0.85, /* … */ })
+useBody({ type: 'planetary', surfaceLook: 'terrain', name: 'a', coreRadiusRatio: 0.85, /* … */ })
 
 // 2. Dérivé d'une fraction massique d'enveloppe gazeuse
-useBody({ type: 'gaseous', name: 'b', gasMassFraction: 0.9, /* … */ })
+useBody({ type: 'planetary', surfaceLook: 'bands', name: 'b', gasMassFraction: 0.9, /* … */ })
 
 // 3. Défaut (0.55)
-useBody({ type: 'rocky', name: 'c', /* … */ })
+useBody({ type: 'planetary', surfaceLook: 'terrain', name: 'c', /* … */ })
 ```
 
 ## Dérivation depuis `gasMassFraction`
@@ -107,8 +107,9 @@ C'est aussi ce qui borne **la profondeur d'excavation** : creuser une tuile desc
 ## Excaver pour voir le noyau
 
 ```ts
+if (body.kind !== 'planet') return
 // Creuser une tuile jusqu'au noyau (elev 0)
-body.tiles.updateTileSolHeight(new Map([[tileId, 0]]))
+body.tiles.sol.updateTileSolHeight(new Map([[tileId, 0]]))
 
 // Creuser un cratère de plusieurs tuiles
 import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellar-hex/sim'
@@ -122,7 +123,7 @@ while (queue.length && updates.size < 12) {
   updates.set(id, 0)
   for (const n of getNeighbors(id, nMap)) queue.push(n)
 }
-body.tiles.updateTileSolHeight(updates)
+body.tiles.sol.updateTileSolHeight(updates)
 ```
 
 Le noyau émet sa propre lumière (`PointLight` parentée au mesh) qui ne passe à travers les tuiles que là où le sol est creusé.
@@ -137,7 +138,7 @@ Le noyau émet sa propre lumière (`PointLight` parentée au mesh) qui ne passe 
 | `deriveCoreRadiusRatio(f)`    | `physics/body` | `gasMassFraction → ratio` (pure) |
 | `resolveCoreRadiusRatio(cfg)` | `physics/body` | Échelle de priorité (override → dérivé → défaut) |
 | `buildCoreMesh({ radius, coreRadiusRatio })` | `render/shells/buildCoreMesh` | Mesh sphère inner |
-| `body.tiles.updateTileSolHeight(map)`        | `Body` handle  | Mute la hauteur sol des tuiles (`0` = expose le noyau) |
+| `body.tiles.sol.updateTileSolHeight(map)`    | `PlanetBody` handle | Mute la hauteur sol des tuiles (`0` = expose le noyau) |
 | `body.getCoreRadius()`        | `Body` handle  | Rayon monde du noyau |
 | `body.getSurfaceRadius()`     | `Body` handle  | Rayon monde de la surface (= `config.radius`) |
 

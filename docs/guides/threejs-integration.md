@@ -29,7 +29,8 @@ Les matériaux de la lib sont custom : ils ne lisent pas l'`AmbientLight` et n'a
 const body = useBody(
   {
     name:                'Demo',
-    type:                'rocky',
+    type:                'planetary',
+    surfaceLook:         'terrain',
     radius:               1,
     rotationSpeed:        0.01,
     axialTilt:            0.41,
@@ -151,14 +152,14 @@ atmo.tick(dt)
 
 ## Variantes par type
 
-Changez juste `type` — palette, matériau et shader sont auto-dérivés :
+`BodyConfig` est une union discriminée sur `type` (`'planetary' | 'star'`). Sur une planète, `surfaceLook` choisit l'archétype visuel — palette, matériau et shader sont auto-dérivés :
 
-| `type` | Description |
-| ------ | ----------- |
-| `'rocky'`    | Planète tellurique, relief hex, liquide optionnel |
-| `'gaseous'`  | Géante gazeuse, atmo bandée, noyau rocheux optionnel (`gasMassFraction` / `coreRadiusRatio`) |
-| `'metallic'` | Monde métallique réflectif, lave optionnelle |
-| `'star'`     | Sphère émissive avec granulation (pas de relief) |
+| `type` | `surfaceLook` | Description |
+| ------ | ------------- | ----------- |
+| `'planetary'` | `'terrain'` (défaut) | Planète tellurique, relief hex, liquide optionnel |
+| `'planetary'` | `'bands'`    | Géante gazeuse, atmo bandée, noyau rocheux optionnel (`gasMassFraction` / `coreRadiusRatio`) |
+| `'planetary'` | `'metallic'` | Monde métallique réflectif, lave optionnelle |
+| `'star'`      | _(ignoré)_   | Sphère émissive avec granulation (pas de relief) — `spectralType` requis |
 
 Voir [`BodyConfig`](/api/sim/type-aliases/BodyConfig) pour tous les paramètres exposés.
 

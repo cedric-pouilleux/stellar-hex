@@ -40,17 +40,21 @@ Le mesh interactif a **deux bandes** dans la même géométrie merged :
 | **'surface'**    | hex sol affiché, atmo masqué | Le relief de tuiles, le noyau s'il y a des hex minés à elev 0 |
 | **'atmosphere'** | hex sol masqué, smooth sphere fallback affichée + atmo visible | Le shell atmosphérique en bandes hex |
 
-Les deux vues partagent le **même set de tile ids** (le même `body.sim.tiles`) — un raycast en vue atmosphère retourne le même `id` qu'un raycast en vue surface au-dessus de la même verticale.
+::: warning Sol et atmo sont deux hexaspheres distinctes
+Les deux boards ont leur **propre subdivision** : un id sol `42` et un id atmo `42` ne désignent pas la même verticale. Pour relier une tuile sol à la tuile atmo « au-dessus », faites un raycast vertical caller-side, ou consommez `body.tiles.atmo.getTilePosition(id)` côté atmo et faites un nearest-neighbour sur les centres sol.
+:::
 
 ## Peindre la bande atmo
 
-`body.tiles.applyTileOverlay(layer, colors)` accepte un argument `layer: 'sol' | 'atmo'`. Choisir `'atmo'` stamp la couleur sur la couche atmosphérique sans toucher au sol :
+Le namespace `body.tiles.atmo` (présent uniquement quand `atmosphereThickness > 0`) expose `applyOverlay(colors)` — stamp les couleurs sur la couche atmosphérique sans toucher au sol :
 
 ```ts
-body.tiles.applyTileOverlay('atmo', new Map([
-  [42,  { r: 0.95, g: 0.45, b: 0.85 }],   // overlay rose
-  [108, { r: 0.20, g: 0.80, b: 0.35 }],   // overlay vert
-]))
+if (body.kind === 'planet' && body.tiles.atmo) {
+  body.tiles.atmo.applyOverlay(new Map([
+    [42,  { r: 0.95, g: 0.45, b: 0.85 }],   // overlay rose
+    [108, { r: 0.20, g: 0.80, b: 0.35 }],   // overlay vert
+  ]))
+}
 ```
 
 Cas d'usage typiques :

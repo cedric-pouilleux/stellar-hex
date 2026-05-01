@@ -54,19 +54,21 @@ function bfs(start: number, maxDepth: number) {
 
 ## Repeindre les tuiles
 
-`body.tiles.applyTileOverlay('sol', map)` pousse des couleurs per-tile dans le buffer du mesh hex sans rebuild. Les ids absents de la map gardent leur couleur de palette :
+`body.tiles.sol.applyOverlay(map)` pousse des couleurs per-tile dans le buffer du mesh hex sans rebuild. Les ids absents de la map gardent leur couleur de palette :
 
 ```ts
-body.tiles.applyTileOverlay('sol', new Map([
-  [42, { r: 1.0, g: 0.33, b: 0.40 }],
-]))
-
-// pour effacer : repush avec la couleur de palette d'origine via `tileBaseVisual`
-const base = body.tiles.tileBaseVisual(42)
-if (base) {
-  body.tiles.applyTileOverlay('sol', new Map([
-    [42, { r: base.r, g: base.g, b: base.b }],
+if (body.kind === 'planet') {
+  body.tiles.sol.applyOverlay(new Map([
+    [42, { r: 1.0, g: 0.33, b: 0.40 }],
   ]))
+
+  // pour effacer : repush avec la couleur de palette d'origine via `tileBaseVisual`
+  const base = body.tiles.sol.tileBaseVisual(42)
+  if (base) {
+    body.tiles.sol.applyOverlay(new Map([
+      [42, { r: base.r, g: base.g, b: base.b }],
+    ]))
+  }
 }
 ```
 

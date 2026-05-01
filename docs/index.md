@@ -48,7 +48,8 @@ import {
 const { tiles } = generateHexasphere(1, 6)
 const sim = initBodySimulation(tiles, {
   name:                'Kepler-186f',
-  type:                'rocky',
+  type:                'planetary',
+  surfaceLook:         'terrain',
   radius:               1,
   rotationSpeed:        0.005,
   axialTilt:            0.41,

@@ -24,22 +24,29 @@ Le bénéfice : la lib reste **stable**, **portable** (Node.js, worker, browser)
 
 ## Les primitives de paint
 
-Toute personnalisation passe par 4 primitives sur le handle planet :
+Toute personnalisation passe par les primitives exposées sur `body.tiles`. Les boards `sol` et `atmo` sont **deux hexaspheres distinctes** (un id sol `42` et un id atmo `42` ne sont pas comparables), chacun avec son propre namespace.
 
 ```ts
-// Sur tout body (planet ou star)
-body.tiles.tileBaseVisual(tileId)              // → snapshot pré-blend (palette + PBR + submerged)
-body.tiles.applyOverlay(colors)                // → stamp RGB sur la couche active
-
-// Planet only — narrow d'abord
+// Planet only — narrow d'abord, les namespaces sol/atmo n'existent pas sur StarBody
 if (body.kind === 'planet') {
+  // Sol board (relief + excavation)
+  body.tiles.sol.tileBaseVisual(id)            // → snapshot pré-blend (palette + PBR + submerged)
   body.tiles.sol.writeTileColor(id, rgb)       // → 1 tuile sol
   body.tiles.sol.applyOverlay(map)             // → batch sol
   body.tiles.sol.updateTileSolHeight(map)      // → mute la hauteur (excavation)
 
-  body.tiles.atmo?.applyOverlay(map)           // → stamp sur la bande atmo (cliquable)
+  // Atmo board (cliquable, pas de relief — null si atmosphereThickness === 0)
+  body.tiles.atmo?.applyOverlay(map)           // → stamp sur la bande atmo
+
+  // Aides cross-board
   body.tiles.paintSmoothSphere(map)            // → vue d'ensemble (smooth sphere)
-  body.tiles.paintAtmoShell(map)               // → halo atmo procédural
+  body.tiles.paintAtmoShell(map)               // → halo atmo procédural (K-NN)
+}
+
+// StarBody — tiles plat, pas de namespace sol/atmo
+if (body.kind === 'star') {
+  body.tiles.tileBaseVisual(id)
+  body.tiles.writeTileColor(id, rgb)
 }
 ```
 
@@ -47,12 +54,12 @@ Le tableau complet :
 
 | Primitive | Branche | Effet | Coût |
 | --------- | ------- | ----- | ---- |
-| `tileBaseVisual(id)` | tous | Snapshot palette + PBR + flag `submerged` | O(1), aucune mutation |
-| `writeTileColor(id, rgb)` | tous | Patch sur 1 tuile dans le buffer vertex | O(1), aucun rebuild GPU |
-| `applyOverlay(map)` | tous | Batch de stamps | O(n entrées) |
-| `updateTileSolHeight(map)` | planet | Mute la hauteur des prismes sol | O(n) + recompute neighbours |
-| `paintSmoothSphere(map)` | planet | Stamp sur la sphère lisse (vue d'ensemble) | O(vertices) |
-| `paintAtmoShell(map)` | planet | Stamp K-NN sur le halo procédural | O(vertices × K) |
+| `tiles.sol.tileBaseVisual(id)` / `tiles.tileBaseVisual(id)` (star) | planet (sol) / star | Snapshot palette + PBR + flag `submerged` | O(1), aucune mutation |
+| `tiles.sol.writeTileColor` / `tiles.atmo?.writeTileColor` / `tiles.writeTileColor` (star) | planet / planet / star | Patch sur 1 tuile dans le buffer vertex | O(1), aucun rebuild GPU |
+| `tiles.sol.applyOverlay(map)` / `tiles.atmo?.applyOverlay(map)` | planet | Batch de stamps par board | O(n entrées) |
+| `tiles.sol.updateTileSolHeight(map)` | planet | Mute la hauteur des prismes sol | O(n) + recompute neighbours |
+| `tiles.paintSmoothSphere(map)` | planet | Stamp sur la sphère lisse (vue d'ensemble) | O(vertices) |
+| `tiles.paintAtmoShell(map)` | planet | Stamp K-NN sur le halo procédural | O(vertices × K) |
 
 Aucune ne **rebuilde** la géométrie ou ne recompile les shaders. Vous pouvez donc les appeler par tick.
 

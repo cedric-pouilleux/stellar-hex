@@ -28,7 +28,8 @@ import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
 
 const config: BodyConfig = {
   name:                'Home',
-  type:                'rocky',
+  type:                'planetary',
+  surfaceLook:         'terrain',
   radius:               1,
   rotationSpeed:        0.01,
   axialTilt:            0.41,

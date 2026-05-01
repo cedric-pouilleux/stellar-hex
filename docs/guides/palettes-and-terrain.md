@@ -4,14 +4,14 @@ La couleur de chaque tuile vient d'une **palette terrain** — une liste de [`Te
 
 ## Génération automatique
 
-`choosePalette(config)` route vers le bon générateur selon `type` :
+`choosePalette(config)` route vers le bon générateur selon le couple `(type, surfaceLook)` (planètes) ou `type` seul (étoiles) :
 
-| Type | Générateur |
-| ---- | ---------- |
-| `'rocky'`    | `generateTerrainPalette` (rampe basse → haute) |
-| `'metallic'` | `buildMetallicPalette` (4 stops : creux → plaines → hauteurs → pics) |
-| `'gaseous'`  | `buildGasPalette` (4 bandes A/B/C/D) |
-| `'star'`     | `buildStarPalette` (surface → couronne) |
+| `type` / `surfaceLook` | Générateur |
+| ---------------------- | ---------- |
+| `'planetary'` + `'terrain'`  | `generateTerrainPalette` (rampe basse → haute) |
+| `'planetary'` + `'metallic'` | `buildMetallicPalette` (4 stops : creux → plaines → hauteurs → pics) |
+| `'planetary'` + `'bands'`    | `buildGasPalette` (4 bandes A/B/C/D) |
+| `'star'`                     | `buildStarPalette` (surface → couronne) |
 
 Chaque générateur produit une palette de **N bandes** où `N = resolveTerrainLevelCount(radius, coreRadiusRatio)`. C'est la même valeur que celle utilisée par la sim pour quantifier les élévations — donc `palette[elevation]` résout sans interpolation.
 
@@ -22,7 +22,8 @@ Pour ajuster une rocheuse sans remplacer la palette, utilisez les deux ancres ex
 ```ts
 const body = useBody({
   name: 'rocky-warm',
-  type: 'rocky',
+  type: 'planetary',
+  surfaceLook: 'terrain',
   // ...
   terrainColorLow:  '#5c2a1a',   // bande la plus basse
   terrainColorHigh: '#d6a07c',   // bande la plus haute
@@ -38,7 +39,8 @@ Les géantes gazeuses consomment quatre couleurs de bande :
 ```ts
 const body = useBody({
   name: 'gas-giant',
-  type: 'gaseous',
+  type: 'planetary',
+  surfaceLook: 'bands',
   // ...
   bandColors: {
     colorA: '#d8c39e',  // teinte claire dominante
@@ -58,7 +60,8 @@ Pour un monde métallique, `metallicBands` accepte un tuple de 4 [`MetallicBand`
 ```ts
 const body = useBody({
   name: 'Forge-α',
-  type: 'metallic',
+  type: 'planetary',
+  surfaceLook: 'metallic',
   metallicBands: [
     { color: '#1a1118', metalness: 0.95, roughness: 0.45 },                 // creux
     { color: '#3d2a2a', metalness: 0.75, roughness: 0.55 },                 // plaines
@@ -116,7 +119,8 @@ Par défaut, l'élévation d'une rocheuse vient d'un FBm simplex continu — ré
 ```ts
 const body = useBody({
   name: 'gaia',
-  type: 'rocky',
+  type: 'planetary',
+  surfaceLook: 'terrain',
   liquidState: 'liquid',
   liquidCoverage: 0.6,
   continentAmount: 0.7,

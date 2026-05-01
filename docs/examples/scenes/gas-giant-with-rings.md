@@ -25,13 +25,14 @@ Recette complète : géante gazeuse à bandes + anneau procédural + ombre proje
 import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
 
 const config: BodyConfig = {
-  type:           'gaseous',
+  type:           'planetary',
+  surfaceLook:    'bands',
   name:           'Jovian',
   radius:          1.4,
   rotationSpeed:   0.003,
   axialTilt:       0.18,
   // bandColors:    {…} optionnel — couleurs Jupiter-like
-  // hasRings:      true,  // souvent activé par défaut sur 'gaseous'
+  hasRings:       true,
 }
 
 const body = useBody(config, DEFAULT_TILE_SIZE)
@@ -54,7 +55,8 @@ C'est tout. `<Body>` détecte que `body.variation.rings` est défini, mount `<Bo
 
 ```ts
 const config: BodyConfig = {
-  type: 'gaseous',
+  type: 'planetary',
+  surfaceLook: 'bands',
   name: 'Saturnian',
   // ...
   bandColors: {

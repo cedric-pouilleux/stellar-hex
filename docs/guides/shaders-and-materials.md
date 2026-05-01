@@ -13,7 +13,7 @@ import {
 } from '@cedric-pouilleux/stellar-hex/core'
 
 const params   = getDefaultParams('rocky')
-const material = new BodyMaterial({ type: 'rocky', params })
+const material = new BodyMaterial('rocky', params)
 ```
 
 | Symbole | Rôle |
