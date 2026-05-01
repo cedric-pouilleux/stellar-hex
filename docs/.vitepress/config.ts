@@ -5,7 +5,7 @@ import { templateCompilerOptions } from '@tresjs/core'
 import typedocSidebar from '../api/typedoc-sidebar.json' with { type: 'json' }
 
 /**
- * VitePress configuration for the `@cedric-pouilleux/stellex-js` docs.
+ * VitePress configuration for the `@cedric-pouilleux/stellexjs` docs.
  *
  * Three top-level sections:
  * - Guides: hand-written conceptual + how-to material (FR).
@@ -22,9 +22,9 @@ export default defineConfig({
   vite: {
     resolve: {
       alias: {
-        '@cedric-pouilleux/stellex-js/sim':  path.resolve(root, 'sim.ts'),
-        '@cedric-pouilleux/stellex-js/core': path.resolve(root, 'core.ts'),
-        '@cedric-pouilleux/stellex-js':      path.resolve(root, 'index.ts'),
+        '@cedric-pouilleux/stellexjs/sim':  path.resolve(root, 'sim.ts'),
+        '@cedric-pouilleux/stellexjs/core': path.resolve(root, 'core.ts'),
+        '@cedric-pouilleux/stellexjs':      path.resolve(root, 'index.ts'),
       },
     },
   },
@@ -54,8 +54,9 @@ export default defineConfig({
         {
           text: 'Démarrer',
           items: [
-            { text: 'Installation',          link: '/guides/getting-started' },
-            { text: 'Concepts fondamentaux', link: '/guides/core-concepts'   },
+            { text: 'Installation',           link: '/guides/getting-started'      },
+            { text: 'Concepts fondamentaux',  link: '/guides/core-concepts'        },
+            { text: 'Anatomie d\'un BodyConfig', link: '/guides/body-config-anatomy' },
           ],
         },
         {

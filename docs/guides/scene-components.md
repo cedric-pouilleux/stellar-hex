@@ -42,7 +42,7 @@ La position, elle, est piloté par le caller — orbites, formations, scripted p
 ```vue
 <script setup lang="ts">
 import { TresCanvas } from '@tresjs/core'
-import { useBody, BodyController, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellex-js'
+import { useBody, BodyController, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellexjs'
 import { ref } from 'vue'
 import * as THREE from 'three'
 
@@ -96,7 +96,7 @@ Cette séparation permet :
 <script setup lang="ts">
 import { ref } from 'vue'
 import { TresCanvas } from '@tresjs/core'
-import { useBody, Body, TileCenterProjector, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellex-js'
+import { useBody, Body, TileCenterProjector, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellexjs'
 
 const body = useBody(config, DEFAULT_TILE_SIZE)
 const tooltipPos = ref<{ x: number; y: number } | null>(null)
@@ -151,7 +151,7 @@ Limites :
 
 ```vue
 <script setup lang="ts">
-import { ShadowUpdater } from '@cedric-pouilleux/stellex-js'
+import { ShadowUpdater } from '@cedric-pouilleux/stellexjs'
 const moon  = useBody(moonConfig,  DEFAULT_TILE_SIZE)
 const earth = useBody(earthConfig, DEFAULT_TILE_SIZE)
 </script>
@@ -174,7 +174,7 @@ const earth = useBody(earthConfig, DEFAULT_TILE_SIZE)
 `<BodyController>` consomme implicitement la `useLoop` TresJS. Pour un scénario **headless ou avec un autre clock** (replay UI, server tick), passez par `createBodyMotion` directement :
 
 ```ts
-import { createBodyMotion } from '@cedric-pouilleux/stellex-js/core'
+import { createBodyMotion } from '@cedric-pouilleux/stellexjs/core'
 
 const motion = createBodyMotion({
   rotationSpeed: config.rotationSpeed,

@@ -7,7 +7,7 @@ Ce guide consolide tout ce qui touche aux étoiles : configuration, handle, help
 ## Hello, étoile
 
 ```ts
-import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellex-js/core'
+import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellexjs/core'
 
 const sun = useBody({
   type:          'star',
@@ -76,7 +76,7 @@ Les primitives **communes** (présentes sur les deux branches) restent disponibl
 Sur une planète, le tile count dérive de `radius`. Sur une étoile, ça produirait des tuiles minuscules sur les O et démesurées sur les M (le ratio de rayon est `15:1.5 = 10x` entre les extrêmes). Pour stabiliser les tile counts, le pipeline étoile utilise [`STAR_TILE_REF`](/api/core/variables/STAR_TILE_REF) :
 
 ```ts
-import { STAR_TILE_REF } from '@cedric-pouilleux/stellex-js/core'
+import { STAR_TILE_REF } from '@cedric-pouilleux/stellexjs/core'
 // { M: 2.0, K: 2.5, G: 3.0, F: 3.5 }
 ```
 
@@ -97,7 +97,7 @@ Trois helpers exportés depuis `/sim` (donc utilisables côté serveur / worker 
 ### [`resolveStarData`](/api/sim/functions/resolveStarData)
 
 ```ts
-import { resolveStarData } from '@cedric-pouilleux/stellex-js/sim'
+import { resolveStarData } from '@cedric-pouilleux/stellexjs/sim'
 
 const data = resolveStarData({ spectralType: 'M' })
 // { tempK: 3000, radius: 1.5, luminosity: 0.067, color: '#ffcc6f' }
@@ -115,7 +115,7 @@ resolveStarData({ spectralType: 'G', tempK: 5500, radius: 2.8 })
 ### [`toStarParams`](/api/sim/functions/toStarParams)
 
 ```ts
-import { toStarParams } from '@cedric-pouilleux/stellex-js/sim'
+import { toStarParams } from '@cedric-pouilleux/stellexjs/sim'
 
 const params = toStarParams({ spectralType: 'O' })
 // { radius: 15, tempK: 40000 }
@@ -128,7 +128,7 @@ Forme minimaliste — utile quand seuls `radius` + `tempK` sont consommés (méc
 Lecture directe quand vous voulez la valeur sans traverser un resolver :
 
 ```ts
-import { SPECTRAL_TABLE } from '@cedric-pouilleux/stellex-js/sim'
+import { SPECTRAL_TABLE } from '@cedric-pouilleux/stellexjs/sim'
 
 console.log(SPECTRAL_TABLE.G.tempK)   // 5778
 console.log(SPECTRAL_TABLE.M.color)   // '#ffcc6f'
@@ -139,7 +139,7 @@ console.log(SPECTRAL_TABLE.M.color)   // '#ffcc6f'
 Trois utilitaires de conversion couleur exportés depuis `/core`. Utilisent l'approximation de Tanner Helland, valide entre ~1 000 K et ~40 000 K.
 
 ```ts
-import { kelvinToRGB, kelvinToThreeColor, kelvinLabel } from '@cedric-pouilleux/stellex-js/core'
+import { kelvinToRGB, kelvinToThreeColor, kelvinLabel } from '@cedric-pouilleux/stellexjs/core'
 
 kelvinToRGB(5778)
 // { r: 1.0, g: 0.97, b: 0.92, hex: '#fff7eb' } — Soleil
@@ -162,7 +162,7 @@ kelvinLabel(5778)
 ### [`buildStarPalette`](/api/core/functions/buildStarPalette)
 
 ```ts
-import { buildStarPalette } from '@cedric-pouilleux/stellex-js/core'
+import { buildStarPalette } from '@cedric-pouilleux/stellexjs/core'
 
 const palette = buildStarPalette('M')
 // TerrainLevel[] : surface → corona en gradient pour la classe M
@@ -175,7 +175,7 @@ Palette terrain pour le shader étoile — surface → bord/corona. Consommée a
 Calibre les paramètres god rays (`exposure`, `decay`, `density`, `weight`) à partir d'un [`StarPhysicsInput`](/api/sim/interfaces/StarPhysicsInput) — voir le détail dans le guide [API avancée](/guides/advanced-api#god-rays-paramétrés-depuis-une-étoile). Couplé à `GodRaysShader` (post-processing pass), ça produit un effet calibré par classe spectrale sans tuning manuel.
 
 ```ts
-import { godRaysFromStar } from '@cedric-pouilleux/stellex-js/core'
+import { godRaysFromStar } from '@cedric-pouilleux/stellexjs/core'
 
 const params = godRaysFromStar({ spectralType: 'O' })
 // exposure / decay / density / weight calibrés pour une géante O

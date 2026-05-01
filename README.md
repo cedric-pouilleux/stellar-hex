@@ -1,6 +1,6 @@
-# @cedric-pouilleux/stellex-js
+# @cedric-pouilleux/stellexjs
 
-[Docs](https://cedric-pouilleux.github.io/stellex-js/) · [Playground](https://cedric-pouilleux.github.io/stellex-js/playground/) · [API](https://cedric-pouilleux.github.io/stellex-js/api/) · [npm](https://www.npmjs.com/package/@cedric-pouilleux/stellex-js) · [GitHub](https://github.com/cedric-pouilleux/stellex-js) · [Issues](https://github.com/cedric-pouilleux/stellex-js/issues)
+[Docs](https://cedric-pouilleux.github.io/stellex-js/) · [Playground](https://cedric-pouilleux.github.io/stellex-js/playground/) · [API](https://cedric-pouilleux.github.io/stellex-js/api/) · [npm](https://www.npmjs.com/package/@cedric-pouilleux/stellexjs) · [GitHub](https://github.com/cedric-pouilleux/stellex-js) · [Issues](https://github.com/cedric-pouilleux/stellex-js/issues)
 
 Procedural celestial body — geometry, physics, simulation and rendering for Three.js and Vue 3.
 
@@ -9,7 +9,7 @@ Generates rocky planets, gas giants, metallic worlds and stars on a hexasphere, 
 ## Install
 
 ```sh
-npm install @cedric-pouilleux/stellex-js three simplex-noise
+npm install @cedric-pouilleux/stellexjs three simplex-noise
 # Optional (only for the Vue / TresJS surface):
 npm install vue @tresjs/core
 ```
@@ -28,14 +28,14 @@ Peer dependencies:
 The package exposes three entry points of increasing scope:
 
 ```ts
-import { initBodySimulation, generateHexasphere } from '@cedric-pouilleux/stellex-js/sim'
-import { useBody, BodyMaterial }                  from '@cedric-pouilleux/stellex-js/core'
-import { Body, BodyRings, ShadowUpdater }         from '@cedric-pouilleux/stellex-js'
+import { initBodySimulation, generateHexasphere } from '@cedric-pouilleux/stellexjs/sim'
+import { useBody, BodyMaterial }                  from '@cedric-pouilleux/stellexjs/core'
+import { Body, BodyRings, ShadowUpdater }         from '@cedric-pouilleux/stellexjs'
 ```
 
-- **`@cedric-pouilleux/stellex-js/sim`** — pure data & physics layer. No Three.js or Vue dependency, runtime or types; runs in workers, Node or any environment that can execute ES modules. Use for servers, CLIs, or deterministic tests.
-- **`@cedric-pouilleux/stellex-js/core`** — adds the Three.js render layer (shaders, meshes, materials, raycasting). No Vue dependency — drop into a vanilla Three.js scene.
-- **`@cedric-pouilleux/stellex-js`** — full Vue/TresJS component surface (`<Body>`, `<BodyController>`, `<BodyRings>`, `<BodyWarmup>`, `<ShadowUpdater>`, `<TileCenterProjector>`).
+- **`@cedric-pouilleux/stellexjs/sim`** — pure data & physics layer. No Three.js or Vue dependency, runtime or types; runs in workers, Node or any environment that can execute ES modules. Use for servers, CLIs, or deterministic tests.
+- **`@cedric-pouilleux/stellexjs/core`** — adds the Three.js render layer (shaders, meshes, materials, raycasting). No Vue dependency — drop into a vanilla Three.js scene.
+- **`@cedric-pouilleux/stellexjs`** — full Vue/TresJS component surface (`<Body>`, `<BodyController>`, `<BodyRings>`, `<BodyWarmup>`, `<ShadowUpdater>`, `<TileCenterProjector>`).
 
 ## Quick start (headless)
 
@@ -43,7 +43,7 @@ import { Body, BodyRings, ShadowUpdater }         from '@cedric-pouilleux/stelle
 import {
   generateHexasphere,
   initBodySimulation,
-} from '@cedric-pouilleux/stellex-js/sim'
+} from '@cedric-pouilleux/stellexjs/sim'
 
 const { tiles } = generateHexasphere(3, 8) // radius, subdivisions
 const sim = initBodySimulation(tiles, {
@@ -65,7 +65,7 @@ for (const [tileId, state] of sim.tileStates) {
 
 ```ts
 import * as THREE from 'three'
-import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellex-js/core'
+import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellexjs/core'
 
 const body = useBody(
   {

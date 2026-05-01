@@ -24,7 +24,7 @@ import {
   useBody,
   createGraphicsUniforms,
   DEFAULT_TILE_SIZE,
-} from '@cedric-pouilleux/stellex-js/core'
+} from '@cedric-pouilleux/stellexjs/core'
 
 const uniforms = createGraphicsUniforms()
 

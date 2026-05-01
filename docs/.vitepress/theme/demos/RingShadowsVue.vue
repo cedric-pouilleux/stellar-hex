@@ -2,8 +2,8 @@
 import { onMounted, ref } from 'vue'
 import * as THREE from 'three'
 import { TresCanvas } from '@tresjs/core'
-import { useBody, DEFAULT_TILE_SIZE, Body, BodyWarmup } from '@cedric-pouilleux/stellex-js'
-import type { BodyConfig } from '@cedric-pouilleux/stellex-js/sim'
+import { useBody, DEFAULT_TILE_SIZE, Body, BodyWarmup } from '@cedric-pouilleux/stellexjs'
+import type { BodyConfig } from '@cedric-pouilleux/stellexjs/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**

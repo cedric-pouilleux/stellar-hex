@@ -23,7 +23,7 @@ const tabs = [
 
 ```ts
 import * as THREE from 'three'
-import { GodRaysShader, godRaysFromStar } from '@cedric-pouilleux/stellex-js/core'
+import { GodRaysShader, godRaysFromStar } from '@cedric-pouilleux/stellexjs/core'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass }     from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { ShaderPass }     from 'three/examples/jsm/postprocessing/ShaderPass.js'

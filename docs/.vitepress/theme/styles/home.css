@@ -1,0 +1,102 @@
+/* Home hero — title, subtitle and tagline overrides */
+
+:root {
+  --vp-home-hero-name-background: linear-gradient(135deg, #3b82f6 0%, #22d3ee 50%, #10b981 100%);
+  --vp-home-hero-name-color: transparent;
+}
+
+/*
+ * Pitch-black background on the home page only.
+ * The planet is rendered at z-index: -1, so the body/Layout MUST stay
+ * transparent — otherwise their fill paints over the canvas. We push
+ * the black down to <html> (always behind a z-index:-1 sibling of the
+ * body) and override --vp-c-bg so any descendant that reads the token
+ * directly stays consistent. The body itself is forced transparent.
+ */
+html:has(.VPHome) {
+  background:
+    linear-gradient(135deg, rgba(8, 14, 36, 0.85) 0%, rgba(4, 7, 18, 0.4) 35%, transparent 70%),
+    linear-gradient(315deg, rgba(8, 28, 18, 0.75) 0%, rgba(4, 14, 10, 0.35) 35%, transparent 70%),
+    #000;
+  --vp-c-bg: #000;
+  --vp-c-bg-alt: #000;
+  --vp-c-bg-elv: #000;
+  --vp-c-bg-soft: #000;
+}
+
+html:has(.VPHome) body,
+html:has(.VPHome) #app,
+html:has(.VPHome) .Layout,
+html:has(.VPHome) .VPHome,
+html:has(.VPHome) .VPHero,
+html:has(.VPHome) .VPFeatures {
+  background: transparent;
+}
+
+/*
+ * Frosted-glass feature cards on the home: lightly tinted, blurred
+ * backdrop so the planet still shows through but the text stays
+ * readable. The base VitePress style fills the card with --vp-c-bg-soft
+ * (which we set to black above), so we have to override it explicitly.
+ */
+html:has(.VPHome) .VPFeature {
+  background: rgba(255, 255, 255, 0.005);
+  border: 1px solid rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+html:has(.VPHome) .VPFeature:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+/*
+ * Tighter hero — VitePress defaults to ~96px top / 96px bottom padding.
+ * Halve it so the toggle sits closer to the tagline baseline.
+ */
+html:has(.VPHome) .VPHero {
+  padding-top: 80px;
+  padding-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  html:has(.VPHome) .VPHero {
+    padding-top: 56px;
+    padding-bottom: 16px;
+  }
+}
+
+.VPHero .name {
+  font-size: clamp(40px, 7vw, 60px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+
+.VPHero .text {
+  font-size: clamp(16px, 1.6vw, 20px);
+  line-height: 1.4;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.VPHero .tagline {
+  font-size: clamp(13px, 1.2vw, 16px);
+  line-height: 1.4;
+  font-weight: 400;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+/*
+ * Footer — frosted-glass band so the planet stays visible underneath
+ * while the copyright text remains readable.
+ */
+html:has(.VPHome) .VPFooter {
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}

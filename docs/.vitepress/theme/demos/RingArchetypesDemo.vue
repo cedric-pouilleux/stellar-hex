@@ -30,7 +30,7 @@ let cleanups: Array<() => void> = []
 onMounted(async () => {
   const [THREE, lib] = await Promise.all([
     import('three'),
-    import('@cedric-pouilleux/stellex-js/core'),
+    import('@cedric-pouilleux/stellexjs/core'),
   ])
   const { useBody, DEFAULT_TILE_SIZE, buildBodyRings, ARCHETYPE_PROFILES } = lib
 

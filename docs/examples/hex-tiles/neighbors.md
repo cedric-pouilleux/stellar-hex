@@ -24,7 +24,7 @@ Cliquez une tuile pour relancer un BFS coloré depuis ce point. Chaque anneau de
 ## API
 
 ```ts
-import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellex-js/sim'
+import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellexjs/sim'
 
 const nMap = buildNeighborMap(tiles) // O(n) une fois
 const six  = getNeighbors(tileId, nMap) // 5 ou 6 ids

@@ -49,7 +49,7 @@ Une dizaine de tuiles ont été pré-excavées au mount pour exposer le noyau. *
 ## Trois façons de fixer le ratio
 
 ```ts
-import { resolveCoreRadiusRatio, deriveCoreRadiusRatio, DEFAULT_CORE_RADIUS_RATIO } from '@cedric-pouilleux/stellex-js/core'
+import { resolveCoreRadiusRatio, deriveCoreRadiusRatio, DEFAULT_CORE_RADIUS_RATIO } from '@cedric-pouilleux/stellexjs/core'
 ```
 
 L'ordre de priorité dans `resolveCoreRadiusRatio(config)` :
@@ -112,7 +112,7 @@ if (body.kind !== 'planet') return
 body.tiles.sol.updateTileSolHeight(new Map([[tileId, 0]]))
 
 // Creuser un cratère de plusieurs tuiles
-import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellex-js/sim'
+import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellexjs/sim'
 
 const nMap   = buildNeighborMap(body.sim.tiles)
 const queue  = [startTileId]

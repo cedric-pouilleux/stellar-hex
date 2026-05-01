@@ -25,7 +25,7 @@ onMounted(async () => {
   const [THREE, { OrbitControls }, lib] = await Promise.all([
     import('three'),
     import('three/examples/jsm/controls/OrbitControls.js'),
-    import('@cedric-pouilleux/stellex-js/core'),
+    import('@cedric-pouilleux/stellexjs/core'),
   ])
   const { useBody, DEFAULT_TILE_SIZE, buildBodyRings } = lib
 

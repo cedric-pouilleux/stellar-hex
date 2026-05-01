@@ -85,7 +85,7 @@ const RESOURCE_COLORS: Record<Resource, { r: number; g: number; b: number }> = {
 Vous itérez les `tileStates` du body et appliquez vos règles :
 
 ```ts
-import { seededPrng } from '@cedric-pouilleux/stellex-js/sim'
+import { seededPrng } from '@cedric-pouilleux/stellexjs/sim'
 
 function distributeResources(body: PlanetBody): Map<number, Resource> {
   const out = new Map<number, Resource>()

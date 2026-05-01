@@ -1,4 +1,4 @@
-# @cedric-pouilleux/stellex-js
+# @cedric-pouilleux/stellexjs
 
 ## Modules
 

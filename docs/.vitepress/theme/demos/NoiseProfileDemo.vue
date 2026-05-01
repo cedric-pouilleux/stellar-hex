@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
-import type { BodyNoiseProfile } from '@cedric-pouilleux/stellex-js/sim'
+import type { BodyNoiseProfile } from '@cedric-pouilleux/stellexjs/sim'
 
 /**
  * Three.js demo — galerie d'effets `BodyNoiseProfile`.
@@ -63,7 +63,7 @@ let cleanups: Array<() => void> = []
 onMounted(async () => {
   const [THREE, { useBody, DEFAULT_TILE_SIZE }] = await Promise.all([
     import('three'),
-    import('@cedric-pouilleux/stellex-js/core'),
+    import('@cedric-pouilleux/stellexjs/core'),
   ])
 
   type Cell = {

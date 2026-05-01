@@ -7,8 +7,8 @@ import {
   DEFAULT_TILE_SIZE,
   Body,
   BodyWarmup,
-} from '@cedric-pouilleux/stellex-js'
-import type { BodyConfig } from '@cedric-pouilleux/stellex-js/sim'
+} from '@cedric-pouilleux/stellexjs'
+import type { BodyConfig } from '@cedric-pouilleux/stellexjs/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**

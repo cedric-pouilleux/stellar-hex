@@ -5,7 +5,7 @@
 export const headlessGenerateCode = `import {
   generateHexasphere,
   initBodySimulation,
-} from '@cedric-pouilleux/stellex-js/sim'
+} from '@cedric-pouilleux/stellexjs/sim'
 
 const { tiles } = generateHexasphere(1, 6)
 const sim = initBodySimulation(tiles, {

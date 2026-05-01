@@ -1,9 +1,9 @@
 {
-  "name": "@cedric-pouilleux/stellex-js-docs",
+  "name": "@cedric-pouilleux/stellexjs-docs",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Documentation site for @cedric-pouilleux/stellex-js.",
+  "description": "Documentation site for @cedric-pouilleux/stellexjs.",
   "scripts": {
     "api":     "typedoc --options ../typedoc.json",
     "dev":     "npm run api && vitepress dev .",

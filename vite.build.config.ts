@@ -1,5 +1,5 @@
 /**
- * Vite library build for @cedric-pouilleux/stellex-js.
+ * Vite library build for @cedric-pouilleux/stellexjs.
  *
  * Produces three ES module entry points:
  *   - dist/sim.js    — pure logic (no WebGL, no Vue, no Three.js runtime)

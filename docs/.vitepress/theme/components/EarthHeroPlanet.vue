@@ -6,43 +6,57 @@ import {
   viewModeForHold,
   type HeroViewMode,
 } from '../composables/heroPlanetView'
+import {
+  heroBaseMode,
+  heroMode,
+  heroLoading,
+  heroLoadingLabel,
+  heroLoadingRatio,
+} from '../composables/heroPlanetState'
 
 /**
- * Earth-like planet showcased on the home hero, right of the title.
+ * Earth-like planet rendered as a full-viewport background on the home.
  *
- *   - transparent canvas (no backdrop, blends with the page background),
+ *   - transparent canvas (the page is pitch-black behind it),
  *   - flat shell — `reliefFlatness` near 1 + a variation override that
  *     drops `roughnessMod` / `heightMod` to their floors so the rocky
  *     shader reads as a smooth sphere with no displacement noise,
  *   - thin live atmosphere (5 %) with animated clouds, visible from the
  *     very first frame (`view.set('shader')` at mount, otherwise
  *     `useBody` defaults to `'surface'` and the halo shell stays hidden),
- *   - 4× the default tile density via `tileSize = DEFAULT_TILE_SIZE / 2`,
+ *   - max-quality renderer (no pixelRatio clamp) and 4× the default
+ *     tile density (`tileSize = DEFAULT_TILE_SIZE / 2`),
  *   - drag/zoom via OrbitControls, slow auto-rotate when idle,
- *   - press-and-hold left-click → playable sol board (released = shader),
- *   - press-and-hold right-click → playable atmo board (released = shader).
+ *   - the toggle UI lives in `HeroPlanetToggle.vue` (rendered above the
+ *     features grid) and shares state via `heroPlanetState`. Click on
+ *     a toggle option updates `heroBaseMode`; this component watches
+ *     it and applies the matching `body.view`,
+ *   - press-and-hold left-click temporarily forces the playable sol
+ *     board, right-click forces the playable atmo board — releasing
+ *     returns to the toggle's current `heroBaseMode`.
  *
  * Click vs. drag is irrelevant here — pressing already swaps the view,
  * dragging on top of that just rotates the planet without leaving the
  * playable mode until the button is released.
  */
 
-const container    = ref<HTMLDivElement>()
-const mode         = ref<HeroViewMode>('shader')
-const loading      = ref(true)
-const loadingLabel = ref('Préparation de la planète…')
-const loadingRatio = ref(0)
+const container = ref<HTMLDivElement>()
 
 let applyMode: ((m: HeroViewMode) => void) | null = null
 let cleanup:   (() => void) | null = null
 
-watch(mode, m => applyMode?.(m))
+watch(heroMode, m => applyMode?.(m))
+// Toggle clicks update the "base" view; we mirror it onto `heroMode`
+// so the change is reflected immediately. Hold gestures temporarily
+// override `heroMode`, and the pointerup handler resets back to
+// `heroBaseMode`.
+watch(heroBaseMode, m => { heroMode.value = m })
 
 onMounted(async () => {
   const [THREE, ctrl, lib] = await Promise.all([
     import('three'),
     import('three/examples/jsm/controls/OrbitControls.js'),
-    import('@cedric-pouilleux/stellex-js/core'),
+    import('@cedric-pouilleux/stellexjs/core'),
   ])
   const { OrbitControls } = ctrl
   const { useBody, DEFAULT_TILE_SIZE, generateBodyVariation } = lib
@@ -57,10 +71,15 @@ onMounted(async () => {
 
   let { w: width, h: height } = sizeOf()
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  const renderer = new THREE.WebGLRenderer({
+    antialias:        true,
+    alpha:            true,
+    powerPreference: 'high-performance',
+  })
   renderer.setClearColor(0x000000, 0)
   renderer.setSize(width, height)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  // Max quality — no clamp. Retina/4K screens will render at native DPR.
+  renderer.setPixelRatio(window.devicePixelRatio)
   renderer.domElement.style.display = 'block'
   renderer.domElement.style.touchAction = 'none'
   el.appendChild(renderer.domElement)
@@ -127,7 +146,12 @@ onMounted(async () => {
 
   // 4× the default tile density — `N ∝ 1/tileSize²`, so halving the tile
   // size quadruples the count (~5 k → ~20 k tiles on a unit sphere).
-  const body = useBody(config, DEFAULT_TILE_SIZE, { variation })
+  // `sphereDetail: 'high'` bumps every spherical mesh by one icosphere
+  // subdivision so the silhouette reads round at hero size.
+  const body = useBody(config, DEFAULT_TILE_SIZE / 2, {
+    variation,
+    quality: { sphereDetail: 'high' },
+  })
   body.group.rotation.z = config.axialTilt
   scene.add(body.group)
 
@@ -139,7 +163,7 @@ onMounted(async () => {
     cloudAmount: 1,
     cloudColor:  '#ffffff',
     cloudScale:  1.4,
-    driftSpeed:  1.6,
+    driftSpeed:  1.0,
     storms:      0.18,
     turbulence:  0.78,
     bandiness:   0.18,
@@ -173,14 +197,16 @@ onMounted(async () => {
     const next = viewModeForHold(e.button)
     if (next === 'shader') return
     activePointer = e.pointerId
-    mode.value = next
+    heroMode.value = next
     renderer.domElement.setPointerCapture?.(e.pointerId)
   }
   const onPointerUp = (e: PointerEvent): void => {
     if (activePointer !== -1 && e.pointerId !== activePointer) return
     activePointer = -1
     renderer.domElement.releasePointerCapture?.(e.pointerId)
-    mode.value = 'shader'
+    // Releasing a hold falls back to whatever the toggle says, not
+    // unconditionally to shader — the toggle stays the source of truth.
+    heroMode.value = heroBaseMode.value
   }
   const onPointerCancel = onPointerUp
   const onContextMenu = (e: Event): void => e.preventDefault()
@@ -192,11 +218,11 @@ onMounted(async () => {
 
   await body.warmup(renderer, camera, {
     onProgress: (info: { label: string; progress: number }) => {
-      loadingLabel.value = info.label
-      loadingRatio.value = info.progress
+      heroLoadingLabel.value = info.label
+      heroLoadingRatio.value = info.progress
     },
   })
-  loading.value = false
+  heroLoading.value = false
 
   const onResize = (): void => {
     const next = sizeOf()
@@ -241,28 +267,26 @@ onBeforeUnmount(() => cleanup?.())
 <template>
   <div class="hero-planet">
     <div ref="container" class="hero-planet__canvas" />
-
-    <Transition name="hero-loader">
-      <div v-if="loading" class="hero-planet__loader">
-        <span class="hero-planet__label">{{ loadingLabel }}</span>
-        <div class="hero-planet__bar">
-          <div
-            class="hero-planet__fill"
-            :style="{ width: (loadingRatio * 100) + '%' }"
-          />
-        </div>
-      </div>
-    </Transition>
   </div>
 </template>
 
 <style scoped>
+/*
+ * Full-viewport background mode: the canvas is fixed, fills the left
+ * half of the screen and sits behind every other element (z-index: -1).
+ * The wrapper is `pointer-events: none` so clicks fall through to the
+ * VitePress hero / features when they overlap; the canvas itself
+ * re-enables `pointer-events: auto` so drag / hold gestures still work
+ * on its visible footprint (left side of the viewport).
+ */
 .hero-planet {
-  position: relative;
-  width:  100%;
-  aspect-ratio: 1 / 1;
-  max-width: 340px; 
-  margin: 0 auto;
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: 60vw;
+  height: 100vh;
+  margin: 0;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .hero-planet__canvas {
@@ -271,63 +295,11 @@ onBeforeUnmount(() => cleanup?.())
   width:  100%;
   height: 100%;
   cursor: grab;
+  pointer-events: auto;
 }
 .hero-planet__canvas:active { cursor: grabbing; }
 
-.hero-planet__loader {
-  position: absolute;
-  inset: auto 0 12px 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.45rem;
-  pointer-events: none;
-}
-
-.hero-planet__label {
-  font-family: var(--vp-font-family-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
-  color: var(--vp-c-text-2);
-}
-
-.hero-planet__bar {
-  width: 180px;
-  height: 3px;
-  background: var(--vp-c-divider);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.hero-planet__fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4ea3ff, #a78bff);
-  transition: width 120ms ease-out;
-}
-
-.hero-planet__hint {
-  position: absolute;
-  inset: auto 0 -28px 0;
-  margin: 0;
-  display: flex;
-  justify-content: center;
-  gap: 1.25rem;
-  font-family: var(--vp-font-family-mono);
-  font-size: 0.7rem;
-  color: var(--vp-c-text-3);
-  letter-spacing: 0.02em;
-  pointer-events: none;
-}
-.hero-planet__hint[data-mode='surface']    span:first-child  { color: var(--vp-c-brand-1); }
-.hero-planet__hint[data-mode='atmosphere'] span:nth-child(2) { color: var(--vp-c-brand-1); }
-
-.hero-loader-enter-active,
-.hero-loader-leave-active { transition: opacity 320ms ease; }
-.hero-loader-enter-from,
-.hero-loader-leave-to     { opacity: 0; }
-
-@media (max-width: 640px) {
-  .hero-planet { max-width: 360px; }
-  .hero-planet__hint { font-size: 0.65rem; gap: 0.75rem; }
+@media (max-width: 768px) {
+  .hero-planet { width: 100vw; }
 }
 </style>

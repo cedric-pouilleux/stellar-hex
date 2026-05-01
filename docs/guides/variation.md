@@ -38,7 +38,7 @@ Trois patterns courants pour remplacer une partie de la variation :
 `generateBodyVariation` est **pure** — vous pouvez la cacher par `name` (cf. [Performance §6](/guides/performance#_6-r%C3%A9utiliser-les-variations-proc%C3%A9durales)) et la passer en option :
 
 ```ts
-import { useBody, generateBodyVariation } from '@cedric-pouilleux/stellex-js/core'
+import { useBody, generateBodyVariation } from '@cedric-pouilleux/stellexjs/core'
 
 const variation = generateBodyVariation(config)
 const body = useBody(config, DEFAULT_TILE_SIZE, { variation })
@@ -60,7 +60,7 @@ const body = useBody(config, DEFAULT_TILE_SIZE, { variation })
 ### 3. Override d'anneau spécifiquement
 
 ```ts
-import { ARCHETYPE_PROFILES } from '@cedric-pouilleux/stellex-js/core'
+import { ARCHETYPE_PROFILES } from '@cedric-pouilleux/stellexjs/core'
 
 const variation = generateBodyVariation(config)
 if (variation.rings) {

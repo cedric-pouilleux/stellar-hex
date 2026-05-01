@@ -6,7 +6,7 @@ Ce guide branche un corps dans une `THREE.Scene` **sans aucune dépendance Vue**
 
 ```ts
 import * as THREE from 'three'
-import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellex-js/core'
+import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellexjs/core'
 
 const scene    = new THREE.Scene()
 const camera   = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 100)
@@ -147,7 +147,7 @@ L'atmosphère visuelle est intégrée :
 
 ```ts
 import * as THREE from 'three'
-import { buildBodyRings } from '@cedric-pouilleux/stellex-js/core'
+import { buildBodyRings } from '@cedric-pouilleux/stellexjs/core'
 
 if (body.variation.rings) {
   const planetWorldPos = new THREE.Vector3()
@@ -173,7 +173,7 @@ Le liquide est intégré au mesh principal pour les mondes rocheux : `buildLayer
 ### Atmosphère opaque (gazeuses)
 
 ```ts
-import { buildAtmoShell } from '@cedric-pouilleux/stellex-js/core'
+import { buildAtmoShell } from '@cedric-pouilleux/stellexjs/core'
 
 const atmo = buildAtmoShell({
   config: body.config,

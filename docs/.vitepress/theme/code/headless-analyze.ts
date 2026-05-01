@@ -6,7 +6,7 @@ export const headlessAnalyzeCode = `import {
   initBodySimulation,
   buildNeighborMap,
   getNeighbors,
-} from '@cedric-pouilleux/stellex-js/sim'
+} from '@cedric-pouilleux/stellexjs/sim'
 
 const { tiles } = generateHexasphere(1, 5)
 const sim       = initBodySimulation(tiles, {

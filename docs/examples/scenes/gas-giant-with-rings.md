@@ -22,7 +22,7 @@ Recette complète : géante gazeuse à bandes + anneau procédural + ombre proje
 ## Configuration
 
 ```ts
-import { useBody, DEFAULT_TILE_SIZE, Body, type BodyConfig } from '@cedric-pouilleux/stellex-js'
+import { useBody, DEFAULT_TILE_SIZE, Body, type BodyConfig } from '@cedric-pouilleux/stellexjs'
 
 const config: BodyConfig = {
   type:           'planetary',
@@ -75,7 +75,7 @@ const config: BodyConfig = {
 Cf. [Archétypes](/examples/rings/archetypes) :
 
 ```ts
-import { ARCHETYPE_PROFILES } from '@cedric-pouilleux/stellex-js/core'
+import { ARCHETYPE_PROFILES } from '@cedric-pouilleux/stellexjs/core'
 
 if (body.variation.rings) {
   body.variation.rings = {

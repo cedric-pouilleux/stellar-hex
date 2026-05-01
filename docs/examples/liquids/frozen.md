@@ -43,7 +43,7 @@ import {
   resolveCoreRadiusRatio,
   DEFAULT_TILE_SIZE,
   type PlanetConfig,
-} from '@cedric-pouilleux/stellex-js/core'
+} from '@cedric-pouilleux/stellexjs/core'
 
 const config: PlanetConfig = {
   type:           'planetary',

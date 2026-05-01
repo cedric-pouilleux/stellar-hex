@@ -1,6 +1,6 @@
 # Démarrer
 
-`@cedric-pouilleux/stellex-js` est un générateur procédural de corps stellaires (planètes rocheuses, géantes gazeuses, planètes métalliques, étoiles). Il livre **trois points d'entrée** indépendants pour que vous n'importiez que le strict nécessaire.
+`@cedric-pouilleux/stellexjs` est un générateur procédural de corps stellaires (planètes rocheuses, géantes gazeuses, planètes métalliques, étoiles). Il livre **trois points d'entrée** indépendants pour que vous n'importiez que le strict nécessaire.
 
 ## Trois points d'entrée
 
@@ -15,7 +15,7 @@ Le sous-paquet `/sim` n'a **aucune dépendance WebGL** : il peut tourner dans No
 ## Installation
 
 ```bash
-npm install @cedric-pouilleux/stellex-js three simplex-noise
+npm install @cedric-pouilleux/stellexjs three simplex-noise
 
 # Optionnel — uniquement si vous utilisez le surface Vue
 npm install vue @tresjs/core
@@ -31,7 +31,7 @@ Ce snippet construit une planète rocheuse déterministe en moins de 10 lignes �
 import {
   generateHexasphere,
   initBodySimulation,
-} from '@cedric-pouilleux/stellex-js/sim'
+} from '@cedric-pouilleux/stellexjs/sim'
 
 const { tiles } = generateHexasphere(1, 6) // rayon=1, subdivisions=6
 const sim = initBodySimulation(tiles, {

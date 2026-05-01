@@ -3,24 +3,7 @@ layout: home
 
 hero:
   name: StellexJS
-  text: Corps stellaires procéduraux
-  tagline: Géométrie hexagonale, physique, simulation et rendu — pour Three.js et Vue 3.
-  actions:
-    - theme: brand
-      text: Démarrer
-      link: /guides/getting-started
-    - theme: alt
-      text: Voir les exemples
-      link: /examples/body-types/rocky
-    - theme: alt
-      text: Playground
-      link: /playground/
-    - theme: alt
-      text: API
-      link: /api/
-    - theme: alt
-      text: GitHub
-      link: https://github.com/cedric-pouilleux/stellex-js
+  text: Corps stellaires procéduraux, géométrie hexagonale jouable, physique, simulation et rendu
 
 features:
   - title: Trois points d'entrée
@@ -36,28 +19,3 @@ features:
   - title: Backend-ready
     details: <code>/sim</code> tourne sans WebGL — pré-calcul serveur, worker, batch, tests CI sans <code>jsdom</code>. Sérialisable et rejouable depuis le seed seul.
 ---
-
-## Aperçu en 30 secondes
-
-```ts
-import {
-  generateHexasphere,
-  initBodySimulation,
-} from '@cedric-pouilleux/stellex-js/sim'
-
-const { tiles } = generateHexasphere(1, 6)
-const sim = initBodySimulation(tiles, {
-  name:                'Kepler-186f',
-  type:                'planetary',
-  surfaceLook:         'terrain',
-  radius:               1,
-  rotationSpeed:        0.005,
-  axialTilt:            0.41,
-  atmosphereThickness:  0.5,
-})
-
-// sim.tileStates, sim.seaLevelElevation, sim.hasLiquidSurface…
-```
-
-Trois lignes pour générer une planète déterministe, sans WebGL.
-Pour brancher la sim sur une scène, voir [Three.js](./guides/threejs-integration) ou [Vue + TresJS](./guides/vue-integration).

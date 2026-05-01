@@ -1,4 +1,4 @@
-import type { Body, RGB } from '@cedric-pouilleux/stellex-js/core'
+import type { Body, RGB } from '@cedric-pouilleux/stellexjs/core'
 
 /**
  * Demo helper that stamps a simple climate-band overlay on the atmo

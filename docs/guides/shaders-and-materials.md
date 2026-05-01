@@ -10,7 +10,7 @@ import {
   BODY_PARAMS,
   getDefaultParams,
   SHADER_RANGES,
-} from '@cedric-pouilleux/stellex-js/core'
+} from '@cedric-pouilleux/stellexjs/core'
 
 const params   = getDefaultParams('rocky')
 const material = new BodyMaterial('rocky', params)
@@ -47,7 +47,7 @@ Les types numériques sont convertis en `float`, les chaînes hex (`'#rrggbb'`) 
 `BODY_PARAMS[type]` liste tous les paramètres consommés avec leur type, leurs bornes et leur valeur par défaut. Les labels affichés et le groupement par section sont à toi — le playground maintient un dictionnaire local pour son propre panneau.
 
 ```ts
-import { BODY_PARAMS, SHADER_RANGES } from '@cedric-pouilleux/stellex-js/core'
+import { BODY_PARAMS, SHADER_RANGES } from '@cedric-pouilleux/stellexjs/core'
 
 // Caller-side label dictionary — adapt to your i18n / UX.
 const LABELS: Record<string, string> = {
@@ -119,7 +119,7 @@ Chaque vortex a une structure à 3 zones (couronne extérieure, cœur saturé av
 Pour les corps stellaires, trois utilitaires convertissent une température (en Kelvin) en couleur :
 
 ```ts
-import { kelvinToRGB, kelvinToThreeColor, kelvinLabel } from '@cedric-pouilleux/stellex-js/core'
+import { kelvinToRGB, kelvinToThreeColor, kelvinLabel } from '@cedric-pouilleux/stellexjs/core'
 
 kelvinToRGB(5778)         // { r: 1, g: 0.97, b: 0.92 } — soleil G
 kelvinToThreeColor(3500)  // THREE.Color — étoile M (rouge)
@@ -131,7 +131,7 @@ Cf. [`SPECTRAL_TABLE`](/api/sim/variables/SPECTRAL_TABLE) pour la table complèt
 ## God rays (post-processing)
 
 ```ts
-import { godRaysFromStar, GodRaysShader } from '@cedric-pouilleux/stellex-js/core'
+import { godRaysFromStar, GodRaysShader } from '@cedric-pouilleux/stellexjs/core'
 
 const pass = godRaysFromStar({
   star,            // mesh étoile
@@ -180,5 +180,5 @@ Pourquoi SplitMix32 et pas `Math.random()` (Mulberry32, xoshiro, etc.) :
 Si votre back est en Rust / Go / Python et doit reproduire les mêmes valeurs que la lib, **réimplémentez exactement ces deux étapes** : la séquence de bytes en entrée doit produire les mêmes 32 bits en sortie. Les `noiseSeed` et autres random offsets visibles dans `BodyVariation` reposent sur cette équivalence.
 
 ::: warning Pas de `Math.random()` nu
-La règle s'applique aussi au code que vous ajoutez côté caller si vous voulez du déterminisme. `seededPrng` est exposé par l'entry `sim` (`import { seededPrng } from '@cedric-pouilleux/stellex-js/sim'`) ; nommez vos seeds par scope (`seededPrng(name + ':resources')`, `seededPrng(name + ':factions')`, …) pour éviter que deux générateurs partagent leur état.
+La règle s'applique aussi au code que vous ajoutez côté caller si vous voulez du déterminisme. `seededPrng` est exposé par l'entry `sim` (`import { seededPrng } from '@cedric-pouilleux/stellexjs/sim'`) ; nommez vos seeds par scope (`seededPrng(name + ':resources')`, `seededPrng(name + ':factions')`, …) pour éviter que deux générateurs partagent leur état.
 :::

@@ -34,7 +34,7 @@ onMounted(async () => {
     import('three/examples/jsm/postprocessing/RenderPass.js'),
     import('three/examples/jsm/postprocessing/ShaderPass.js'),
     import('three/examples/jsm/shaders/CopyShader.js'),
-    import('@cedric-pouilleux/stellex-js/core'),
+    import('@cedric-pouilleux/stellexjs/core'),
   ])
   const { useBody, DEFAULT_TILE_SIZE, GodRaysShader, godRaysFromStar } = lib
 

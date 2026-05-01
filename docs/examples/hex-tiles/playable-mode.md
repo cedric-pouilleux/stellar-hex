@@ -99,7 +99,7 @@ function showAtmosphereView() {
 <script setup lang="ts">
 import { ref } from 'vue'
 import { TresCanvas } from '@tresjs/core'
-import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellex-js'
+import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellexjs'
 
 const body          = useBody(config, DEFAULT_TILE_SIZE)
 const hexMode       = ref(false)
