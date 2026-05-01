@@ -94,6 +94,10 @@ onMounted(async () => {
       // Caller-supplied noise profile — the only field that varies between cells.
       ...spec.noise,
     }, DEFAULT_TILE_SIZE)
+    // Switch to the playable hex view so each cell shows the actual relief
+    // (excavated bands + exposed core), not the smooth-sphere shader tint.
+    body.interactive.activate()
+    body.view.set('surface')
     scene.add(body.group)
 
     let animId: number

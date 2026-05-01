@@ -39,7 +39,7 @@ const body = useBody(config, DEFAULT_TILE_SIZE)
     <TresAmbientLight :intensity="0.3" />
     <TresDirectionalLight :position="[5, 3, 4]" :intensity="2.2" />
     <OrbitControlsBridge :auto-rotate="true" />
-    <Body :body="body" :preview-mode="true" />
+    <Body :body="body" :preview-mode="true" :interactive="true" />
   </TresCanvas>
 </template>
 
