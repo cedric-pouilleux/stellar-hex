@@ -72,7 +72,7 @@ if (body.kind === 'planet') {
 }
 ```
 
-`Body` est une **union discriminée** `PlanetBody | StarBody` (cf. [Concepts fondamentaux §4](/guides/core-concepts#_4-le-pipeline-de-rendu)). Les namespaces `liquid`, `view`, `atmoShell`, `liquidCorona` sont absents sur les étoiles — TS rejette les accès sans narrowing en mode strict.
+`Body` est une **union discriminée** `PlanetBody | StarBody` (cf. [Concepts fondamentaux §4](/guides/core-concepts#_4-le-pipeline-de-rendu)). Les namespaces `liquid`, `view`, `atmoShell` sont absents sur les étoiles — TS rejette les accès sans narrowing en mode strict.
 
 La simulation vit sur `body.sim` — vous pouvez piloter une UI overlay depuis la même source de vérité que le mesh.
 

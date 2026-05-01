@@ -88,7 +88,7 @@ Pour un corps non-stellaire, `useBody(config, tileSize)` enchaîne :
 
 Le tout retourne un [`Body`](/api/core/type-aliases/Body) — une **union discriminée** `PlanetBody | StarBody` :
 
-- `body.kind === 'planet'` (rocheuses, gazeuses, métalliques) — porte `liquid`, `view`, `atmoShell`, `liquidCorona` et la version étendue de `tiles` avec les mutations sol-côté (`tiles.sol.updateTileSolHeight`, `tiles.sol.applyOverlay`, `tiles.paintAtmoShell`, …).
+- `body.kind === 'planet'` (rocheuses, gazeuses, métalliques) — porte `liquid`, `view`, `atmoShell` et la version étendue de `tiles` avec les mutations sol-côté (`tiles.sol.updateTileSolHeight`, `tiles.sol.applyOverlay`, `tiles.paintAtmoShell`, …).
 - `body.kind === 'star'` — porte uniquement les primitives communes (`group`, `sim`, `palette`, `interactive`, `hover`, `tiles` minimal). Les namespaces planet-only sont **absents** sur le type, le compilateur les rejette si on les touche sans narrowing.
 
 Pattern caller :

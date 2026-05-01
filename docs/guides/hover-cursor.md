@@ -150,9 +150,106 @@ Pareil pour les presets : si tu veux qu'un preset puisse activer une primitive, 
 
 Aucune des primitives n'impacte le rendu shader ou le pipeline post-process — elles vivent dans `body.group` et suivent la rotation / l'axial tilt naturellement.
 
+## HoverChannel
+
+`useBody` alloue un [`HoverChannel`](/api/core/interfaces/HoverChannel) par corps — exposé sur `body.hoverChannel`. Le channel publie deux refs (`hoverLocalPos`, `hoverParentGroup`) lues chaque frame par les projecteurs scène (`<TileCenterProjector>`) pour transformer la position locale de la tuile survolée en pixels écran.
+
+### Channel par-corps (défaut)
+
+```ts
+const mars  = useBody(marsConfig,  DEFAULT_TILE_SIZE)
+const venus = useBody(venusConfig, DEFAULT_TILE_SIZE)
+
+// Chaque body a son propre channel — deux tooltips peuvent s'afficher en parallèle.
+<TileCenterProjector :channel="mars.hoverChannel"  @update-position="..." />
+<TileCenterProjector :channel="venus.hoverChannel" @update-position="..." />
+```
+
+### Channel global partagé (un seul tooltip à la fois)
+
+Quand l'UX impose **un seul slot de hover** sur l'écran (popover unique dans un HUD, par exemple), construisez un channel et passez-le à tous les `useBody` :
+
+```ts
+import {
+  useBody,
+  createHoverChannel,
+  DEFAULT_TILE_SIZE,
+} from '@cedric-pouilleux/stellar-hex/core'
+
+const channel = createHoverChannel()
+
+const mars  = useBody(marsConfig,  DEFAULT_TILE_SIZE, { hoverChannel: channel })
+const venus = useBody(venusConfig, DEFAULT_TILE_SIZE, { hoverChannel: channel })
+
+// Un seul TileCenterProjector écoute le channel partagé — chaque hover sur Mars
+// OU Venus écrase le précédent. Un seul tooltip à l'écran.
+<TileCenterProjector :channel="channel" @update-position="..." />
+```
+
+::: tip Bonne séparation
+Le channel ne porte **que** la position — il n'arbitre rien. C'est au caller de décider si plusieurs slots concurrents s'affichent (channels indépendants) ou s'il y en a un seul (channel partagé). La lib n'impose pas de politique.
+:::
+
+## Tile overlay highlight
+
+Indépendamment du curseur de hover, la lib expose une primitive plus bas niveau : [`createTileOverlayMesh`](/api/core/functions/createTileOverlayMesh). Elle construit un **mesh ré-utilisable** dont la géométrie est reconstruite à la volée pour couvrir un set arbitraire de tuiles avec un seul draw call mergé. Idéal pour : zones de capture, surbrillance d'influence, sélections multiples, propagation de feu — tout ce qui n'est pas un curseur 1-tuile.
+
+```ts
+import {
+  createTileOverlayMesh,
+  DEFAULT_HOVER,
+} from '@cedric-pouilleux/stellar-hex/core'
+
+const overlay = createTileOverlayMesh(
+  // Resolver tile id → géométrie (centre + niveau de bande)
+  (tileId) => body.tiles.sol.tileGeometry(tileId),
+  {
+    color:         DEFAULT_HOVER.fillColor,    // ou n'importe quelle couleur THREE
+    opacity:       DEFAULT_HOVER.fillOpacity,
+    blending:      THREE.AdditiveBlending,
+    kind:          'fill',                     // 'fill' | 'border' | 'fill-sides' | 'border-sides'
+    surfaceOffset: DEFAULT_HOVER.surfaceOffset,
+    borderWidth:   DEFAULT_HOVER.borderWidth,
+    ringExpand:    DEFAULT_HOVER.ringExpand,
+    renderOrder:   2,
+  },
+)
+body.group.add(overlay.mesh)
+
+// Puis à n'importe quel moment :
+overlay.setTiles([12, 47, 89, 102])   // recalcule la géométrie pour ces 4 tuiles
+overlay.setTiles(null)                 // cache l'overlay
+overlay.dispose()                      // libère GPU
+```
+
+[`TileOverlayKind`](/api/core/type-aliases/TileOverlayKind) :
+
+| `kind` | Effet |
+| ------ | ----- |
+| `'fill'`         | Triangle fan sur la face supérieure |
+| `'border'`       | Anneau fin inset sur la face supérieure |
+| `'fill-sides'`   | Fill du dessus + bandes des murs latéraux |
+| `'border-sides'` | Border du dessus + bandes des murs latéraux |
+
+[`DEFAULT_HOVER`](/api/core/variables/DEFAULT_HOVER) (typé [`HoverConfig`](/api/core/type-aliases/HoverConfig)) fournit un préset additif blanc équilibré — pratique pour binder un panneau de réglages sur les bornes existantes.
+
+## Body hover (anneau silhouette)
+
+[`DEFAULT_BODY_HOVER`](/api/core/variables/DEFAULT_BODY_HOVER) typé [`BodyHoverConfig`](/api/core/type-aliases/BodyHoverConfig) configure l'**anneau de hover au niveau du corps** (cercle screen-space autour de la silhouette de la planète, dimensions en pixels stables au zoom). Activé via `body.hover.setBodyHover(true)` ; couleur, opacité, marge et épaisseur sont les seuls leviers — un anneau, point.
+
+```ts
+const body = useBody(config, DEFAULT_TILE_SIZE)
+// L'anneau utilise DEFAULT_BODY_HOVER en interne ; pour overrider, passez
+// par votre propre wrapper Vue qui dessine un cercle SVG/canvas par-dessus.
+body.hover.setBodyHover(true)
+```
+
 ## Voir aussi
 
 - [Mode jouable](/examples/hex-tiles/playable-mode) — exemple complet avec interactions
 - [Visualiseur interactif](/examples/hex-tiles/interactive-viewer) — pattern raycast minimal
+- [Composants de scène — `<TileCenterProjector>`](/guides/scene-components#tilecenterprojector)
 - [API : `BodyHover`](/api/core/interfaces/BodyHover)
 - [API : `HoverCursorConfig`](/api/core/interfaces/HoverCursorConfig)
+- [API : `HoverChannel`](/api/core/interfaces/HoverChannel)
+- [API : `TileOverlayMesh`](/api/core/interfaces/TileOverlayMesh)

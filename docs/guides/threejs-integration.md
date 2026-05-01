@@ -46,25 +46,32 @@ scene.add(body.group)
 camera.position.set(0, 0, 4)
 ```
 
-`useBody(config, tileSize)` renvoie un [`Body`](/api/core/type-aliases/Body) — une **union discriminée** `PlanetBody | StarBody`. Tous les corps partagent les primitives communes, et les planètes (rocky / gaseous / metallic) exposent en plus les namespaces `liquid`, `view`, `atmoShell`, `liquidCorona` et la version étendue de `tiles`.
+`useBody(config, tileSize)` renvoie un [`Body`](/api/core/type-aliases/Body) — une **union discriminée** `PlanetBody | StarBody`. Tous les corps partagent les primitives communes, et les planètes exposent en plus les namespaces `liquid`, `view`, `atmoShell` et la version étendue de `tiles`.
 
 | Champ | Présent sur | Rôle |
 | ----- | ----------- | ---- |
-| `body.kind`          | tous | Discriminant `'planet' \| 'star'` |
-| `body.group`         | tous | `THREE.Group` à ajouter dans la scène |
-| `body.sim`           | tous | Résultat de `initBodySimulation` (tuiles, élévations…) |
-| `body.config`        | tous | Le `BodyConfig` originel |
-| `body.palette`       | tous | La palette terrain résolue |
-| `body.variation`     | tous | Variations procédurales dérivées du seed (anneaux, etc.) |
-| `body.interactive`   | tous | Setters de mode interactif (smooth ↔ hex) |
-| `body.hover`         | tous | API hover unifié — ring + floorRing + emissive light (cf. [guide curseur](/guides/hover-cursor)) |
-| `body.tiles`         | tous | API per-tile (visuels, couleurs) — étendue sur les planètes |
-| `body.liquid`        | planet | Niveau de la mer dynamique |
-| `body.view`          | planet | Mode de visualisation (`surface \| atmosphere \| shader`) |
-| `body.atmoShell`     | planet | Halo atmo procédural (peut être `null`) |
-| `body.liquidCorona`  | planet | Corona translucide (peut être `null`) |
-| `body.tick(dt)`      | tous | Avance rotation + uniforms shader |
-| `body.dispose()`     | tous | Libère les ressources GPU |
+| `body.kind`             | tous   | Discriminant `'planet' \| 'star'` |
+| `body.group`            | tous   | `THREE.Group` à ajouter dans la scène |
+| `body.sim`              | tous   | Résultat de `initBodySimulation` (tuiles, élévations…) |
+| `body.config`           | tous   | Le `BodyConfig` originel (narrowed sur la branche correspondante) |
+| `body.palette`          | tous   | La palette terrain résolue |
+| `body.variation`        | tous   | Variations procédurales dérivées du seed (anneaux, etc.) |
+| `body.tileCount`        | tous   | Nombre de tuiles sol générées |
+| `body.planetMaterial`   | tous   | `BodyMaterial` actif — accès direct aux uniforms shader (`setParams`) |
+| `body.graphicsUniforms` | tous   | Bag d'uniforms partagés cloud / liquid / terrain (cf. [Graphics uniforms](/guides/graphics-uniforms)) |
+| `body.hoverChannel`     | tous   | `HoverChannel` publié pour les projecteurs scène (cf. [hover cursor](/guides/hover-cursor#hoverchannel)) |
+| `body.shadowUniforms`   | tous   | `{ pos: { value: Vector3 } }` consommé par `<ShadowUpdater>` |
+| `body.occluderUniforms` | tous   | Uniforms d'occlusion (anneaux ↔ planète) |
+| `body.interactive`      | tous   | Setters de mode interactif (smooth ↔ hex) + `queryHover` |
+| `body.hover`            | tous   | API hover unifié — ring + floorRing + emissive light (cf. [guide curseur](/guides/hover-cursor)) |
+| `body.tiles`            | tous   | API per-tile (visuels, couleurs) — étendue sur les planètes (`sol`/`atmo`) |
+| `body.getCoreRadius()`  | tous   | Rayon monde du noyau opaque |
+| `body.getSurfaceRadius()` | tous | Rayon monde de la silhouette (= `config.radius`) |
+| `body.liquid`           | planet | Niveau de la mer dynamique (`setSeaLevel`, `setVisible`, `setOpacity`, `setColor`) |
+| `body.view`             | planet | Mode de visualisation (`'surface' \| 'atmosphere' \| 'shader'`) |
+| `body.atmoShell`        | planet | Halo atmo procédural (peut être `null` quand `atmosphereOpacity === 0`) |
+| `body.tick(dt)`         | tous   | Avance rotation + uniforms shader |
+| `body.dispose()`        | tous   | Libère les ressources GPU |
 
 Pour atteindre les namespaces planet-only, narrow d'abord le union :
 
