@@ -48,6 +48,8 @@
     }
   },
   "devDependencies": {
+    "@emnapi/core": "^1.10.0",
+    "@emnapi/runtime": "^1.10.0",
     "@microsoft/api-extractor": "^7.58.7",
     "@tresjs/core": "^5.8.0",
     "@types/three": "^0.184.0",
@@ -62,5 +64,8 @@
   },
   "dependencies": {
     "three-mesh-bvh": "^0.9.9"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.60.2"
   }
 }
