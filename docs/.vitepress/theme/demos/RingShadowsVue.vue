@@ -7,10 +7,10 @@ import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
- * Vue / TresJS â€” gas giant + rings, side-lit so the ring shadow falls
+ * Vue / TresJS — gas giant + rings, side-lit so the ring shadow falls
  * across the equator. <Body> mounts <BodyRings> automatically. The
  * ring-on-planet shadow needs the sun position pushed into the
- * `uRingSunWorldPos` uniform â€” done once at mount since the light is
+ * `uRingSunWorldPos` uniform — done once at mount since the light is
  * static here.
  */
 

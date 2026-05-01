@@ -2,16 +2,14 @@
  * Unified hover cursor — one primitive that paints a hovered tile across
  * the three boards (sol, liquid, atmo).
  *
- * Three independently-togglable visual primitives share the same dispatch:
+ * Two independently-togglable visual primitives share the same dispatch:
  *
  *   - **Ring**     : pre-allocated quad-strip border tracing the tile's
- *                    boundary; placed on the layer's cap top.
+ *                    boundary; placed on the layer's cap top, plus an
+ *                    optional seabed twin (`floorRing`) on liquid hovers.
  *   - **Emissive** : `THREE.PointLight` repositioned at mid-prism so the
  *                    glow reaches a few neighbour rings without baking
  *                    shadows. Single light, reused across hovers.
- *   - **Column**   : opaque emissive `MeshStandardMaterial` prism filling
- *                    the underwater volume on liquid hovers (rebuilt per
- *                    hover, disposed when the hover leaves the layer).
  *
  * The geometry per layer comes from caller-provided ports — the cursor
  * itself never reads sim state nor hexasphere caches, so the primitive
@@ -29,7 +27,6 @@ import type {
 import type { HoverChannel } from '../state/hoverState'
 import type { HoverListener } from '../hex/hexMeshShared'
 import { buildTileRing, buildBorderPositions } from '../hex/hexTileGeometry'
-import { buildPrismGeometry } from '../hex/hexPrismGeometry'
 
 /**
  * Border width as a fraction of a tile's average boundary radius. Tuned
@@ -44,8 +41,20 @@ const BORDER_WIDTH = 0.15
  */
 const MAX_BORDER_FLOATS = 6 * 2 * 3 * 3
 
-/** Emissive boost applied to the column material. */
-const COLUMN_EMISSIVE_INTENSITY = 2
+/**
+ * Floor-ring opacity forced on liquid hovers. The seabed outline reads as
+ * a discreet hint sitting under the waterline cap ring, not a primary
+ * focus — keeping it low-opacity prevents the underwater detail from
+ * being drowned by the highlight.
+ */
+const LIQUID_FLOOR_RING_OPACITY = 0.20
+
+/**
+ * Floor-ring tint applied when the hovered ocean tile sits over a fully
+ * mined-out core window (no seabed prism — the core sphere is the floor).
+ * Visually warns the player that the ocean has no solid bottom here.
+ */
+const CORE_WINDOW_FLOOR_RING_COLOR = new THREE.Color(0xff2200)
 
 /** Per-layer geometry resolver — caller-side, no sim coupling. */
 export interface LayerCursorPort {
@@ -58,16 +67,20 @@ export interface LayerCursorPort {
   getCapRadius(tileId: number): number
   /**
    * World radius of the prism floor (sol: core, liquid: seabed, atmo:
-   * solOuter). Drives the light position (mid-prism) and the column's
-   * basement on liquid. Falls back to the cap when omitted — the light
-   * then sits flush on the cap top.
+   * solOuter). Drives the light position (mid-prism) and the floor
+   * ring's seabed placement on liquid hovers. Falls back to the cap
+   * when omitted — the light then sits flush on the cap top.
    */
   getFloorRadius?(tileId: number): number
 }
 
-/** Liquid layer adds a "core window" guard to skip the column on dug-out tiles. */
+/**
+ * Liquid layer carries a "core window" guard so the floor ring can be
+ * tinted red when the underlying sol has been mined to the core (the
+ * ocean tile has no solid floor at this spot).
+ */
 export interface LiquidCursorPort extends LayerCursorPort {
-  /** True when the underlying sol is dug to the core (no underwater volume). */
+  /** True when the underlying sol is dug to the core (no seabed prism). */
   isCoreWindow(tileId: number): boolean
 }
 
@@ -91,8 +104,8 @@ export interface HoverCursorPorts {
 export interface HoverCursorHandle {
   /**
    * Routes a hover update to the right layer. `null` clears every
-   * primitive (ring hidden, light off, column disposed) and resets the
-   * hover channel slot.
+   * primitive (rings hidden, light off) and resets the hover channel
+   * slot.
    */
   setBoardTile(ref: BoardTileRef | null, options?: HoverPlacementOptions): void
   /**
@@ -126,13 +139,11 @@ export interface HoverCursorHandle {
 
 interface ResolvedRing     { size: number; color: THREE.Color; opacity: number; enabled: boolean }
 interface ResolvedEmissive { distance: number; color: THREE.Color; intensity: number; enabled: boolean }
-interface ResolvedColumn   { color: THREE.Color; enabled: boolean }
 
 interface ResolvedConfig {
   ring:      ResolvedRing | null
   floorRing: ResolvedRing | null
   emissive:  ResolvedEmissive | null
-  column:    ResolvedColumn | null
 }
 
 function resolveRing(input: HoverCursorConfig['ring']): ResolvedRing | null {
@@ -156,15 +167,10 @@ function resolveConfig(c: HoverCursorConfig | undefined, bodyRadius: number): Re
     intensity: cfg.emissive?.intensity ?? 1.5,
     enabled:   true,
   }
-  const column: ResolvedColumn | null = cfg.column === false ? null : {
-    color:   new THREE.Color(cfg.column?.color ?? 0xffffff),
-    enabled: true,
-  }
   return {
     ring:      resolveRing(cfg.ring),
     floorRing: resolveRing(cfg.floorRing),
     emissive,
-    column,
   }
 }
 
@@ -244,16 +250,6 @@ export function buildHoverCursor(
     ports.group.add(light)
   }
 
-  // ── Column (lazy, rebuilt per hover) ──────────────────────────
-  let column: THREE.Mesh | null = null
-  function disposeColumn(): void {
-    if (!column) return
-    column.parent?.remove(column)
-    column.geometry.dispose()
-    ;(column.material as THREE.Material).dispose()
-    column = null
-  }
-
   // ── State ─────────────────────────────────────────────────────
   let currentRef:     BoardTileRef | null = null
   let currentOptions: HoverPlacementOptions | undefined = undefined
@@ -270,7 +266,6 @@ export function buildHoverCursor(
     if (capRing)   capRing.mesh.visible   = false
     if (floorRing) floorRing.mesh.visible = false
     if (light)     light.visible          = false
-    disposeColumn()
     ports.hoverChannel.hoverLocalPos.value    = null
     ports.hoverChannel.hoverParentGroup.value = null
     currentRef     = null
@@ -291,7 +286,13 @@ export function buildHoverCursor(
     const floorRadius = port.getFloorRadius?.(ref.tileId) ?? capRadius
 
     // ── Cap ring (waterline / sol cap / atmo cap) ───────────
+    // Always rendered with the user-configured colour / opacity — no
+    // runtime override here. A layer switch may still need to clear
+    // overrides set on the floor ring; that path lives below.
     if (capRing && cfg.ring && cfg.ring.enabled) {
+      capRing.mat.color.copy(cfg.ring.color)
+      capRing.mat.opacity = cfg.ring.opacity
+
       const center = placeRing(capRing, cfg.ring, tile, capRadius)
       ports.hoverChannel.hoverLocalPos.value    = center.clone()
       ports.hoverChannel.hoverParentGroup.value = ports.group
@@ -299,16 +300,31 @@ export function buildHoverCursor(
       capRing.mesh.visible = false
     }
 
-    // ── Floor ring (liquid only — highlights the seabed sol tile) ──
+    // ── Floor ring (liquid only — outlines the seabed sol tile) ──
+    // The seabed twin carries the runtime overrides: it sits on the
+    // ocean floor so dimming it keeps the underwater detail readable,
+    // and tinting it red on a fully-mined core window flags the
+    // missing-floor case to the player. Always reset both attributes
+    // so a layer switch reverts the prior override.
     if (floorRing && cfg.floorRing && cfg.floorRing.enabled
         && ref.layer === 'liquid' && floorRadius < capRadius) {
+      const isCoreWindow = ports.liquid?.isCoreWindow(ref.tileId) === true
+      const ringColor    = isCoreWindow ? CORE_WINDOW_FLOOR_RING_COLOR : cfg.floorRing.color
+      floorRing.mat.color.copy(ringColor)
+      floorRing.mat.opacity = LIQUID_FLOOR_RING_OPACITY
+
       placeRing(floorRing, cfg.floorRing, tile, floorRadius)
     } else if (floorRing) {
       floorRing.mesh.visible = false
     }
 
     // ── Light at mid-prism ──────────────────────────────────
-    if (cfg.emissive && light && cfg.emissive.enabled) {
+    // Sol hovers skip the emissive halo: in playable surface view the
+    // terrain is already flat-lit, so a point-light bleeding onto
+    // neighbour tiles would muddy the read instead of helping it.
+    // Liquid + atmo hovers keep the halo (it adds depth on the
+    // waterline + reads through the atmospheric prism).
+    if (cfg.emissive && light && cfg.emissive.enabled && ref.layer !== 'sol') {
       const c    = tile.centerPoint
       const len  = Math.sqrt(c.x * c.x + c.y * c.y + c.z * c.z)
       const midR = (floorRadius + capRadius) / 2
@@ -317,29 +333,6 @@ export function buildHoverCursor(
       light.visible = true
     } else if (light) {
       light.visible = false
-    }
-
-    // ── Column on liquid (skip on core-window tiles) ────────
-    disposeColumn()
-    if (ref.layer === 'liquid' && cfg.column && cfg.column.enabled && ports.liquid) {
-      const skipColumn = ports.liquid.isCoreWindow(ref.tileId) || capRadius <= floorRadius
-      if (!skipColumn) {
-        const geom = buildPrismGeometry(
-          tile,
-          capRadius   - ports.bodyRadius,
-          floorRadius - ports.bodyRadius,
-        )
-        const mat = new THREE.MeshStandardMaterial({
-          color:             cfg.column.color,
-          emissive:          cfg.column.color,
-          emissiveIntensity: COLUMN_EMISSIVE_INTENSITY,
-          roughness:         1,
-          metalness:         0,
-        })
-        column = new THREE.Mesh(geom, mat)
-        column.renderOrder = 2
-        ports.group.add(column)
-      }
     }
 
     notifySolChange(ref.layer === 'sol' ? ref.tileId : null)
@@ -404,23 +397,6 @@ export function buildHoverCursor(
         if (partial.emissive.size !== undefined) {
           cfg.emissive.distance = partial.emissive.size
           light.distance        = partial.emissive.size
-        }
-      }
-    }
-
-    if (cfg.column && partial.column !== undefined) {
-      if (partial.column === false) {
-        cfg.column.enabled = false
-        disposeColumn()
-      } else {
-        cfg.column.enabled = true
-        if (partial.column.color !== undefined) {
-          cfg.column.color.set(partial.column.color)
-          if (column) {
-            const mat = column.material as THREE.MeshStandardMaterial
-            mat.color.set(partial.column.color)
-            mat.emissive.set(partial.column.color)
-          }
         }
       }
     }

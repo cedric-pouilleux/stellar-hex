@@ -56,7 +56,7 @@ camera.position.set(0, 0, 4)
 | `body.palette`       | tous | La palette terrain résolue |
 | `body.variation`     | tous | Variations procédurales dérivées du seed (anneaux, etc.) |
 | `body.interactive`   | tous | Setters de mode interactif (smooth ↔ hex) |
-| `body.hover`         | tous | API hover unifié — ring + emissive light + column (cf. [guide curseur](/guides/hover-cursor)) |
+| `body.hover`         | tous | API hover unifié — ring + floorRing + emissive light (cf. [guide curseur](/guides/hover-cursor)) |
 | `body.tiles`         | tous | API per-tile (visuels, couleurs) — étendue sur les planètes |
 | `body.liquid`        | planet | Niveau de la mer dynamique |
 | `body.view`          | planet | Mode de visualisation (`surface \| atmosphere \| shader`) |

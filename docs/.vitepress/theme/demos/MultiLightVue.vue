@@ -5,7 +5,7 @@ import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
- * Vue / TresJS â€” body lit by two coloured lights. The planet material
+ * Vue / TresJS — body lit by two coloured lights. The planet material
  * picks them up via standard THREE shading (no custom hookup required).
  */
 

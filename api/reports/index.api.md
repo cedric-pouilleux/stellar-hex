@@ -23,6 +23,7 @@ export interface AtmoBoardMesh {
     getTilePosition(tileId: number): THREE.Vector3 | null;
     group: THREE.Group;
     queryHover(raycaster: THREE.Raycaster, parentGroup: THREE.Object3D): number | null;
+    setFlatLighting(enabled: boolean): void;
     setHover(tileId: number | null, tint?: RGB): void;
     setVisible(visible: boolean): void;
     tiles: readonly Tile[];
@@ -524,7 +525,7 @@ export const DEFAULT_TERRAIN_HIGH_COLOR: THREE.Color;
 export const DEFAULT_TERRAIN_LOW_COLOR: THREE.Color;
 
 // @public
-export const DEFAULT_TILE_SIZE = 0.15;
+export const DEFAULT_TILE_SIZE = 0.05;
 
 // @public
 export function deriveCoreRadiusRatio(gasMassFraction: number): number;
@@ -676,14 +677,7 @@ export type HoverConfig = {
 };
 
 // @public
-export interface HoverCursorColumnConfig {
-    color?: THREE.ColorRepresentation;
-}
-
-// @public
 export interface HoverCursorConfig {
-    // (undocumented)
-    column?: false | HoverCursorColumnConfig;
     // (undocumented)
     emissive?: false | HoverCursorEmissiveConfig;
     // (undocumented)
@@ -794,6 +788,7 @@ export interface LayeredInteractiveMesh extends InteractiveMesh {
     getRaycastState: () => RaycastState;
     getSeaLevelRadius: () => number;
     getTilePosition: (tileId: number) => THREE.Vector3 | null;
+    setFlatLighting: (enabled: boolean) => void;
     setLiquidColor: (color: THREE.ColorRepresentation) => void;
     setLiquidOpacity: (alpha: number) => void;
     setLiquidVisible: (on: boolean) => void;
@@ -930,8 +925,7 @@ export interface ParamDef {
     optionCount?: number;
     // (undocumented)
     step?: number;
-    // (undocumented)
-    type?: 'color' | 'select';
+    type?: 'color' | 'select' | 'toggle';
 }
 
 // @public

@@ -7,7 +7,7 @@ import type { BodyConfig, RenderableBody } from '@cedric-pouilleux/stellar-hex/s
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
- * Vue / TresJS â€” Earth-like planet with a pre-excavated tile cluster
+ * Vue / TresJS — Earth-like planet with a pre-excavated tile cluster
  * exposing the molten core. The core mesh (sphere of fire shader +
  * point light) becomes visible wherever a sol tile has been mined down
  * to band 0.

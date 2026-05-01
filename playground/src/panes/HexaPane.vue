@@ -1041,7 +1041,6 @@ watch(
     ring:      { ...hoverCursorParams.ring },
     floorRing: { ...hoverCursorParams.floorRing },
     emissive:  { ...hoverCursorParams.emissive },
-    column:    { ...hoverCursorParams.column },
   }),
   () => body?.hover.updateCursor(resolveHoverCursorConfig(hoverCursorParams)),
   { deep: true },

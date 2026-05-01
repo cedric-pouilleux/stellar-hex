@@ -1,6 +1,6 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import * as THREE from 'three'
-import { TresCanvas, useTresContext } from '@tresjs/core'
+import { TresCanvas } from '@tresjs/core'
 import { onMounted } from 'vue'
 import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
 import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellar-hex/sim'
@@ -8,7 +8,7 @@ import type { BodyConfig, RenderableBody } from '@cedric-pouilleux/stellar-hex/s
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
- * Vue / TresJS â€” paints the BFS neighbourhood from a fixed start tile.
+ * Vue / TresJS — paints the BFS neighbourhood from a fixed start tile.
  * Same API as the Three.js demo, expressed declaratively.
  */
 
@@ -18,7 +18,7 @@ const config: BodyConfig = {
   radius:               1,
   rotationSpeed:        0,
   axialTilt:            0,
-    reliefFlatness:       0.55,
+  reliefFlatness:       0.55,
   atmosphereThickness:  0.4,
 }
 
@@ -27,20 +27,25 @@ const COLORS = ['#ff5566', '#ffaa44', '#ffe066', '#88dd88', '#5599ff', '#aa88ff'
 
 onMounted(() => {
   body.interactive.activate()
-  const sim   = (body as any).sim
+  if (body.kind !== 'planet') return
+  const sim   = body.sim
   const nMap  = buildNeighborMap(sim.tiles)
   const queue: Array<{ id: number, depth: number }> = [{ id: 0, depth: 0 }]
   const seen  = new Set<number>()
+  const overlay = new Map<number, { r: number; g: number; b: number }>()
+  const tmp     = new THREE.Color()
   while (queue.length) {
     const { id, depth } = queue.shift()!
     if (seen.has(id)) continue
     seen.add(id)
-    body.tiles.setBaseColor(id, new THREE.Color(COLORS[depth] ?? COLORS[COLORS.length - 1]))
+    tmp.set(COLORS[depth] ?? COLORS[COLORS.length - 1])
+    overlay.set(id, { r: tmp.r, g: tmp.g, b: tmp.b })
     if (depth >= COLORS.length - 1) continue
     for (const nid of getNeighbors(id, nMap)) {
       if (!seen.has(nid)) queue.push({ id: nid, depth: depth + 1 })
     }
   }
+  body.tiles.sol.applyOverlay(overlay)
 })
 </script>
 

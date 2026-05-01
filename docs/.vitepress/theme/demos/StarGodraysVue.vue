@@ -5,7 +5,7 @@ import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
- * Vue / TresJS â€” bare star (no post-process). For the full god-ray pipeline,
+ * Vue / TresJS — bare star (no post-process). For the full god-ray pipeline,
  * mount an EffectComposer outside TresJS or use a pass plug-in like
  * @tresjs/cientos's <Postpro>.
  */

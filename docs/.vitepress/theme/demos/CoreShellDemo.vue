@@ -1,19 +1,22 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 
 /**
- * Three.js demo â€” Earth-like planet with a pre-excavated cluster of
+ * Three.js demo — Earth-like planet with a pre-excavated cluster of
  * tiles that exposes the molten core. The core's procedural fire
  * shader + point light "leak" through the mined tiles.
  *
- * Click any tile to mine it deeper. Toggle "Cacher le liquide" to
- * remove the ocean shell when it covers the excavation cluster.
+ * Click any tile to mine it (configurable radius). Toggle the liquid
+ * shell, scale the dig radius, or reset the planet to the seed state.
  */
 
 const container     = ref<HTMLDivElement>()
 const minedCount    = ref(0)
 const liquidVisible = ref(true)
+const digRadius     = ref(1)
 let setLiquid: ((visible: boolean) => void) | null = null
+let mineAt:    ((tileId: number) => void) | null = null
+let resetWorld: (() => void) | null = null
 let cleanup:   (() => void) | null = null
 
 watch(liquidVisible, v => setLiquid?.(v))
@@ -28,7 +31,7 @@ onMounted(async () => {
     import('three/examples/jsm/controls/OrbitControls.js'),
     import('@cedric-pouilleux/stellar-hex/core'),
   ])
-  const { useBody, DEFAULT_TILE_SIZE, buildNeighborMap, getNeighbors } = lib
+  const { useBody, buildNeighborMap, getNeighbors } = lib
 
   const el     = container.value!
   const width  = el.clientWidth
@@ -41,7 +44,7 @@ onMounted(async () => {
 
   const scene  = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
-  camera.position.set(0, 0.4, 3.0)
+  camera.position.set(0, 0.6, 4.0)
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.4))
   const sun = new THREE.DirectionalLight(0xfff1dd, 1.8)
@@ -52,30 +55,63 @@ onMounted(async () => {
   orbit.enableDamping = true
   orbit.autoRotate = true
   orbit.autoRotateSpeed = 0.4
-  orbit.minDistance = 1.4
-  orbit.maxDistance = 6
+  orbit.minDistance = 1.8
+  orbit.maxDistance = 8
 
   const config = {
     type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'core-demo',
-    radius:               1,
+    radius:               1.4,
     rotationSpeed:        0,
     axialTilt:            0.3,
     reliefFlatness:       0.55,
-    atmosphereThickness:  0.4,
+    atmosphereThickness:  0.25,
     coreRadiusRatio:      0.55,
     liquidState:         'liquid' as const,
     liquidCoverage:       0.4,
     liquidColor:         '#175da1',
   }
 
-  const body = useBody(config, DEFAULT_TILE_SIZE)
+  // Smaller-than-default tile size — denser hex grid so the dig pattern
+  // reads as a real crater instead of a few coarse facets.
+  const TILE_SIZE = 0.035
+
+  const body = useBody(config, TILE_SIZE)
   scene.add(body.group)
 
   body.interactive.activate()
   body.view.set('surface')
 
   setLiquid = (visible) => body.liquid.setVisible(visible)
+
+  // Snapshot the initial sol heights so the reset button can replay
+  // the seed state — `updateTileSolHeight` mutates in place and the
+  // lib does not retain history.
+  const coreR          = body.getCoreRadius()
+  const initialHeights = new Map<number, number>()
+  for (const tile of body.sim.tiles) {
+    const pos = body.tiles.sol.getTilePosition(tile.id)
+    if (pos) initialHeights.set(tile.id, pos.length() - coreR)
+  }
+
+  // Neighbour map (precomputed once) — drives both the pre-excavation
+  // BFS and the runtime dig-radius expansion.
+  const nMap = buildNeighborMap(body.sim.tiles)
+
+  function tilesWithinRadius(start: number, radius: number): Set<number> {
+    const seen  = new Set<number>([start])
+    let frontier = [start]
+    for (let r = 1; r < radius; r++) {
+      const next: number[] = []
+      for (const id of frontier) {
+        for (const n of getNeighbors(id, nMap)) {
+          if (!seen.has(n)) { seen.add(n); next.push(n) }
+        }
+      }
+      frontier = next
+    }
+    return seen
+  }
 
   let preExcavated = false
   function preExcavate() {
@@ -89,11 +125,10 @@ onMounted(async () => {
         if (state.elevation > seaLvl) { centreId = id; break }
       }
       if (centreId == null) return
-      const nMap    = buildNeighborMap(sim.tiles)
       const seen    = new Set<number>()
       const queue: number[] = [centreId]
       const updates = new Map<number, number>()
-      while (queue.length && updates.size < 14) {
+      while (queue.length && updates.size < 28) {
         const cur = queue.shift()!
         if (seen.has(cur)) continue
         seen.add(cur)
@@ -112,6 +147,19 @@ onMounted(async () => {
     }
   }
 
+  mineAt = (tileId: number) => {
+    const ids = tilesWithinRadius(tileId, digRadius.value)
+    const updates = new Map<number, number>()
+    for (const id of ids) updates.set(id, 0)
+    body.tiles.sol.updateTileSolHeight(updates)
+    minedCount.value += updates.size
+  }
+
+  resetWorld = () => {
+    body.tiles.sol.updateTileSolHeight(initialHeights)
+    minedCount.value = 0
+  }
+
   const raycaster = new THREE.Raycaster()
   const pointer   = new THREE.Vector2()
   function onClick(e: PointerEvent) {
@@ -120,10 +168,7 @@ onMounted(async () => {
     pointer.y = -((e.clientY - r.top)  / r.height) * 2 + 1
     raycaster.setFromCamera(pointer, camera)
     const ref = body.interactive.queryHover(raycaster)
-    if (ref?.layer === 'sol') {
-      body.tiles.sol.updateTileSolHeight(new Map([[ref.tileId, 0]]))
-      minedCount.value++
-    }
+    if (ref?.layer === 'sol') mineAt?.(ref.tileId)
   }
   renderer.domElement.addEventListener('click', onClick)
 
@@ -152,12 +197,16 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => cleanup?.())
+
+function onReset() {
+  resetWorld?.()
+}
 </script>
 
 <template>
   <div class="core-demo">
     <div ref="container" class="core-canvas">
-      <p class="core-hint">Cliquez une tuile pour creuser Â· {{ minedCount }} tuiles minÃ©es</p>
+      <p class="core-hint">Cliquez une tuile pour creuser · {{ minedCount }} tuiles minées</p>
     </div>
     <div class="core-bar">
       <label class="core-toggle">
@@ -169,6 +218,21 @@ onBeforeUnmount(() => cleanup?.())
         <span class="core-toggle__track"><span class="core-toggle__dot" /></span>
         Cacher le liquide
       </label>
+      <label class="core-slider">
+        Taille du trou
+        <input
+          type="range"
+          min="1"
+          max="4"
+          step="1"
+          :value="digRadius"
+          @input="digRadius = parseInt((($event.target) as HTMLInputElement).value, 10)"
+        />
+        <span class="core-slider__val">{{ digRadius }}</span>
+      </label>
+      <button type="button" class="core-reset" @click="onReset">
+        Réinitialiser
+      </button>
     </div>
   </div>
 </template>
@@ -194,11 +258,15 @@ onBeforeUnmount(() => cleanup?.())
 .core-bar {
   display: flex;
   justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
   padding: 0.7rem 0.75rem;
   background: var(--vp-c-bg-soft);
   border-top: 1px solid var(--vp-c-divider);
 }
-.core-toggle {
+.core-toggle,
+.core-slider {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -233,5 +301,30 @@ onBeforeUnmount(() => cleanup?.())
 }
 .core-toggle input:checked + .core-toggle__track .core-toggle__dot {
   transform: translateX(16px);
+}
+.core-slider input[type="range"] {
+  width: 90px;
+}
+.core-slider__val {
+  display: inline-block;
+  min-width: 1ch;
+  text-align: center;
+  color: var(--vp-c-text-1);
+}
+.core-reset {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.78rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.core-reset:hover {
+  background: var(--vp-c-brand-1);
+  color: #fff;
+  border-color: var(--vp-c-brand-1);
 }
 </style>

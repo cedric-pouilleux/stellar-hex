@@ -2,13 +2,12 @@
 /**
  * Live tuning panel for the hover cursor — drives the lib's
  * `body.hover.updateCursor` through the reactive `hoverCursorParams`
- * mirror. Four primitives, each independently togglable + tintable:
+ * mirror. Three primitives, each independently togglable + tintable:
  *
  *   - Ring        : flat outline at the visible top (every layer)
  *   - Floor ring  : seabed outline under liquid hovers (the sol tile
  *                   sitting under the hovered ocean hex)
  *   - Emissive    : `THREE.PointLight` at mid-prism (every layer)
- *   - Column      : opaque emissive prism (liquid only)
  *
  * Disabling a primitive sets its config to `false` — the lib hides the
  * primitive but keeps the GPU resource around for instant re-enable.
@@ -32,7 +31,6 @@ function resetAll() {
   Object.assign(hoverCursorParams.ring,      HOVER_CURSOR_DEFAULTS.ring)
   Object.assign(hoverCursorParams.floorRing, HOVER_CURSOR_DEFAULTS.floorRing)
   Object.assign(hoverCursorParams.emissive,  HOVER_CURSOR_DEFAULTS.emissive)
-  Object.assign(hoverCursorParams.column,    HOVER_CURSOR_DEFAULTS.column)
 }
 </script>
 
@@ -180,28 +178,6 @@ function resetAll() {
         @input="setNum(hoverCursorParams.emissive, 'size', $event)"
       />
       <span class="val">{{ hoverCursorParams.emissive.size.toFixed(2) }}</span>
-    </div>
-
-    <!-- ── Liquid column ────────────────────────────────────── -->
-    <h4 class="sub-h">Liquid column</h4>
-    <div class="row" style="grid-template-columns: 110px 1fr auto;">
-      <label>Enabled</label>
-      <span class="hint" style="margin:0;">liquid only</span>
-      <input
-        type="checkbox"
-        :checked="hoverCursorParams.column.enabled"
-        @change="hoverCursorParams.column.enabled = ($event.target as HTMLInputElement).checked"
-      />
-    </div>
-    <div class="row" style="grid-template-columns: 110px 1fr auto;">
-      <label>Color</label>
-      <input
-        type="color"
-        :value="hoverCursorParams.column.color"
-        :disabled="!hoverCursorParams.column.enabled"
-        @input="hoverCursorParams.column.color = ($event.target as HTMLInputElement).value"
-      />
-      <span class="val" style="font-family: monospace;">{{ hoverCursorParams.column.color }}</span>
     </div>
 
     <!-- ── Reset ────────────────────────────────────────────── -->

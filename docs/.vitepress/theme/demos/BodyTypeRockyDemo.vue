@@ -2,6 +2,7 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
+import { paintAtmoSample }    from './paintAtmoSample'
 
 /**
  * Three.js demo — Earth-like rocky planet with surface liquid and
@@ -31,7 +32,7 @@ onMounted(async () => {
 
   const scene  = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(50, el.clientWidth / 400, 0.1, 100)
-  camera.position.set(0, 0.4, 3.5)
+  camera.position.set(0, 0.6, 4.6)
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.25))
   const sun = new THREE.DirectionalLight(0xfff1dd, 2.5)
@@ -42,17 +43,19 @@ onMounted(async () => {
   orbit.enableDamping = true
   orbit.autoRotate = true
   orbit.autoRotateSpeed = 0.6
-  orbit.minDistance = 1.6
-  orbit.maxDistance = 8
+  orbit.minDistance = 2.2
+  orbit.maxDistance = 10
 
   const config = {
     type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'rocky-body-demo',
-    radius:               1,
+    radius:               1.4,
     rotationSpeed:        0,
     axialTilt:            0.41,
     reliefFlatness:       0.55,
-    atmosphereThickness:  0.7,
+    // Sol band ~80 % of the silhouette, atmosphere ~20 % — visible
+    // playable terrain dominates the read on a rocky world.
+    atmosphereThickness:  0.2,
     liquidState:         'liquid' as const,
     liquidColor:         '#175da1',
   }
@@ -61,6 +64,7 @@ onMounted(async () => {
   body.group.rotation.z = config.axialTilt
   scene.add(body.group)
   setBodyCoreVisible(body, false)
+  paintAtmoSample(body)
 
   applyMode = (m) => {
     if (m === 'shader') { body.view.set('shader'); body.interactive.deactivate(); setBodyCoreVisible(body, false) }

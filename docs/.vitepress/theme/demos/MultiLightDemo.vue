@@ -2,10 +2,11 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
+import { paintAtmoSample }    from './paintAtmoSample'
 
 /**
- * Three.js demo â€” two coloured directional lights illuminate a rocky body.
- * View toggle: Shader / Sol / AtmosphÃ¨re.
+ * Three.js demo — two coloured directional lights illuminate a rocky body.
+ * View toggle: Shader / Sol / Atmosphère.
  */
 
 const container = ref<HTMLDivElement>()
@@ -59,6 +60,7 @@ onMounted(async () => {
   }, DEFAULT_TILE_SIZE, { sunLight: warmSun })
   scene.add(body.group)
   setBodyCoreVisible(body, false)
+  paintAtmoSample(body)
 
   applyMode = (m) => {
     if (m === 'shader') { body.view.set('shader'); body.interactive.deactivate(); setBodyCoreVisible(body, false) }

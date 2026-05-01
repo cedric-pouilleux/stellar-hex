@@ -7,7 +7,7 @@ import OrbitControlsBridge from './OrbitControlsBridge.vue'
 import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 
 /**
- * Vue / TresJS â€” playable mode showcase. `interactive` is reactive on
+ * Vue / TresJS — playable mode showcase. `interactive` is reactive on
  * <Body>; the view mode is pushed via `body.view.set` from a watcher.
  */
 

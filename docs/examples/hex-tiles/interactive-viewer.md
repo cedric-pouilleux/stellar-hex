@@ -29,7 +29,7 @@ scene.add(body.group)
 // par frame :
 raycaster.setFromCamera(pointer, camera)
 const ref = body.interactive.queryHover(raycaster)  // { layer, tileId } | null
-body.hover.setBoardTile(ref)                         // dispatch ring + emissive (+ column en liquid)
+body.hover.setBoardTile(ref)                         // dispatch ring (+ floorRing en liquid, + emissive sur liquid/atmo)
 
 // lecture de l'état (sol uniquement) :
 if (ref?.layer === 'sol') {
@@ -44,7 +44,7 @@ if (ref?.layer === 'sol') {
 | --- | ---- |
 | `body.interactive.activate()`         | Active le mesh hex (sinon : sphère lisse, pas raycastable) |
 | `body.interactive.queryHover(r)`      | Renvoie `{ layer, tileId }` sous le rayon, ou `null`. Layer ∈ `'sol' \| 'liquid' \| 'atmo'`. |
-| `body.hover.setBoardTile(ref)`        | Dispatch le visuel sur le bon layer (ring + emissive + column si liquid) |
+| `body.hover.setBoardTile(ref)`        | Dispatch le visuel sur le bon layer (ring + floorRing en liquid + emissive sur liquid/atmo) |
 
 Le découpage **query / set** laisse le caller décider de la politique de hover (debounce, multi-hover, hover sticky, etc.) et de l'apparence (couleur du ring, intensité de l'emissive, switch de presets) — voir le [guide curseur](/guides/hover-cursor).
 

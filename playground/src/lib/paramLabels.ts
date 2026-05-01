@@ -61,8 +61,21 @@ export const BODY_GROUP_LABELS: Record<LibBodyType, readonly ParamGroup[]> = {
   ],
   star: [
     { label: 'Base',        keys: ['seed', 'temperature', 'animSpeed'] },
-    { label: 'Granulation', keys: ['convectionScale', 'granulationContrast', 'cloudAmount', 'cloudBlend'] },
-    { label: 'Effects',     keys: ['coronaSize', 'pulsation'] },
+    { label: 'Surface palette', keys: [
+      'colorDarkShift', 'colorMidShift', 'colorBrightShift',
+      'colorDarkBoost', 'colorMidBoost', 'colorBrightBoost',
+    ] },
+    { label: 'Granulation', keys: [
+      'convectionScale', 'granulationContrast',
+      'boilEnabled', 'boilAmount',
+    ] },
+    { label: 'Sunspots',    keys: [
+      'cloudAmount', 'cloudBlend', 'cloudScale',
+      'filamentEnabled', 'filamentScale', 'filamentAmount',
+      'penumbraEnabled', 'spotPenumbraShift', 'spotPenumbraBoost',
+      'umbraEnabled',    'spotUmbraShift',    'spotUmbraBoost',
+    ] },
+    { label: 'Effects',     keys: ['limbDarkening', 'coronaSize', 'coronaIntensity', 'pulsation'] },
   ],
 }
 
@@ -142,8 +155,28 @@ export const PARAM_LABELS: Record<string, string> = {
   // Star
   temperature:          'Temperature (K)',
   convectionScale:      'Granulation scale',
-  granulationContrast: 'Granulation contrast',
+  granulationContrast:  'Granulation contrast',
+  boilEnabled:          'Boil layer',
+  boilAmount:           'Boil amount',
+  cloudScale:           'Spot scale',
+  filamentEnabled:      'Filament layer',
+  filamentScale:        'Filament scale',
+  filamentAmount:       'Filament amount',
+  penumbraEnabled:      'Halo layer',
+  umbraEnabled:         'Core layer',
+  spotPenumbraShift:    'Halo temperature',
+  spotUmbraShift:       'Core temperature',
+  spotPenumbraBoost:    'Halo brightness',
+  spotUmbraBoost:       'Core brightness',
+  colorDarkShift:       'Dark hue (T×)',
+  colorMidShift:        'Mid hue (T×)',
+  colorBrightShift:     'Bright hue (T×)',
+  colorDarkBoost:       'Dark brightness',
+  colorMidBoost:        'Mid brightness',
+  colorBrightBoost:     'Bright brightness',
+  limbDarkening:        'Limb darkening',
   coronaSize:           'Corona',
+  coronaIntensity:      'Corona intensity',
   pulsation:            'Pulsation',
 }
 

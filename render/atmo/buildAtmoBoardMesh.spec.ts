@@ -27,6 +27,22 @@ describe('buildAtmoBoardMesh', () => {
     board.dispose()
   })
 
+  it('flat lighting is on by default — atmo board never carries star-driven shadows', () => {
+    const { board } = buildBoard()
+    const mesh     = board.group.children[0] as THREE.Mesh
+    const material = mesh.material as THREE.MeshStandardMaterial & { flatLightingHandle?: { uniform: { value: number } } }
+    const uniform  = material.flatLightingHandle?.uniform
+    expect(uniform?.value).toBe(1)
+
+    board.setFlatLighting(false)
+    expect(uniform?.value).toBe(0)
+
+    board.setFlatLighting(true)
+    expect(uniform?.value).toBe(1)
+
+    board.dispose()
+  })
+
   it('exposes the input atmo tiles unchanged', () => {
     const { hexa, board } = buildBoard()
     expect(board.tiles).toBe(hexa.tiles)

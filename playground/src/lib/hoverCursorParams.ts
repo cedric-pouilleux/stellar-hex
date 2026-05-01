@@ -30,17 +30,12 @@ export interface HoverCursorParams {
     intensity: number
     size:      number
   }
-  column: {
-    enabled: boolean
-    color:   string
-  }
 }
 
 export const HOVER_CURSOR_DEFAULTS: HoverCursorParams = {
   ring:      { enabled: true, color: '#ffffff', size: 1, opacity: 1 },
   floorRing: { enabled: true, color: '#9ad9ff', size: 1, opacity: 0.7 },
   emissive:  { enabled: true, color: '#ffffff', intensity: 1.5, size: 0.6 },
-  column:    { enabled: true, color: '#ffffff' },
 }
 
 /** Tunable bounds for the slider controls. */
@@ -70,9 +65,6 @@ export function resolveHoverCursorConfig(p: HoverCursorParams): HoverCursorConfi
       : false,
     emissive: p.emissive.enabled
       ? { color: p.emissive.color, intensity: p.emissive.intensity, size: p.emissive.size }
-      : false,
-    column: p.column.enabled
-      ? { color: p.column.color }
       : false,
   }
 }

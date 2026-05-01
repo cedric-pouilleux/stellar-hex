@@ -2,10 +2,11 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
+import { paintAtmoSample }    from './paintAtmoSample'
 
 /**
- * Three.js demo â€” frozen world with Worley ice-sheet shader.
- * View toggle: Shader / Sol / AtmosphÃ¨re.
+ * Three.js demo — frozen world with Worley ice-sheet shader.
+ * View toggle: Shader / Sol / Atmosphère.
  */
 
 const container = ref<HTMLDivElement>()
@@ -31,7 +32,7 @@ onMounted(async () => {
 
   const scene  = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(50, el.clientWidth / 400, 0.1, 100)
-  camera.position.set(0, 0.4, 3.5)
+  camera.position.set(0, 0.6, 4.6)
 
   scene.add(new THREE.AmbientLight(0xb0c4de, 0.4))
   const sun = new THREE.DirectionalLight(0xddeeff, 2.0)
@@ -42,17 +43,17 @@ onMounted(async () => {
   orbit.enableDamping = true
   orbit.autoRotate = true
   orbit.autoRotateSpeed = 0.5
-  orbit.minDistance = 1.6
-  orbit.maxDistance = 8
+  orbit.minDistance = 2.2
+  orbit.maxDistance = 10
 
   const config = {
     type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'frozen-demo',
-    radius:               1,
+    radius:               1.4,
     rotationSpeed:        0,
     axialTilt:            0.4,
     reliefFlatness:       0.55,
-    atmosphereThickness:  0.3,
+    atmosphereThickness:  0.2,
     liquidState:         'frozen' as const,
     liquidColor:         '#a8c8e0',
   }
@@ -60,6 +61,7 @@ onMounted(async () => {
   const body = useBody(config, DEFAULT_TILE_SIZE)
   scene.add(body.group)
   setBodyCoreVisible(body, false)
+  paintAtmoSample(body)
 
   applyMode = (m) => {
     if (m === 'shader') { body.view.set('shader'); body.interactive.deactivate(); setBodyCoreVisible(body, false) }

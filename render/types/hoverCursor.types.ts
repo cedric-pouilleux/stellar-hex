@@ -1,8 +1,8 @@
 /**
- * Configuration of the unified hover cursor primitives — ring outline,
- * emissive point light, opaque underwater column. Each primitive is
- * independently togglable via `false` and shares the same dispatch path
- * for sol / liquid / atmo layers.
+ * Configuration of the unified hover cursor primitives — ring outline +
+ * emissive point light. Each primitive is independently togglable via
+ * `false` and shares the same dispatch path for sol / liquid / atmo
+ * layers.
  *
  * Forwarded into `useBody` via the `hoverCursor` option. The lib resolves
  * defaults against the body's own radius so a config-free caller still
@@ -39,12 +39,6 @@ export interface HoverCursorEmissiveConfig {
   intensity?: number
 }
 
-/** Opaque emissive prism filling the underwater volume — liquid layer only. */
-export interface HoverCursorColumnConfig {
-  /** Column color (default: `0xffffff`). */
-  color?: THREE.ColorRepresentation
-}
-
 /**
  * Aggregate cursor config — every primitive is optional, every primitive
  * accepts `false` to be fully disabled. An omitted key means "use default
@@ -52,14 +46,14 @@ export interface HoverCursorColumnConfig {
  *
  * `ring` paints the cap on every layer (waterline / sol cap / atmo cap).
  * `floorRing` is a liquid-only twin drawn on the seabed so the user can
- * tell which sol tile sits under the hovered ocean hex; it accepts the
- * same params as `ring` and may be tinted independently.
+ * tell which sol tile sits under the hovered ocean hex; the lib forces
+ * its opacity low so the seabed stays readable, and tints it red on
+ * core-window tiles as a missing-floor warning.
  */
 export interface HoverCursorConfig {
   ring?:      false | HoverCursorRingConfig
   floorRing?: false | HoverCursorRingConfig
   emissive?:  false | HoverCursorEmissiveConfig
-  column?:    false | HoverCursorColumnConfig
 }
 
 /**
@@ -67,10 +61,10 @@ export interface HoverCursorConfig {
  * the union of every primitive used across the presets, then swaps the
  * active preset live via `body.hover.useCursor(name)`. Lets game-side
  * intents (attack / build / inspect…) carry their own ring color, light
- * intensity, column tint, etc.
+ * intensity, etc.
  *
  * A preset that omits a primitive falls back to that primitive's default
- * (white ring, white emissive at 1.5 intensity, white column). Setting a
- * primitive to `false` in a preset hides it while that preset is active.
+ * (white ring, white emissive at 1.5 intensity). Setting a primitive to
+ * `false` in a preset hides it while that preset is active.
  */
 export type HoverCursorPresets = Record<string, HoverCursorConfig>

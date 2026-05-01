@@ -4,8 +4,8 @@ import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
 
 /**
- * Vanilla Three.js demo â€” Earth-like rocky planet with surface liquid
- * and an animated cloud shell. View toggle: Shader / Sol / AtmosphÃ¨re.
+ * Vanilla Three.js demo — Earth-like rocky planet with surface liquid
+ * and an animated cloud shell. View toggle: Shader / Sol / Atmosphère.
  */
 
 const container = ref<HTMLDivElement>()

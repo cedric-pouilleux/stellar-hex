@@ -2,7 +2,7 @@
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
- * Three.js demo â€” four bodies along a temperature axis. Each cell shows
+ * Three.js demo — four bodies along a temperature axis. Each cell shows
  * how the lib's default palette anchors and atmospheric tint shift with
  * temperature without any other config change.
  */
@@ -10,7 +10,7 @@ import { onMounted, onBeforeUnmount, ref } from 'vue'
 interface TempSpec {
   name:        string
   label:       string
-  /** Caller-derived palette anchors — the lib reads these directly. */
+  /** Caller-derived palette anchors � the lib reads these directly. */
   colorLow:    string
   colorHigh:   string
   liquidState: 'liquid' | 'frozen'
@@ -20,10 +20,10 @@ interface TempSpec {
 // each demo cell pre-resolves its own `terrainColorLow/High` from its
 // thermal class and pushes the result into `BodyConfig`.
 const specs: TempSpec[] = [
-  { name: 't-glacial', label: 'âˆ’110 Â°C glaciaire', colorLow: '#404a58', colorHigh: '#d8e4f0', liquidState: 'frozen' },
-  { name: 't-cold',    label: 'âˆ’20 Â°C froid',      colorLow: '#3a3a40', colorHigh: '#aab0bc', liquidState: 'liquid' },
-  { name: 't-temp',    label: '+25 Â°C tempÃ©rÃ©',    colorLow: '#2c2820', colorHigh: '#8a8270', liquidState: 'liquid' },
-  { name: 't-hot',     label: '+200 Â°C torride',   colorLow: '#3a1808', colorHigh: '#c08040', liquidState: 'liquid' },
+  { name: 't-glacial', label: '−110 °C glaciaire', colorLow: '#404a58', colorHigh: '#d8e4f0', liquidState: 'frozen' },
+  { name: 't-cold',    label: '−20 °C froid',      colorLow: '#3a3a40', colorHigh: '#aab0bc', liquidState: 'liquid' },
+  { name: 't-temp',    label: '+25 °C tempéré',    colorLow: '#2c2820', colorHigh: '#8a8270', liquidState: 'liquid' },
+  { name: 't-hot',     label: '+200 °C torride',   colorLow: '#3a1808', colorHigh: '#c08040', liquidState: 'liquid' },
 ]
 
 const containers = ref<HTMLDivElement[]>([])
@@ -47,7 +47,7 @@ onMounted(async () => {
 
     const scene  = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(45, el.clientWidth / el.clientHeight, 0.1, 100)
-    camera.position.set(0, 0, 3.2)
+    camera.position.set(0, 0, 4.4)
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.3))
     const sun = new THREE.DirectionalLight(0xffffff, 2.2)
@@ -57,11 +57,12 @@ onMounted(async () => {
     const body = useBody({
       type:                'planetary', surfaceLook: 'terrain',
       name:                spec.name,
-      radius:               1,
+      radius:               1.4,
       rotationSpeed:        0.005,
       axialTilt:            0.3,
       reliefFlatness:       0.55,
-      atmosphereThickness:  0.5,
+      // Sol band ~80 % of the silhouette, atmosphere ~20 %.
+      atmosphereThickness:  0.2,
       liquidState:          spec.liquidState,
       liquidColor:         '#1d4d8c',
       terrainColorLow:     spec.colorLow,

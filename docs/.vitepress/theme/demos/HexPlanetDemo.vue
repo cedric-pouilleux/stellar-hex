@@ -2,7 +2,7 @@
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
- * Interactive hexagonal tile demo â€” activates the hex mesh and wires up
+ * Interactive hexagonal tile demo — activates the hex mesh and wires up
  * tile hover (elevation + height tooltip) via queryHover / setHover.
  * All WebGL code runs client-side only (wrapped by <ClientOnly> in Markdown).
  */

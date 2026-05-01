@@ -1,8 +1,8 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
- * Three.js demo â€” visual BFS from a clicked tile. Each ring of neighbours
+ * Three.js demo — visual BFS from a clicked tile. Each ring of neighbours
  * is painted with a colder hue. Click any tile to restart the wave.
  */
 
@@ -51,29 +51,49 @@ onMounted(async () => {
 
   const body = useBody(config, DEFAULT_TILE_SIZE)
   body.interactive.activate()
+  body.view.set('surface')
   scene.add(body.group)
 
-  const sim     = (body as any).sim
-  const tiles   = sim.tiles as Array<{ id: number }>
-  const nMap    = buildNeighborMap(tiles)
+  const sim   = body.sim
+  const tiles = sim.tiles
+  const nMap  = buildNeighborMap(tiles)
 
   const COLORS = ['#ff5566', '#ffaa44', '#ffe066', '#88dd88', '#5599ff', '#aa88ff']
 
+  // Cache the palette baseline per tile so a fresh BFS click starts from
+  // the original look — `applyOverlay` only writes the tiles passed in,
+  // so re-applying the baseline restores tiles that fell out of the new
+  // wave radius.
+  const baselineColors = new Map<number, { r: number; g: number; b: number }>()
+  for (const tile of tiles) {
+    const v = body.tiles.sol.tileBaseVisual(tile.id)
+    if (v) baselineColors.set(tile.id, { r: v.r, g: v.g, b: v.b })
+  }
+
   function paintBfs(start: number) {
-    const visited  = new Map<number, number>() // id â†’ ring index
-    const queue: Array<{ id: number, depth: number }> = [{ id: start, depth: 0 }]
+    const visited = new Map<number, number>() // id → ring index
+    const queue:  Array<{ id: number, depth: number }> = [{ id: start, depth: 0 }]
     while (queue.length) {
       const { id, depth } = queue.shift()!
       if (visited.has(id)) continue
-      visited.add(id, depth)
+      visited.set(id, depth)
       if (depth >= COLORS.length - 1) continue
       for (const nid of getNeighbors(id, nMap)) {
         if (!visited.has(nid)) queue.push({ id: nid, depth: depth + 1 })
       }
     }
+
+    // Restart from the palette baseline so previously-painted rings
+    // outside the new wave fade back to terrain colour.
+    body.tiles.sol.applyOverlay(baselineColors)
+
+    const overlay = new Map<number, { r: number; g: number; b: number }>()
+    const tmp     = new THREE.Color()
     for (const [id, depth] of visited) {
-      body.tiles.setBaseColor(id, new THREE.Color(COLORS[depth] ?? COLORS[COLORS.length - 1]))
+      tmp.set(COLORS[depth] ?? COLORS[COLORS.length - 1])
+      overlay.set(id, { r: tmp.r, g: tmp.g, b: tmp.b })
     }
+    body.tiles.sol.applyOverlay(overlay)
   }
 
   paintBfs(0)
@@ -86,10 +106,7 @@ onMounted(async () => {
     pointer.y = -((e.clientY - r.top)  / r.height) * 2 + 1
     raycaster.setFromCamera(pointer, camera)
     const ref = body.interactive.queryHover(raycaster)
-    if (ref?.layer === 'sol') {
-      ;(body.tiles as { resetBaseColors?: () => void }).resetBaseColors?.()
-      paintBfs(ref.tileId)
-    }
+    if (ref?.layer === 'sol') paintBfs(ref.tileId)
   }
   renderer.domElement.addEventListener('click', onClick)
 

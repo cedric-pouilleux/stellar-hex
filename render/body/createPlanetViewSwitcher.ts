@@ -57,9 +57,15 @@ export function createPlanetViewSwitcher(graph: PlanetSceneGraph): PlanetViewSwi
 
     // Sol mesh — visible only in the surface view.
     interactive.setVisible(isSurface)
+    // Flat lighting on the playable boards: collapses star-driven
+    // directional shading so every tile reads as uniformly lit when
+    // the body is in a gameplay view. PBR channels (roughness,
+    // metalness, future per-tile biome attributes) are preserved.
+    interactive.setFlatLighting(isSurface)
 
     // Atmo board — visible only in the atmosphere view.
     atmoBoard?.setVisible(isAtmosphere)
+    atmoBoard?.setFlatLighting(isAtmosphere)
 
     // Atmo halo shell + liquid corona — visible alongside the smooth
     // sphere on the shader overview. Hidden in the playable views.

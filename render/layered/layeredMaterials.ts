@@ -14,10 +14,19 @@
  */
 
 import * as THREE from 'three'
+import { applyFlatLightingPatch, type FlatLightingHandle } from '../lighting/flatLightingPatch'
 
 /** Aggregate returned by {@link buildLayeredMaterials}. */
 export interface LayeredMaterials {
-  solMaterial: THREE.MeshStandardMaterial
+  solMaterial:     THREE.MeshStandardMaterial
+  /**
+   * Toggle for the flat-lighting override. Wired to the sol material's
+   * `uFlatLighting` uniform — enabling collapses the directional shading
+   * from scene lights so every tile reads as uniformly lit. PBR channels
+   * (roughness, metalness, future per-tile biome material attributes)
+   * are preserved when the toggle is off.
+   */
+  flatLighting:    FlatLightingHandle
 }
 
 /** Builds the sol material for the sol interactive mesh. */
@@ -28,5 +37,11 @@ export function buildLayeredMaterials(): LayeredMaterials {
     metalness:    0.0,
     side:         THREE.FrontSide,
   })
-  return { solMaterial }
+  const flatLighting = applyFlatLightingPatch(solMaterial)
+  // Sol mesh is only ever shown in the playable surface view — having
+  // star-driven directional shading on it would hide tiles on the night
+  // side. Default the flat-lighting override to ON so the board reads
+  // uniformly even before any explicit `view.set('surface')` call.
+  flatLighting.setFlatLighting(true)
+  return { solMaterial, flatLighting }
 }

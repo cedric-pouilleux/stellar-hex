@@ -2,12 +2,12 @@
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
- * Three.js demo â€” playable atmosphere band.
+ * Three.js demo — playable atmosphere band.
  *
  * Mounts a rocky body in interactive hex mode + atmosphere view: the
  * sol prisms are hidden and the demo renders the *atmo band* of the
  * LayeredInteractiveMesh instead. Each hex on screen is a tile of the
- * atmospheric shell â€” hover to inspect, click to "pollute" (paint).
+ * atmospheric shell — hover to inspect, click to "pollute" (paint).
  *
  * Switch back to the surface view to see the relief; both share the
  * same tile ids, so a paint applied here keeps its identity across
@@ -75,6 +75,11 @@ onMounted(async () => {
     liquidColor:         '#175da1',
   }, DEFAULT_TILE_SIZE)
   scene.add(body.group)
+
+  // Initial climate-band overlay so the atmo grid reads as differentiated
+  // tiles right away — the click-to-pollute action overwrites cells on top.
+  const { paintAtmoSample } = await import('./paintAtmoSample')
+  paintAtmoSample(body)
 
   body.interactive.activate()
   body.view.set('atmosphere')
@@ -165,9 +170,9 @@ onBeforeUnmount(() => cleanup?.())
         :style="{ left: tipPos.x + 'px', top: tipPos.y + 'px' }"
       >
         <div class="atmo-tip__row"><span class="k">Tile</span><span class="v">#{{ tooltip.id }}</span></div>
-        <div class="atmo-tip__row"><span class="k">Ã‰lÃ©v.</span><span class="v">{{ tooltip.elevation }}</span></div>
+        <div class="atmo-tip__row"><span class="k">Élév.</span><span class="v">{{ tooltip.elevation }}</span></div>
       </div>
-      <p class="atmo-hint">Survol = info Â· Clic = peindre la tuile atmo</p>
+      <p class="atmo-hint">Survol = info · Clic = peindre la tuile atmo</p>
     </div>
 
     <div class="atmo-bar">
@@ -176,8 +181,8 @@ onBeforeUnmount(() => cleanup?.())
           class="atmo-pill"
           :style="{ transform: view === 'atmo' ? 'translateX(0)' : 'translateX(calc(100% + 6px))' }"
         />
-        <button class="atmo-btn" :class="{ on: view === 'atmo' }" @click="view = 'atmo'">â¬¢ AtmosphÃ¨re</button>
-        <button class="atmo-btn" :class="{ on: view === 'sol'  }" @click="view = 'sol'">â¬¢ Sol</button>
+        <button class="atmo-btn" :class="{ on: view === 'atmo' }" @click="view = 'atmo'">⬢ Atmosphère</button>
+        <button class="atmo-btn" :class="{ on: view === 'sol'  }" @click="view = 'sol'">⬢ Sol</button>
       </div>
     </div>
   </div>

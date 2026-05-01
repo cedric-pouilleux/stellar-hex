@@ -19,6 +19,7 @@ import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { Tile } from '../../geometry/hexasphere.types'
 import { accelerateRaycast } from '../lighting/accelerateRaycast'
+import { applyFlatLightingPatch } from '../lighting/flatLightingPatch'
 import type { RaycastState } from '../body/interactiveController'
 import type { RGB } from '../types/bodyHandle.types'
 
@@ -50,6 +51,12 @@ export interface AtmoBoardMesh {
   tiles:        readonly Tile[]
   /** Toggles the board's visibility wholesale. */
   setVisible(visible: boolean):                                void
+  /**
+   * Forces the board material to render with flat (light-independent)
+   * shading when enabled. Used by the playable atmosphere view so the
+   * star's directional lighting doesn't hide tiles on the night side.
+   */
+  setFlatLighting(enabled: boolean):                           void
   /** Stamps a single tile's vertex colour. Silently skips unknown ids. */
   writeTileColor(tileId: number, rgb: RGB):                    void
   /** Bulk overlay — same effect as calling `writeTileColor` once per entry. */
@@ -213,6 +220,12 @@ export function buildAtmoBoardMesh(options: AtmoBoardMeshOptions): AtmoBoardMesh
     metalness:    0.0,
     side:         THREE.FrontSide,
   })
+  const flatLighting = applyFlatLightingPatch(material)
+  // Atmo board is only ever shown in the playable atmosphere view — keep
+  // the flat-lighting override on by default so star-driven shading
+  // never hides tiles on the night side, regardless of when (or if) the
+  // view switcher fires.
+  flatLighting.setFlatLighting(true)
 
   const mesh           = new THREE.Mesh(geometry, material)
   mesh.frustumCulled   = false
@@ -349,6 +362,7 @@ export function buildAtmoBoardMesh(options: AtmoBoardMeshOptions): AtmoBoardMesh
     group,
     tiles,
     setVisible,
+    setFlatLighting: flatLighting.setFlatLighting,
     writeTileColor,
     applyOverlay,
     getTilePosition,

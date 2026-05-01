@@ -65,7 +65,7 @@ export function buildNeighborMap(tiles: readonly Tile[]): Map<number, number[]>;
 export type ColorInput = string | number;
 
 // @public
-export const DEFAULT_TILE_SIZE = 0.15;
+export const DEFAULT_TILE_SIZE = 0.05;
 
 // @public
 export function deriveCoreRadiusRatio(gasMassFraction: number): number;

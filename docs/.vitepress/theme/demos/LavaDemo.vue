@@ -4,8 +4,8 @@ import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
 
 /**
- * Three.js demo â€” rocky volcanic body with active lava.
- * View toggle: Shader / Sol / AtmosphÃ¨re.
+ * Three.js demo — rocky volcanic body with active lava.
+ * View toggle: Shader / Sol / Atmosphère.
  */
 
 const container = ref<HTMLDivElement>()
@@ -30,7 +30,7 @@ onMounted(async () => {
 
   const scene  = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(50, el.clientWidth / 400, 0.1, 100)
-  camera.position.set(0, 0.4, 3.4)
+  camera.position.set(0, 0.6, 4.4)
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.15))
   const sun = new THREE.DirectionalLight(0xffe6cc, 1.5)
@@ -41,19 +41,19 @@ onMounted(async () => {
   orbit.enableDamping = true
   orbit.autoRotate = true
   orbit.autoRotateSpeed = 0.5
-  orbit.minDistance = 1.6
-  orbit.maxDistance = 8
+  orbit.minDistance = 2.2
+  orbit.maxDistance = 10
 
   const config = {
     type:                'planetary', surfaceLook: 'terrain' as const,
     name:                'lava-demo',
-    radius:               1,
+    radius:               1.4,
     rotationSpeed:        0,
     axialTilt:            0.1,
     reliefFlatness:       0.55,
     atmosphereThickness:  0.05,
   }
-  // Cracks + lava are pure visual effects activated through the variation —
+  // Cracks + lava are pure visual effects activated through the variation �
   // the lib has no opinion on when a body should look volcanic, that's a
   // game-side decision.
   const variation = generateBodyVariation(config)

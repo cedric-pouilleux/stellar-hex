@@ -127,6 +127,24 @@ describe('buildLayeredInteractiveMesh', () => {
     mesh.dispose()
   })
 
+  it('flat lighting is on by default — playable boards never carry star-driven shadows', () => {
+    const { sim, palette, variation } = buildFromConfig(rockyConfig())
+    const mesh = buildLayeredInteractiveMesh(sim, palette, variation, testOptions())
+
+    const hexMesh = mesh.group.children[0] as THREE.Mesh
+    const sol     = hexMesh.material as THREE.MeshStandardMaterial & { flatLightingHandle?: { uniform: { value: number } } }
+    const uniform = sol.flatLightingHandle?.uniform
+    expect(uniform?.value).toBe(1)
+
+    mesh.setFlatLighting(false)
+    expect(uniform?.value).toBe(0)
+
+    mesh.setFlatLighting(true)
+    expect(uniform?.value).toBe(1)
+
+    mesh.dispose()
+  })
+
   it('writeTileColor stamps per-vertex RGB and bumps the version', () => {
     const { sim, palette, variation } = buildFromConfig(rockyConfig())
     const mesh = buildLayeredInteractiveMesh(sim, palette, variation, testOptions())

@@ -47,7 +47,7 @@ function makePorts(opts: {
 }
 
 describe('buildHoverCursor', () => {
-  it('mounts cap + floor rings + light by default; column omitted on construction', () => {
+  it('mounts cap + floor rings + the emissive light by default', () => {
     const ports  = makePorts()
     const cursor = buildHoverCursor(undefined, ports)
     // Two ring meshes (cap + seabed twin) + the emissive light.
@@ -68,7 +68,7 @@ describe('buildHoverCursor', () => {
     expect(ports.group.children.find(o => o.type === 'PointLight')).toBeUndefined()
   })
 
-  it('setBoardTile(sol) shows cap ring + light, hides the floor ring', () => {
+  it('setBoardTile(sol) shows cap ring + hides the floor ring + keeps the emissive halo dark', () => {
     const ports  = makePorts({ capRadius: 0.8 })
     const cursor = buildHoverCursor(undefined, ports)
     cursor.setBoardTile({ layer: 'sol', tileId: 0 })
@@ -76,43 +76,63 @@ describe('buildHoverCursor', () => {
     const light = ports.group.children.find(o => o.type === 'PointLight') as THREE.PointLight
     const visible = rings.filter(r => r.visible)
     expect(visible.length).toBe(1) // cap only — sol has no floor twin
-    expect(light.visible).toBe(true)
-    // Light placed at mid-prism — between floor (0.5) and cap (0.8) → 0.65.
-    expect(light.position.length()).toBeCloseTo(0.65, 5)
+    // Sol hovers don't bleed an emissive halo onto neighbour terrain —
+    // playable surface view is already flat-lit.
+    expect(light.visible).toBe(false)
     cursor.dispose()
   })
 
-  it('setBoardTile(liquid) shows BOTH rings (waterline + seabed) plus the column', () => {
+  it('setBoardTile(liquid) shows BOTH rings (waterline cap + seabed twin)', () => {
     const ports  = makePorts({ capRadius: 1.2, floorRadius: 0.7, liquid: true })
     const cursor = buildHoverCursor(undefined, ports)
     cursor.setBoardTile({ layer: 'liquid', tileId: 0 })
-    const meshes = ports.group.children.filter(o => o.type === 'Mesh') as THREE.Mesh[]
-    // 2 ring meshes (both visible on liquid) + 1 column = 3 meshes total.
-    expect(meshes.length).toBe(3)
-    const rings = meshes.filter(m => (m.material as THREE.Material).type === 'MeshBasicMaterial')
+    const rings = ports.group.children.filter(o => o.type === 'Mesh') as THREE.Mesh[]
+    expect(rings.length).toBe(2)
     expect(rings.filter(r => r.visible).length).toBe(2)
     cursor.dispose()
   })
 
-  it('setBoardTile(liquid) skips the column when isCoreWindow is true (rings still drawn)', () => {
-    const ports  = makePorts({ liquid: true, isCoreWindow: true })
+  it('setBoardTile(liquid) dims the FLOOR ring opacity to 0.20 (seabed reads as a hint)', () => {
+    const ports  = makePorts({ liquid: true })
     const cursor = buildHoverCursor(undefined, ports)
     cursor.setBoardTile({ layer: 'liquid', tileId: 0 })
-    const meshes = ports.group.children.filter(o => o.type === 'Mesh') as THREE.Mesh[]
-    expect(meshes.length).toBe(2) // 2 rings — no column
-    expect(meshes.filter(m => m.visible).length).toBe(2)
+    const rings = ports.group.children.filter(o => o.type === 'Mesh') as THREE.Mesh[]
+    // Cap ring is constructed first — floor ring is the second mesh.
+    const floorRing = rings[1]
+    const mat = floorRing.material as THREE.MeshBasicMaterial
+    expect(mat.opacity).toBeCloseTo(0.20, 5)
     cursor.dispose()
   })
 
-  it('column=false disables the underwater column even on liquid hovers', () => {
+  it('setBoardTile(liquid) keeps the cap ring at the configured opacity / colour', () => {
     const ports  = makePorts({ liquid: true })
-    const cursor = buildHoverCursor({ column: false }, ports)
+    const cursor = buildHoverCursor(
+      { ring: { color: 0x00ff88, opacity: 0.9 } },
+      ports,
+    )
     cursor.setBoardTile({ layer: 'liquid', tileId: 0 })
-    const meshes = ports.group.children.filter(o => o.type === 'Mesh') as THREE.Mesh[]
-    expect(meshes.length).toBe(2) // 2 rings — no column
+    const rings = ports.group.children.filter(o => o.type === 'Mesh') as THREE.Mesh[]
+    const capMat = rings[0].material as THREE.MeshBasicMaterial
+    // Cap ring is never auto-overridden by the liquid layer — only the
+    // seabed twin (floorRing) carries the runtime override.
+    expect(capMat.opacity).toBeCloseTo(0.9, 5)
+    expect(capMat.color.getHex()).toBe(0x00ff88)
+    cursor.dispose()
   })
 
-  it('setBoardTile(null) hides every ring, the light, and disposes the column', () => {
+  it('setBoardTile(liquid) on a core window paints the FLOOR ring red as a no-floor warning', () => {
+    const ports  = makePorts({ liquid: true, isCoreWindow: true })
+    const cursor = buildHoverCursor(undefined, ports)
+    cursor.setBoardTile({ layer: 'liquid', tileId: 0 })
+    const rings = ports.group.children.filter(o => o.type === 'Mesh') as THREE.Mesh[]
+    const floorRing = rings[1]
+    const mat = floorRing.material as THREE.MeshBasicMaterial
+    // Red warning tint — same value as CORE_WINDOW_FLOOR_RING_COLOR.
+    expect(mat.color.getHex()).toBe(0xff2200)
+    cursor.dispose()
+  })
+
+  it('setBoardTile(null) hides every ring and the light', () => {
     const ports  = makePorts({ liquid: true })
     const cursor = buildHoverCursor(undefined, ports)
     cursor.setBoardTile({ layer: 'liquid', tileId: 0 })
@@ -121,8 +141,6 @@ describe('buildHoverCursor', () => {
     const light = ports.group.children.find(o => o.type === 'PointLight') as THREE.PointLight
     expect(rings.every(r => !r.visible)).toBe(true)
     expect(light.visible).toBe(false)
-    // The column is disposed entirely (removed from the group); only the
-    // pre-allocated cap + floor rings remain.
     expect(rings.length).toBe(2)
     cursor.dispose()
   })

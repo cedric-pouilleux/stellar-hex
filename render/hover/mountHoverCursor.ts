@@ -79,18 +79,16 @@ function resolvePresets(opts: MountHoverCursorOptions | undefined): {
  * after construction overrides those defaults with the preset values.
  */
 function unionPrimitives(presets: HoverCursorPresets): HoverCursorConfig {
-  const used = { ring: false, floorRing: false, emissive: false, column: false }
+  const used = { ring: false, floorRing: false, emissive: false }
   for (const cfg of Object.values(presets)) {
     if (cfg.ring      !== false) used.ring      = true
     if (cfg.floorRing !== false) used.floorRing = true
     if (cfg.emissive  !== false) used.emissive  = true
-    if (cfg.column    !== false) used.column    = true
   }
   return {
     ring:      used.ring      ? {} : false,
     floorRing: used.floorRing ? {} : false,
     emissive:  used.emissive  ? {} : false,
-    column:    used.column    ? {} : false,
   }
 }
 

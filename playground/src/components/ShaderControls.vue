@@ -34,6 +34,7 @@ function visibleKeys(keys: readonly string[]) {
 
 function isColor(def: ParamDef)  { return def.type === 'color' }
 function isSelect(def: ParamDef) { return def.type === 'select' }
+function isToggle(def: ParamDef) { return def.type === 'toggle' }
 function isSlider(def: ParamDef) { return !def.type && typeof def.default === 'number' }
 function isVec3(def: ParamDef)   { return !def.type && Array.isArray(def.default) }
 
@@ -92,6 +93,16 @@ function fmt(v: number | undefined, step?: number) {
               <option v-for="(opt, i) in selectOptions(key, defs[key])" :key="i" :value="i">{{ opt }}</option>
             </select>
             <span></span>
+          </div>
+          <!-- toggle (binary checkbox stored as 0 / 1) -->
+          <div v-else-if="isToggle(defs[key])" class="row" style="grid-template-columns: 110px 1fr auto;">
+            <label :title="key">{{ paramLabel(key) }}</label>
+            <span></span>
+            <input
+              type="checkbox"
+              :checked="(values[key] as number) > 0"
+              @change="$emit('update', key, ($event.target as HTMLInputElement).checked ? 1 : 0)"
+            />
           </div>
           <!-- vec3 (noise seed) -->
           <div v-else-if="isVec3(defs[key])" class="row" style="grid-template-columns: 110px 1fr 1fr 1fr;">

@@ -2,12 +2,13 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
+import { paintAtmoSample }    from './paintAtmoSample'
 
 /**
- * Three.js demo â€” full "playable" mode showcase.
+ * Three.js demo — full "playable" mode showcase.
  *
  *   - OrbitControls (drag/zoom) + permanent auto-rotate
- *   - 3-state view toggle: Shader / Sol (hex) / AtmosphÃ¨re (hex, core visible)
+ *   - 3-state view toggle: Shader / Sol (hex) / Atmosphère (hex, core visible)
  *   - Hover tooltip + click-to-paint a tile (in hex modes)
  */
 
@@ -81,10 +82,11 @@ onMounted(async () => {
   body.group.rotation.z = config.axialTilt
   scene.add(body.group)
   setBodyCoreVisible(body, false)
+  paintAtmoSample(body)
 
   applyMode = (m) => {
     if (m === 'shader') {
-      body.view.set('atmosphere')
+      body.view.set('shader')
       body.interactive.deactivate()
       setBodyCoreVisible(body, false)
     } else {
@@ -132,7 +134,6 @@ onMounted(async () => {
 
     orbit.update()
     body.tick(dt)
-    clouds?.tick(dt)
 
     if (pointerIn && mode.value !== 'shader') {
       raycaster.setFromCamera(pointer, camera)
@@ -165,7 +166,6 @@ onMounted(async () => {
     renderer.domElement.removeEventListener('pointerleave', onPointerLeave)
     renderer.domElement.removeEventListener('click',        onClick)
     orbit.dispose()
-    clouds?.dispose()
     body.dispose()
     renderer.dispose()
     el.removeChild(renderer.domElement)
@@ -184,10 +184,10 @@ onBeforeUnmount(() => cleanup?.())
         :style="{ left: tipPos.x + 'px', top: tipPos.y + 'px' }"
       >
         <div class="play-tip__row"><span class="k">Tile</span><span class="v">#{{ tooltip.id }}</span></div>
-        <div class="play-tip__row"><span class="k">Ã‰lÃ©v.</span><span class="v">{{ tooltip.elevation }}</span></div>
+        <div class="play-tip__row"><span class="k">Élév.</span><span class="v">{{ tooltip.elevation }}</span></div>
         <div class="play-tip__row"><span class="k">Hauteur</span><span class="v">{{ tooltip.height.toFixed(3) }}</span></div>
       </div>
-      <p v-if="mode !== 'shader'" class="play-hint">Survol = info tuile Â· Clic = peindre</p>
+      <p v-if="mode !== 'shader'" class="play-hint">Survol = info tuile · Clic = peindre</p>
     </div>
 
     <BodyViewBar :body-type="'rocky'" v-model:mode="mode" />

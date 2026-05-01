@@ -13,7 +13,9 @@ const config: BodyConfig = {
   type:           'planetary', surfaceLook: 'bands',
   name:           'Jovian',
   radius:         2,
-  rotationSpeed:  0.003,
+  // Visible spin rate for the demo — `<Body>` ticks the body via
+  // BodyController, so this directly drives the on-screen rotation.
+  rotationSpeed:  0.15,
   axialTilt:      0.05,
   hasRings:       true,
 }

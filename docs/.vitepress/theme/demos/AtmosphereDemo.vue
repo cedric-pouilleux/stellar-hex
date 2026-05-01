@@ -2,10 +2,11 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
+import { paintAtmoSample }    from './paintAtmoSample'
 
 /**
- * Three.js demo â€” rocky planet with a thick (0.7) atmosphere.
- * View toggle: Shader / Sol / AtmosphÃ¨re.
+ * Three.js demo — rocky planet with a thick (0.7) atmosphere.
+ * View toggle: Shader / Sol / Atmosphère.
  */
 
 const container = ref<HTMLDivElement>()
@@ -30,7 +31,7 @@ onMounted(async () => {
 
   const scene  = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(50, el.clientWidth / 400, 0.1, 100)
-  camera.position.set(0, 0.4, 3.6)
+  camera.position.set(0, 0.6, 4.6)
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.25))
   const sun = new THREE.DirectionalLight(0xffffff, 2.4)
@@ -41,22 +42,24 @@ onMounted(async () => {
   orbit.enableDamping = true
   orbit.autoRotate = true
   orbit.autoRotateSpeed = 0.6
-  orbit.minDistance = 1.6
-  orbit.maxDistance = 8
+  orbit.minDistance = 2.2
+  orbit.maxDistance = 10
 
   const body = useBody({
     type:                'planetary', surfaceLook: 'terrain',
     name:                'atmo-demo',
-    radius:               1,
+    radius:               1.4,
     rotationSpeed:        0,
     axialTilt:            0.2,
     reliefFlatness:       0.55,
-    atmosphereThickness:  0.7,
+    // Sol band ~80 % of the silhouette, atmosphere ~20 %.
+    atmosphereThickness:  0.2,
     liquidState:         'liquid',
     liquidColor:         '#1d4d8c',
   }, DEFAULT_TILE_SIZE)
   scene.add(body.group)
   setBodyCoreVisible(body, false)
+  paintAtmoSample(body)
 
   applyMode = (m) => {
     if (m === 'shader') { body.view.set('shader'); body.interactive.deactivate(); setBodyCoreVisible(body, false) }

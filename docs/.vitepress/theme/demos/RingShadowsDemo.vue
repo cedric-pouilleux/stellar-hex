@@ -2,10 +2,11 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
+import { paintAtmoSample }    from './paintAtmoSample'
 
 /**
- * Three.js demo â€” gas giant + rings, side-lit so the ring shadow falls
- * across the equator. View toggle: Shader / AtmosphÃ¨re.
+ * Three.js demo — gas giant + rings, side-lit so the ring shadow falls
+ * across the equator. View toggle: Shader / Atmosphère.
  */
 
 const container = ref<HTMLDivElement>()
@@ -53,9 +54,16 @@ onMounted(async () => {
     rotationSpeed:   0.003,
     axialTilt:       0.18,
     hasRings:        true,
+    // Explicit radial partition: ~20 % core, ~30 % sol band, ~50 % atmo.
+    // Without an explicit sol band, the gas backdrop renders the inner
+    // core through the smooth sphere — keep a 30 % mineable shell so the
+    // core only shows once tiles are mined down.
+    coreRadiusRatio:     0.2,
+    atmosphereThickness: 0.5,
   }, DEFAULT_TILE_SIZE)
   scene.add(body.group)
   setBodyCoreVisible(body, false)
+  paintAtmoSample(body)
 
   const planetMat = (body as any).planetMaterial?.material as THREE.ShaderMaterial | undefined
   if (planetMat?.uniforms.uRingSunWorldPos) {
@@ -80,7 +88,7 @@ onMounted(async () => {
       else {
         body.interactive.activate()
         body.view.set('atmosphere')
-      setBodyCoreVisible(body, true)
+        setBodyCoreVisible(body, true)
       }
     }
 

@@ -123,6 +123,16 @@ export interface LayeredInteractiveMesh extends InteractiveMesh {
   setVisible: (on: boolean) => void
 
   /**
+   * Forces the sol material to render with flat (light-independent)
+   * shading when enabled. Used by the playable views (`'surface'`,
+   * `'atmosphere'`) so star-driven shadows don't hide tiles on the
+   * night side of the body. PBR channels (roughness, metalness, future
+   * per-tile biome attributes) stay intact — only the directional
+   * contribution of scene lights is bypassed.
+   */
+  setFlatLighting: (enabled: boolean) => void
+
+  /**
    * Resolves the raycast target for the sol mesh — the mesh itself, with
    * its accelerated BVH. The mesh may be hidden by the view switcher;
    * the controller copies the body's `matrixWorld` onto it before each
@@ -220,7 +230,7 @@ export function buildLayeredInteractiveMesh(
   const colorBuffer = buildLayeredColorBuffer(geometry, tileRange, tileVisual)
 
   // ── Material + mesh ──────────────────────────────────────────────
-  const { solMaterial } = buildLayeredMaterials()
+  const { solMaterial, flatLighting } = buildLayeredMaterials()
   const hexMesh = new THREE.Mesh(geometry, solMaterial)
   hexMesh.renderOrder   = 0
   hexMesh.frustumCulled = false
@@ -449,6 +459,7 @@ export function buildLayeredInteractiveMesh(
     setLiquidOpacity,
     setLiquidColor,
     setVisible,
+    setFlatLighting: flatLighting.setFlatLighting,
     getRaycastState,
     getLiquidRaycastState,
     tick,

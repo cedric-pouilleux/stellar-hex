@@ -2,7 +2,7 @@
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
- * Three.js demo â€” four side-by-side gas giants showcasing distinct
+ * Three.js demo — four side-by-side gas giants showcasing distinct
  * ring archetypes. Each canvas mounts its own scene to keep the
  * demo self-contained and disposable.
  */

@@ -61,7 +61,6 @@ export type {
   HoverCursorPresets,
   HoverCursorRingConfig,
   HoverCursorEmissiveConfig,
-  HoverCursorColumnConfig,
 } from './render/types/hoverCursor.types'
 
 // ── Terrain palettes (produce THREE.Color) ───────────────────────

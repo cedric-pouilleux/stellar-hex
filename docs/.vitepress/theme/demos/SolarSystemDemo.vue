@@ -2,7 +2,7 @@
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
- * Three.js demo â€” a tiny solar system: one star + three orbiting bodies.
+ * Three.js demo — a tiny solar system: one star + three orbiting bodies.
  * Showcases caller-driven orbits (the lib has no orbital mechanics) and
  * shared lighting via a single point light at the star's position.
  */

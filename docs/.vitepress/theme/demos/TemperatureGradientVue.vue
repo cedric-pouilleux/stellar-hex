@@ -5,8 +5,8 @@ import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
- * Vue / TresJS â€” temperate body. To switch to a frozen variant, swap
- * `liquidState` to `'frozen'` and shift the temperature window below 0 Â°C.
+ * Vue / TresJS — temperate body. To switch to a frozen variant, swap
+ * `liquidState` to `'frozen'` and shift the temperature window below 0 °C.
  */
 
 const config: BodyConfig = {

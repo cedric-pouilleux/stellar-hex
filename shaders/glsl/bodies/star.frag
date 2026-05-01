@@ -10,6 +10,35 @@ uniform float uCloudAmount;
 uniform float uCloudBlend;
 uniform float uCoronaSize;
 uniform float uPulsation;
+// ── Surface palette tuning ─────────────────────────────────────────
+// Three blackbody samples drive the surface tone. *Shift* uniforms
+// scale the temperature feeding the blackbody (color hue), *Boost*
+// uniforms scale the resulting RGB (band brightness).
+uniform float uColorDarkShift;
+uniform float uColorMidShift;
+uniform float uColorBrightShift;
+uniform float uColorDarkBoost;
+uniform float uColorMidBoost;
+uniform float uColorBrightBoost;
+// ── Granulation / sunspot tuning ───────────────────────────────────
+uniform float uBoilAmount;          // amplitude of high-freq boil layer
+uniform float uSpotPenumbraShift;   // T multiplier for spot halo color
+uniform float uSpotUmbraShift;      // T multiplier for spot core color
+uniform float uSpotPenumbraBoost;   // brightness multiplier for halo
+uniform float uSpotUmbraBoost;      // brightness multiplier for core
+uniform float uCloudScale;          // base scale for sunspot domain warps
+uniform float uFilamentScale;       // scale for high-freq filament layer
+uniform float uFilamentAmount;      // strength of filament edge detail
+// ── Layer toggles (0/1 multipliers) ────────────────────────────────
+// Each toggle multiplies its layer in-place — preserves the slider
+// position when re-enabled and avoids GLSL branching.
+uniform float uBoilEnabled;
+uniform float uFilamentEnabled;
+uniform float uPenumbraEnabled;
+uniform float uUmbraEnabled;
+// ── View-dependent effects ─────────────────────────────────────────
+uniform float uLimbDarkening;       // 0 = flat, 1 = full darkening at limb
+uniform float uCoronaIntensity;     // brightness multiplier for fresnel halo
 
 uniform vec3  uLightColor;
 uniform vec3  uLightDir;
@@ -46,9 +75,9 @@ void main() {
   // dark   : visible bright red (not black) — cool zones / spots
   // mid    : saturated luminous orange
   // bright : intense yellow-orange, slightly overexposed
-  vec3 colorDark   = blackbodyColor(uTemperature * 0.55) * 0.35;
-  vec3 colorMid    = blackbodyColor(uTemperature * 0.82) * 1.10;
-  vec3 colorBright = blackbodyColor(uTemperature * 1.08) * 1.55;
+  vec3 colorDark   = blackbodyColor(uTemperature * uColorDarkShift)   * uColorDarkBoost;
+  vec3 colorMid    = blackbodyColor(uTemperature * uColorMidShift)    * uColorMidBoost;
+  vec3 colorBright = blackbodyColor(uTemperature * uColorBrightShift) * uColorBrightBoost;
 
   // ── Double domain warp (scalar FBM → vec3 via phase) ─────────
   // Single fbmV per warp level, expanded to a vec3 through sin/cos phase
@@ -67,8 +96,8 @@ void main() {
   float t = fbmV5(p + 2.2*r + uTime * vec3(0.04, 0.06, 0.02) * spd);
 
   // Granulation : haute fréquence additionnelle (échelle contrôlée)
-  float boil = fbmV3(p * (5.0 * uConvectionScale) + uTime * vec3(0.18, 0.22, 0.14) * spd) * 0.18;
-  t = clamp(t + boil, 0.0, 1.0);
+  float boil = fbmV3(p * (5.0 * uConvectionScale) + uTime * vec3(0.18, 0.22, 0.14) * spd) * uBoilAmount;
+  t = clamp(t + boil * uBoilEnabled, 0.0, 1.0);
 
   // ── Couleur de base ───────────────────────────────────────────
   float gc  = uGranulationContrast * 0.12; // resserrement des transitions
@@ -91,49 +120,54 @@ void main() {
 
     // Sin/cos phase trick: 1 fbmV per warp level → vec3 via phase shifts.
     // Saves 4 fbmV calls (12 vnoise taps), imperceptible visual difference.
-    float cq1 = fbmV3(pc * 1.4 + vec3(11.2, 3.7, 8.5) + uTime * vec3(0.10, 0.16, 0.07) * spd);
+    // `uCloudScale` scales the three warp frequencies in lockstep — keeps the
+    // 1.4 / 1.3 / 1.5 ratios that decorrelate the warp levels.
+    float cq1 = fbmV3(pc * (1.4 * uCloudScale) + vec3(11.2, 3.7, 8.5) + uTime * vec3(0.10, 0.16, 0.07) * spd);
     vec3  cq  = vec3(cq1,
                      sin(cq1 * 6.2831 + 1.3) * 0.5 + 0.5,
                      cos(cq1 * 6.2831 + 2.8) * 0.5 + 0.5);
 
-    float cr1 = fbmV3(pc * 1.3 + cq * 3.2 + vec3(3.3, 7.8, 1.6) + uTime * vec3(0.18, 0.12, 0.22) * spd);
+    float cr1 = fbmV3(pc * (1.3 * uCloudScale) + cq * 3.2 + vec3(3.3, 7.8, 1.6) + uTime * vec3(0.18, 0.12, 0.22) * spd);
     vec3  cr  = vec3(cr1,
                      sin(cr1 * 6.2831 + 3.1) * 0.5 + 0.5,
                      cos(cr1 * 6.2831 + 5.7) * 0.5 + 0.5);
 
-    float cloud = fbmV5(pc * 1.5 + cr * 3.6 + uTime * vec3(0.07, 0.11, 0.05) * spd);
+    float cloud = fbmV5(pc * (1.5 * uCloudScale) + cr * 3.6 + uTime * vec3(0.07, 0.11, 0.05) * spd);
 
     // High-frequency filament layer — breaks up blocky edges with fibrous detail
     // reminiscent of sunspot penumbra structure. Modulated by the coarse cloud
     // so it only affects regions near the spot.
-    float filament = fbmV3(pc * 7.0 + cr * 1.2 + uTime * vec3(0.22, 0.17, 0.28) * spd);
+    float filament = fbmV3(pc * uFilamentScale + cr * 1.2 + uTime * vec3(0.22, 0.17, 0.28) * spd);
     float edgeBand = smoothstep(0.32, 0.55, cloud) * (1.0 - smoothstep(0.55, 0.80, cloud));
-    cloud = cloud + (filament - 0.35) * 0.22 * edgeBand;
+    cloud = cloud + (filament - 0.35) * uFilamentAmount * edgeBand * uFilamentEnabled;
 
     // Two-level mask: soft penumbra (wide halo) + hard umbra (dark core).
     // Gives spots a realistic falloff instead of a single hard step.
     float penumbra = smoothstep(0.38, 0.58, cloud);
     float umbra    = pow(smoothstep(0.55, 0.74, cloud), 1.6);
 
-    vec3 colorPenumbra = blackbodyColor(uTemperature * 0.62) * 0.55;
-    vec3 colorUmbra    = blackbodyColor(uTemperature * 0.42) * 0.20;
+    vec3 colorPenumbra = blackbodyColor(uTemperature * uSpotPenumbraShift) * uSpotPenumbraBoost;
+    vec3 colorUmbra    = blackbodyColor(uTemperature * uSpotUmbraShift)    * uSpotUmbraBoost;
 
-    col = applyBlend(col, colorPenumbra, penumbra * uCloudAmount,         uCloudBlend);
-    col = applyBlend(col, colorUmbra,    umbra    * uCloudAmount * 0.95,  uCloudBlend);
+    col = applyBlend(col, colorPenumbra, penumbra * uCloudAmount * uPenumbraEnabled,        uCloudBlend);
+    col = applyBlend(col, colorUmbra,    umbra    * uCloudAmount * 0.95 * uUmbraEnabled,    uCloudBlend);
   }
 
   // Vertex color tint
   col *= vVertexColor;
 
   // ── Assombrissement au limbe ──────────────────────────────────
+  // `uLimbDarkening` ∈ [0, 1] sets how dark the limb gets: 0 leaves the
+  // disc flat-lit, 1 collapses limb brightness toward zero (default 0.85
+  // matches the legacy `mix(0.15, 1.0, …)` curve).
   float NdotV    = max(0.0, dot(normalize(vWorldNormal), normalize(vViewDir)));
-  float limbDark = mix(0.15, 1.0, pow(NdotV, 0.5));
+  float limbDark = mix(1.0 - uLimbDarkening, 1.0, pow(NdotV, 0.5));
   col *= limbDark;
 
   // ── Corona ────────────────────────────────────────────────────
   vec3  starColor = blackbodyColor(uTemperature);
   float rim       = pow(1.0 - NdotV, mix(8.0, 3.0, uCoronaSize * 2.0));
-  vec3  corona    = starColor * rim * uCoronaSize * 3.5;
+  vec3  corona    = starColor * rim * uCoronaSize * uCoronaIntensity;
 
   // ── Pulsation ─────────────────────────────────────────────────
   // Multi-fréquences + harmoniques pour une pulsation organique

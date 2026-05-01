@@ -28,7 +28,7 @@ Drag pour orbiter, scroll pour zoomer. Active **« Mode hex »** pour basculer l
 | `body.interactive.activate()`         | Swap smooth → hex mesh + active raycast |
 | `body.interactive.deactivate()`       | Retour au smooth mesh (le hex reste en mémoire) |
 | `body.interactive.queryHover(raycaster)` | `BoardTileRef \| null` — `{ layer: 'sol' \| 'liquid' \| 'atmo', tileId }` sous le rayon |
-| `body.hover.setBoardTile(ref)`        | Dispatch hover sur le bon layer (ring + emissive + column si liquid) |
+| `body.hover.setBoardTile(ref)`        | Dispatch hover sur le bon layer (ring + floorRing en liquid + emissive sur liquid/atmo) |
 | `body.hover.useCursor(name)`          | Switch entre presets de curseur enregistrés au build |
 | `body.hover.updateCursor(partial)`    | Mutation live des params (couleur, opacité, intensité) |
 | `body.view.set('surface'|'atmosphere')` | Toggle terrain / vue atmosphère |
@@ -37,7 +37,7 @@ Drag pour orbiter, scroll pour zoomer. Active **« Mode hex »** pour basculer l
 | `body.liquid.setVisible(true|false)`  | Cache/montre l'océan |
 
 ::: tip Curseur de survol
-La lib gère **ring + emissive + column** automatiquement à partir du dispatch `setBoardTile`. Pour personnaliser couleur / taille / presets, voir le [guide dédié](/guides/hover-cursor).
+La lib gère **ring + floorRing + emissive** automatiquement à partir du dispatch `setBoardTile`. Sur sol l'emissive est désactivé (terrain flat-lit) ; sur liquid le floorRing est dimmé à `opacity 0.20` et tinté en rouge si le sol sous-jacent est miné jusqu'au noyau. Pour personnaliser couleur / taille / presets, voir le [guide dédié](/guides/hover-cursor).
 :::
 
 Les namespaces `view`, `liquid` et la version étendue de `tiles` (incl. `applyTileOverlay`, `updateTileSolHeight`, …) ne sont présents que sur **`PlanetBody`** (`kind: 'planet'`). Sur une étoile (`StarBody`), TS rejette directement ces accès — narrow le union avant : `if (body.kind === 'planet') { body.view.set(...) }`.
@@ -48,9 +48,9 @@ Les namespaces `view`, `liquid` et la version étendue de `tiles` (incl. `applyT
 const body = useBody(config, DEFAULT_TILE_SIZE, {
   // Optionnel — déclare ici les presets de curseur que tu veux activer en jeu
   hoverCursors: {
-    default: { ring: { color: 0xffffff }, column: { color: 0xffffff } },
+    default: { ring: { color: 0xffffff } },
     attack:  { ring: { color: 0xff2244 }, emissive: { color: 0xff4400, intensity: 3 } },
-    build:   { ring: { color: 0x00ff88 }, column: { color: 0x00ff88 } },
+    build:   { ring: { color: 0x00ff88 } },
   },
 })
 scene.add(body.group)
@@ -152,6 +152,12 @@ Ce que fait `body.view.set('atmosphere')` côté lib :
 3. Le noyau (`buildCoreMesh`) reste visible à `radius × coreRadiusRatio` — utile en gameplay pour visualiser jusqu'où on peut creuser.
 
 Adapté à : visualisation de coupe géologique, vue interne pendant excavation, prévisualisation de la composition du noyau.
+
+### Éclairage uniforme sur les boards jouables
+
+Sol mesh et atmo board sont rendus avec un **flat lighting** activé par défaut : la composante directionnelle de la `PointLight` étoile est court-circuitée, chaque tuile reçoit la même intensité où qu'elle soit sur la sphère. Aucune face ne tombe dans l'ombre du terminator — toute la surface reste lisible et cliquable, condition indispensable d'un mode jouable.
+
+Le PBR (`roughness`, `metalness`, `emissive`) reste exposé sur le matériau, donc l'ajout futur de biomes par tuile (glace brillante, désert mat, lave émissive) s'accommode de ce mode. La vue `'shader'` (système solaire) garde son terminator étoile classique — le flat lighting ne s'applique qu'aux boards jouables, pas à la smooth sphere.
 
 ## Lien avec la simulation
 

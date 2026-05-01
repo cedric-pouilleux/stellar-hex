@@ -2,10 +2,11 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
+import { paintAtmoSample }    from './paintAtmoSample'
 
 /**
- * Three.js demo â€” gas giant with banded atmosphere, jet streams and
- * procedural rings. View toggle: Shader / AtmosphÃ¨re.
+ * Three.js demo — gas giant with banded atmosphere, jet streams and
+ * procedural rings. View toggle: Shader / Atmosphère.
  */
 
 const container = ref<HTMLDivElement>()
@@ -51,16 +52,26 @@ onMounted(async () => {
     rotationSpeed:   0,
     axialTilt:       0.05,
     hasRings:        true,
+    // Explicit radial partition: ~20 % core, ~30 % sol band, ~50 % atmo.
+    // The sol band is what visually hides the inner core when no tile
+    // has been mined down — without it the core sphere shows through
+    // the atmo backdrop on the gas giant.
+    coreRadiusRatio:     0.2,
+    atmosphereThickness: 0.5,
   }, DEFAULT_TILE_SIZE)
   scene.add(body.group)
   setBodyCoreVisible(body, false)
+  paintAtmoSample(body)
 
   applyMode = (m) => {
     if (m === 'shader') { body.view.set('shader'); body.interactive.deactivate(); setBodyCoreVisible(body, false) }
     else {
       body.interactive.activate()
-      body.view.set('atmosphere')
-      setBodyCoreVisible(body, true)
+      body.view.set(m === 'atmo' ? 'atmosphere' : 'surface')
+      // `sol` view exposes the inner core through the playable hex
+      // shell — useful here to visualise the rocky core sitting under
+      // the gas envelope. Atmo view hides it again.
+      setBodyCoreVisible(body, m === 'sol')
     }
   }
 

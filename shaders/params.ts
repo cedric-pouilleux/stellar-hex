@@ -31,7 +31,17 @@ export type LibBodyType = 'rocky' | 'gaseous' | 'metallic' | 'star'
  * label of their choosing.
  */
 export interface ParamDef {
-  type?:    'color' | 'select'
+  /**
+   * Editor widget hint:
+   *   - `'color'`  → hex picker (default is `'#rrggbb'`)
+   *   - `'select'` → enum dropdown (default is the index, requires `optionCount`)
+   *   - `'toggle'` → checkbox storing `0` or `1`. The shader uniform stays a
+   *                  float so it can multiply into a layer expression with
+   *                  no GLSL branching cost.
+   *   - omitted    → numeric slider (`default` is a number, `min`/`max`/`step`
+   *                  drive the bounds)
+   */
+  type?:    'color' | 'select' | 'toggle'
   min?:     number
   max?:     number
   step?:    number
@@ -174,11 +184,35 @@ export const BODY_PARAMS: BodyParamsMap = {
     seed:                { ...R.star.seed,                default: 1 },
     temperature:         { ...R.star.temperature,         default: 5778 },
     animSpeed:           { ...R.star.animSpeed,           default: 1.0 },
+    // Surface palette — three blackbody samples shaped by `*Shift` (hue,
+    // via temperature factor) and `*Boost` (RGB brightness multiplier).
+    colorDarkShift:      { ...R.star.colorDarkShift,      default: 0.55 },
+    colorMidShift:       { ...R.star.colorMidShift,       default: 0.82 },
+    colorBrightShift:    { ...R.star.colorBrightShift,    default: 1.08 },
+    colorDarkBoost:      { ...R.star.colorDarkBoost,      default: 0.35 },
+    colorMidBoost:       { ...R.star.colorMidBoost,       default: 1.10 },
+    colorBrightBoost:    { ...R.star.colorBrightBoost,    default: 1.55 },
+    // Granulation / sunspots
     convectionScale:     { ...R.star.convectionScale,     default: 1.5 },
     granulationContrast: { ...R.star.granulationContrast, default: 0.65 },
+    boilEnabled:         { type: 'toggle',                default: 1 },
+    boilAmount:          { ...R.star.boilAmount,          default: 0.18 },
     cloudAmount:         { ...R.star.cloudAmount,         default: 0.55 },
     cloudBlend:          { type: 'select', optionCount: 5, default: 2 },
+    cloudScale:          { ...R.star.cloudScale,          default: 1.0 },
+    filamentEnabled:     { type: 'toggle',                default: 1 },
+    filamentScale:       { ...R.star.filamentScale,       default: 7.0 },
+    filamentAmount:      { ...R.star.filamentAmount,      default: 0.22 },
+    penumbraEnabled:     { type: 'toggle',                default: 1 },
+    spotPenumbraShift:   { ...R.star.spotPenumbraShift,   default: 0.62 },
+    spotPenumbraBoost:   { ...R.star.spotPenumbraBoost,   default: 0.55 },
+    umbraEnabled:        { type: 'toggle',                default: 1 },
+    spotUmbraShift:      { ...R.star.spotUmbraShift,      default: 0.42 },
+    spotUmbraBoost:      { ...R.star.spotUmbraBoost,      default: 0.20 },
+    // View-dependent effects
+    limbDarkening:       { ...R.star.limbDarkening,       default: 0.85 },
     coronaSize:          { ...R.star.coronaSize,          default: 0.15 },
+    coronaIntensity:     { ...R.star.coronaIntensity,     default: 3.5 },
     pulsation:           { ...R.star.pulsation,           default: 0.3 },
   },
 }

@@ -85,24 +85,26 @@ describe('mountHoverCursor', () => {
 
   it('union allocates every primitive used by any preset', () => {
     const ports = makePorts()
-    // `peace` doesn't mention column. `build` does. The union builds the
-    // column resource so `useCursor('build')` can show it.
+    // `peace` opts the floor ring out; `inspect` opts it in. The union
+    // builds the floor ring resource so `useCursor('inspect')` shows it.
     const m = mountHoverCursor({
       hoverCursors: {
-        peace: { column: false },
-        build: { column: { color: 0x00ff00 } },
+        peace:   { floorRing: false },
+        inspect: { floorRing: { color: 0x00ff00 } },
       },
     }, ports)
 
-    // Switch to `build` and trigger a liquid hover — column should mount.
-    m.cursor.setBoardTile({ layer: 'liquid', tileId: 0 })
+    // Both rings are pre-allocated even though `peace` opted out — the
+    // visibility is just driven down by the active preset.
     let meshes = ports.group.children.filter(o => o.type === 'Mesh')
-    expect(meshes.length).toBe(2) // 2 rings, no column (peace is active by default)
+    expect(meshes.length).toBe(2)
 
-    m.useCursor('build')
-    m.cursor.refresh()
-    meshes = ports.group.children.filter(o => o.type === 'Mesh')
-    expect(meshes.length).toBe(3) // 2 rings + column
+    // Switch presets and trigger a liquid hover — the floor ring shows.
+    m.useCursor('inspect')
+    m.cursor.setBoardTile({ layer: 'liquid', tileId: 0 })
+    meshes = ports.group.children.filter(o => o.type === 'Mesh') as THREE.Mesh[]
+    const visible = meshes.filter(o => (o as THREE.Mesh).visible)
+    expect(visible.length).toBe(2) // cap + floor twin both visible on liquid
   })
 
   it('useCursor throws on unknown preset names', () => {

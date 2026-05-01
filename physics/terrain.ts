@@ -12,8 +12,13 @@
  * All bodies derive their subdivision count from this value via
  * `tileSizeToSubdivisions(radius, DEFAULT_TILE_SIZE)`, ensuring every tile
  * across stars, planets and moons has the same surface footprint.
+ *
+ * `0.05` is the recommended default for a single body in close-up view
+ * (~5 000 tiles on a unit-radius body). For multi-body system views,
+ * pass a larger value (e.g. `0.10` for 1 250 tiles) to keep the hex
+ * count low on background bodies — see the performance guide.
  */
-export const DEFAULT_TILE_SIZE = 0.15
+export const DEFAULT_TILE_SIZE = 0.05
 
 // ── Terrain elevation staircase (rocky planets) ──────────────────────────────
 

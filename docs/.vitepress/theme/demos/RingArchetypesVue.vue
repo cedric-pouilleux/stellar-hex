@@ -5,7 +5,7 @@ import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**
- * Vue / TresJS â€” single gas giant whose ring archetype is overridden
+ * Vue / TresJS — single gas giant whose ring archetype is overridden
  * before mounting the body. Swap `archetype` to switch the look.
  */
 

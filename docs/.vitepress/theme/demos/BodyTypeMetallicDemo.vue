@@ -4,8 +4,8 @@ import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
 
 /**
- * Three.js demo â€” metallic planet with PBR surface, thermal cracks and
- * active lava veins. View toggle: Shader / Sol / AtmosphÃ¨re.
+ * Three.js demo — metallic planet with PBR surface, thermal cracks and
+ * active lava veins. View toggle: Shader / Sol / Atmosphère.
  */
 
 const container = ref<HTMLDivElement>()
@@ -30,7 +30,7 @@ onMounted(async () => {
 
   const scene  = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(50, el.clientWidth / 400, 0.1, 100)
-  camera.position.set(0, 0.4, 3.5)
+  camera.position.set(0, 0.6, 4.6)
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.1))
   const sun = new THREE.DirectionalLight(0xffffff, 3.0)
@@ -41,15 +41,20 @@ onMounted(async () => {
   orbit.enableDamping = true
   orbit.autoRotate = true
   orbit.autoRotateSpeed = 0.6
-  orbit.minDistance = 1.6
-  orbit.maxDistance = 8
+  orbit.minDistance = 2.2
+  orbit.maxDistance = 10
 
   const config = {
-    type:           'planetary', surfaceLook: 'metallic' as const,
-    name:           'metallic-body-demo',
-    radius:          1,
-    rotationSpeed:   0,
-    axialTilt:       0.15,
+    type:            'planetary', surfaceLook: 'metallic' as const,
+    name:            'metallic-body-demo',
+    radius:           1.4,
+    rotationSpeed:    0,
+    axialTilt:        0.15,
+    // Shallow molten ocean — lava-fed magma sea on a metallic crust.
+    // Coverage stays low so the playable metal surface dominates the read.
+    liquidState:     'liquid' as const,
+    liquidCoverage:   0.30,
+    liquidColor:     '#ff4015',
   }
   const variation = generateBodyVariation(config)
   variation.crackIntensity = 0.5
