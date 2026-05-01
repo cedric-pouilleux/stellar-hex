@@ -1,0 +1,22 @@
+# Force LF line endings in the working tree on every OS.
+# Without this, Git on Windows converts LF (in the repo) → CRLF (on
+# checkout), and any edit that re-writes the file as LF triggers a
+# "LF will be replaced by CRLF" warning. Pinning text files to LF
+# matches the repo's stored line endings and keeps diffs clean across
+# Linux / macOS / Windows / WSL.
+* text=auto eol=lf
+
+# Binary files — never normalised, always exact byte-for-byte.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.gz   binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
