@@ -41,7 +41,7 @@ const tabs = [
 Le seed pousse un archétype par défaut, mais vous pouvez l'override :
 
 ```ts
-import { ARCHETYPE_PROFILES } from '@cedric-pouilleux/stellar-hex/core'
+import { ARCHETYPE_PROFILES } from '@cedric-pouilleux/stellex-js/core'
 
 const body = useBody(config, DEFAULT_TILE_SIZE)
 
@@ -62,7 +62,7 @@ L'override doit être fait **avant** que `<Body>` ne mount le ring (i.e. dans le
 Chaque archétype expose `Profile8` — un tuple de 8 floats `[0..1]` interpolés du bord intérieur (`t=0`) au bord extérieur (`t=1`) :
 
 ```ts
-import { ARCHETYPE_PROFILES } from '@cedric-pouilleux/stellar-hex/core'
+import { ARCHETYPE_PROFILES } from '@cedric-pouilleux/stellex-js/core'
 
 ARCHETYPE_PROFILES.broad
 // [0.05, 0.45, 0.85, 0.95, 0.95, 0.85, 0.5, 0.1]

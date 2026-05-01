@@ -4,7 +4,7 @@ import {
   useBody,
   DEFAULT_TILE_SIZE,
   buildBodyRings,
-} from '@cedric-pouilleux/stellar-hex/core'
+} from '@cedric-pouilleux/stellex-js/core'
 
 const scene = new THREE.Scene()
 const sun = new THREE.DirectionalLight(0xffffff, 2)

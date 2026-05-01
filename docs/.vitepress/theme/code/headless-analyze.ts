@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Snippet â€” analyse per-tile state offline (CSV export, biome statsâ€¦).
  */
 export const headlessAnalyzeCode = `import {
@@ -6,7 +6,7 @@ export const headlessAnalyzeCode = `import {
   initBodySimulation,
   buildNeighborMap,
   getNeighbors,
-} from '@cedric-pouilleux/stellar-hex/sim'
+} from '@cedric-pouilleux/stellex-js/sim'
 
 const { tiles } = generateHexasphere(1, 5)
 const sim       = initBodySimulation(tiles, {

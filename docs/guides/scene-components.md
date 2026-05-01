@@ -4,9 +4,9 @@
 
 | Composant | Rôle | Source |
 | --------- | ---- | ------ |
-| `<BodyController>` | Animation interne (rotation propre + `axialTilt` + `dragQuat`) et `pose.position` | [scene/BodyController.vue](https://github.com/cedric-pouilleux/stellar-hex/blob/main/scene/BodyController.vue) |
-| `<TileCenterProjector>` | Projection 3D → écran (CSS px) du centre d'une tuile survolée | [scene/TileCenterProjector.vue](https://github.com/cedric-pouilleux/stellar-hex/blob/main/scene/TileCenterProjector.vue) |
-| `<ShadowUpdater>` | Sync de la position monde du caster d'ombre dans l'uniform `uShadowPos` du parent | [scene/ShadowUpdater.vue](https://github.com/cedric-pouilleux/stellar-hex/blob/main/scene/ShadowUpdater.vue) |
+| `<BodyController>` | Animation interne (rotation propre + `axialTilt` + `dragQuat`) et `pose.position` | [scene/BodyController.vue](https://github.com/cedric-pouilleux/stellex-js/blob/main/scene/BodyController.vue) |
+| `<TileCenterProjector>` | Projection 3D → écran (CSS px) du centre d'une tuile survolée | [scene/TileCenterProjector.vue](https://github.com/cedric-pouilleux/stellex-js/blob/main/scene/TileCenterProjector.vue) |
+| `<ShadowUpdater>` | Sync de la position monde du caster d'ombre dans l'uniform `uShadowPos` du parent | [scene/ShadowUpdater.vue](https://github.com/cedric-pouilleux/stellex-js/blob/main/scene/ShadowUpdater.vue) |
 
 `<Body>` les mount automatiquement aux bons moments — vous n'avez à les manipuler directement que quand vous sortez de ce périmètre (HUD, multi-corps custom, scènes scriptées).
 
@@ -33,7 +33,7 @@ L'accumulateur qui transforme `rotationSpeed` + `axialTilt` en quaternion, plus 
 
 ### Pourquoi position et pas rotation autoritaire ?
 
-La doctrine est explicite ([scene/BodyController.vue](https://github.com/cedric-pouilleux/stellar-hex/blob/main/scene/BodyController.vue)) : la rotation est **toujours cosmétique** dans cette lib, parce qu'aucun gameplay ne s'appuie sur la rotation propre d'un corps. Pousser un quaternion serveur serait un footgun : la lib n'a pas de stratégie d'interpolation, ce qui rendrait le rendu saccadé sous jitter réseau.
+La doctrine est explicite ([scene/BodyController.vue](https://github.com/cedric-pouilleux/stellex-js/blob/main/scene/BodyController.vue)) : la rotation est **toujours cosmétique** dans cette lib, parce qu'aucun gameplay ne s'appuie sur la rotation propre d'un corps. Pousser un quaternion serveur serait un footgun : la lib n'a pas de stratégie d'interpolation, ce qui rendrait le rendu saccadé sous jitter réseau.
 
 La position, elle, est piloté par le caller — orbites, formations, scripted paths, snapshots serveur. La lib est volontairement neutre sur où le corps doit être, pas sur où il regarde.
 
@@ -42,7 +42,7 @@ La position, elle, est piloté par le caller — orbites, formations, scripted p
 ```vue
 <script setup lang="ts">
 import { TresCanvas } from '@tresjs/core'
-import { useBody, BodyController, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellar-hex'
+import { useBody, BodyController, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellex-js'
 import { ref } from 'vue'
 import * as THREE from 'three'
 
@@ -76,7 +76,7 @@ La projection 3D → écran tourne à chaque frame (la planète tourne, le HTML 
 
 ### Le `HoverChannel` — pourquoi c'est externe
 
-Chaque body porte son propre `HoverChannel` ([render/state/hoverState.ts](https://github.com/cedric-pouilleux/stellar-hex/blob/main/render/state/hoverState.ts)) que `useBody` crée par défaut. Le channel publie deux refs : la position locale du centre de la tuile + le groupe parent dont la `matrixWorld` la transforme en monde.
+Chaque body porte son propre `HoverChannel` ([render/state/hoverState.ts](https://github.com/cedric-pouilleux/stellex-js/blob/main/render/state/hoverState.ts)) que `useBody` crée par défaut. Le channel publie deux refs : la position locale du centre de la tuile + le groupe parent dont la `matrixWorld` la transforme en monde.
 
 Cette séparation permet :
 
@@ -96,7 +96,7 @@ Cette séparation permet :
 <script setup lang="ts">
 import { ref } from 'vue'
 import { TresCanvas } from '@tresjs/core'
-import { useBody, Body, TileCenterProjector, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellar-hex'
+import { useBody, Body, TileCenterProjector, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellex-js'
 
 const body = useBody(config, DEFAULT_TILE_SIZE)
 const tooltipPos = ref<{ x: number; y: number } | null>(null)
@@ -151,7 +151,7 @@ Limites :
 
 ```vue
 <script setup lang="ts">
-import { ShadowUpdater } from '@cedric-pouilleux/stellar-hex'
+import { ShadowUpdater } from '@cedric-pouilleux/stellex-js'
 const moon  = useBody(moonConfig,  DEFAULT_TILE_SIZE)
 const earth = useBody(earthConfig, DEFAULT_TILE_SIZE)
 </script>
@@ -174,7 +174,7 @@ const earth = useBody(earthConfig, DEFAULT_TILE_SIZE)
 `<BodyController>` consomme implicitement la `useLoop` TresJS. Pour un scénario **headless ou avec un autre clock** (replay UI, server tick), passez par `createBodyMotion` directement :
 
 ```ts
-import { createBodyMotion } from '@cedric-pouilleux/stellar-hex/core'
+import { createBodyMotion } from '@cedric-pouilleux/stellex-js/core'
 
 const motion = createBodyMotion({
   rotationSpeed: config.rotationSpeed,

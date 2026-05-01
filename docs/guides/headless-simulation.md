@@ -6,7 +6,7 @@ Quand vous n'avez besoin que de la **couche de données déterministe** — él�
 import {
   generateHexasphere,
   initBodySimulation,
-} from '@cedric-pouilleux/stellar-hex/sim'
+} from '@cedric-pouilleux/stellex-js/sim'
 
 const { tiles } = generateHexasphere(1, 5) // rayon=1, subdivisions=5
 const sim = initBodySimulation(tiles, {
@@ -80,7 +80,7 @@ Le frontend reconstruit géométrie et matériaux à partir du **même seed** : 
 
 ```ts
 // Côté serveur (Node.js)
-import { initBodySimulation, generateHexasphere } from '@cedric-pouilleux/stellar-hex/sim'
+import { initBodySimulation, generateHexasphere } from '@cedric-pouilleux/stellex-js/sim'
 
 const { tiles } = generateHexasphere(1, 6)
 const sim       = initBodySimulation(tiles, config)
@@ -88,7 +88,7 @@ const sim       = initBodySimulation(tiles, config)
 return { config, snapshot: serializeSim(sim) }
 
 // Côté client (Vue + TresJS)
-import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellar-hex'
+import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellex-js'
 
 const body = useBody(config, DEFAULT_TILE_SIZE)
 // body.sim a les mêmes valeurs que `snapshot` — déterministe.
@@ -97,7 +97,7 @@ const body = useBody(config, DEFAULT_TILE_SIZE)
 ## Voisinage et BFS
 
 ```ts
-import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellar-hex/sim'
+import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellex-js/sim'
 
 const map = buildNeighborMap(tiles)
 const visited = new Set<number>()

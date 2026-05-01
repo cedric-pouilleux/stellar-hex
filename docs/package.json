@@ -1,9 +1,9 @@
 {
-  "name": "@cedric-pouilleux/stellar-hex-docs",
+  "name": "@cedric-pouilleux/stellex-js-docs",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Documentation site for @cedric-pouilleux/stellar-hex.",
+  "description": "Documentation site for @cedric-pouilleux/stellex-js.",
   "scripts": {
     "api":     "typedoc --options ../typedoc.json",
     "dev":     "npm run api && vitepress dev .",

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import BodyViewBar, { type ViewMode } from './BodyViewBar.vue'
 import { setBodyCoreVisible } from './bodyCoreVisibility'
@@ -24,7 +24,7 @@ onMounted(async () => {
   const [THREE, { OrbitControls }, { useBody, generateBodyVariation, DEFAULT_TILE_SIZE }] = await Promise.all([
     import('three'),
     import('three/examples/jsm/controls/OrbitControls.js'),
-    import('@cedric-pouilleux/stellar-hex/core'),
+    import('@cedric-pouilleux/stellex-js/core'),
   ])
 
   const el = container.value!

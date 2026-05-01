@@ -5,7 +5,7 @@ import { templateCompilerOptions } from '@tresjs/core'
 import typedocSidebar from '../api/typedoc-sidebar.json' with { type: 'json' }
 
 /**
- * VitePress configuration for the `@cedric-pouilleux/stellar-hex` docs.
+ * VitePress configuration for the `@cedric-pouilleux/stellex-js` docs.
  *
  * Three top-level sections:
  * - Guides: hand-written conceptual + how-to material (FR).
@@ -22,18 +22,18 @@ export default defineConfig({
   vite: {
     resolve: {
       alias: {
-        '@cedric-pouilleux/stellar-hex/sim':  path.resolve(root, 'sim.ts'),
-        '@cedric-pouilleux/stellar-hex/core': path.resolve(root, 'core.ts'),
-        '@cedric-pouilleux/stellar-hex':      path.resolve(root, 'index.ts'),
+        '@cedric-pouilleux/stellex-js/sim':  path.resolve(root, 'sim.ts'),
+        '@cedric-pouilleux/stellex-js/core': path.resolve(root, 'core.ts'),
+        '@cedric-pouilleux/stellex-js':      path.resolve(root, 'index.ts'),
       },
     },
   },
 
-  title:       'Stellar Hex',
+  title:       'StellexJS',
   description: 'Générateur procédural de corps stellaires — géométrie, physique, simulation et rendu pour Three.js et Vue 3.',
   cleanUrls:   true,
   lastUpdated: true,
-  base:        '/stellar-hex/',
+  base:        '/stellex-js/',
 
   themeConfig: {
     nav: [
@@ -45,7 +45,7 @@ export default defineConfig({
       { text: 'Playground', link: '/playground/', target: '_self' },
       {
         text: 'GitHub',
-        link: 'https://github.com/cedric-pouilleux/stellar-hex',
+        link: 'https://github.com/cedric-pouilleux/stellex-js',
       },
     ],
 
@@ -170,7 +170,7 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/cedric-pouilleux/stellar-hex' },
+      { icon: 'github', link: 'https://github.com/cedric-pouilleux/stellex-js' },
     ],
 
     search: { provider: 'local' },

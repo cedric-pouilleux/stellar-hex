@@ -1,6 +1,6 @@
-# @cedric-pouilleux/stellar-hex
+# @cedric-pouilleux/stellex-js
 
-[Docs](https://cedric-pouilleux.github.io/stellar-hex/) · [Playground](https://cedric-pouilleux.github.io/stellar-hex/playground/) · [API](https://cedric-pouilleux.github.io/stellar-hex/api/) · [npm](https://www.npmjs.com/package/@cedric-pouilleux/stellar-hex) · [GitHub](https://github.com/cedric-pouilleux/stellar-hex) · [Issues](https://github.com/cedric-pouilleux/stellar-hex/issues)
+[Docs](https://cedric-pouilleux.github.io/stellex-js/) · [Playground](https://cedric-pouilleux.github.io/stellex-js/playground/) · [API](https://cedric-pouilleux.github.io/stellex-js/api/) · [npm](https://www.npmjs.com/package/@cedric-pouilleux/stellex-js) · [GitHub](https://github.com/cedric-pouilleux/stellex-js) · [Issues](https://github.com/cedric-pouilleux/stellex-js/issues)
 
 Procedural celestial body — geometry, physics, simulation and rendering for Three.js and Vue 3.
 
@@ -9,7 +9,7 @@ Generates rocky planets, gas giants, metallic worlds and stars on a hexasphere, 
 ## Install
 
 ```sh
-npm install @cedric-pouilleux/stellar-hex three simplex-noise
+npm install @cedric-pouilleux/stellex-js three simplex-noise
 # Optional (only for the Vue / TresJS surface):
 npm install vue @tresjs/core
 ```
@@ -28,14 +28,14 @@ Peer dependencies:
 The package exposes three entry points of increasing scope:
 
 ```ts
-import { initBodySimulation, generateHexasphere } from '@cedric-pouilleux/stellar-hex/sim'
-import { useBody, BodyMaterial }                  from '@cedric-pouilleux/stellar-hex/core'
-import { Body, BodyRings, ShadowUpdater }         from '@cedric-pouilleux/stellar-hex'
+import { initBodySimulation, generateHexasphere } from '@cedric-pouilleux/stellex-js/sim'
+import { useBody, BodyMaterial }                  from '@cedric-pouilleux/stellex-js/core'
+import { Body, BodyRings, ShadowUpdater }         from '@cedric-pouilleux/stellex-js'
 ```
 
-- **`@cedric-pouilleux/stellar-hex/sim`** — pure data & physics layer. No Three.js or Vue dependency, runtime or types; runs in workers, Node or any environment that can execute ES modules. Use for servers, CLIs, or deterministic tests.
-- **`@cedric-pouilleux/stellar-hex/core`** — adds the Three.js render layer (shaders, meshes, materials, raycasting). No Vue dependency — drop into a vanilla Three.js scene.
-- **`@cedric-pouilleux/stellar-hex`** — full Vue/TresJS component surface (`<Body>`, `<BodyController>`, `<BodyRings>`, `<BodyWarmup>`, `<ShadowUpdater>`, `<TileCenterProjector>`).
+- **`@cedric-pouilleux/stellex-js/sim`** — pure data & physics layer. No Three.js or Vue dependency, runtime or types; runs in workers, Node or any environment that can execute ES modules. Use for servers, CLIs, or deterministic tests.
+- **`@cedric-pouilleux/stellex-js/core`** — adds the Three.js render layer (shaders, meshes, materials, raycasting). No Vue dependency — drop into a vanilla Three.js scene.
+- **`@cedric-pouilleux/stellex-js`** — full Vue/TresJS component surface (`<Body>`, `<BodyController>`, `<BodyRings>`, `<BodyWarmup>`, `<ShadowUpdater>`, `<TileCenterProjector>`).
 
 ## Quick start (headless)
 
@@ -43,7 +43,7 @@ import { Body, BodyRings, ShadowUpdater }         from '@cedric-pouilleux/stella
 import {
   generateHexasphere,
   initBodySimulation,
-} from '@cedric-pouilleux/stellar-hex/sim'
+} from '@cedric-pouilleux/stellex-js/sim'
 
 const { tiles } = generateHexasphere(3, 8) // radius, subdivisions
 const sim = initBodySimulation(tiles, {
@@ -65,7 +65,7 @@ for (const [tileId, state] of sim.tileStates) {
 
 ```ts
 import * as THREE from 'three'
-import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellar-hex/core'
+import { useBody, DEFAULT_TILE_SIZE } from '@cedric-pouilleux/stellex-js/core'
 
 const body = useBody(
   {
@@ -170,36 +170,36 @@ Every generation step is seeded from `BodyConfig.name` — no raw `Math.random()
 
 ## Documentation
 
-The full doc site lives at <https://cedric-pouilleux.github.io/stellar-hex/> — the
+The full doc site lives at <https://cedric-pouilleux.github.io/stellex-js/> — the
 guides below are the recommended entry points by use case.
 
 **Get started**
 
-- [Démarrer](https://cedric-pouilleux.github.io/stellar-hex/guides/getting-started) — installation + Hello World
-- [Concepts fondamentaux](https://cedric-pouilleux.github.io/stellar-hex/guides/core-concepts) — invariants, taxonomy, view modes, deterministic seeding
+- [Démarrer](https://cedric-pouilleux.github.io/stellex-js/guides/getting-started) — installation + Hello World
+- [Concepts fondamentaux](https://cedric-pouilleux.github.io/stellex-js/guides/core-concepts) — invariants, taxonomy, view modes, deterministic seeding
 
 **Wire it into your stack**
 
-- [Three.js (vanilla)](https://cedric-pouilleux.github.io/stellar-hex/guides/threejs-integration) — handle reference + `useBody` options
-- [Vue 3 + TresJS](https://cedric-pouilleux.github.io/stellar-hex/guides/vue-integration) — `<Body>` and friends
-- [Headless / server](https://cedric-pouilleux.github.io/stellar-hex/guides/headless-simulation) — Node, workers, CLIs without WebGL
+- [Three.js (vanilla)](https://cedric-pouilleux.github.io/stellex-js/guides/threejs-integration) — handle reference + `useBody` options
+- [Vue 3 + TresJS](https://cedric-pouilleux.github.io/stellex-js/guides/vue-integration) — `<Body>` and friends
+- [Headless / server](https://cedric-pouilleux.github.io/stellex-js/guides/headless-simulation) — Node, workers, CLIs without WebGL
 
 **Tune the look**
 
-- [Stars](https://cedric-pouilleux.github.io/stellar-hex/guides/stars) — spectral types, kelvin helpers, godrays calibration
-- [Palettes & terrain](https://cedric-pouilleux.github.io/stellar-hex/guides/palettes-and-terrain) — anchors, custom palettes, `MetallicBand`
-- [Variation visuelle](https://cedric-pouilleux.github.io/stellar-hex/guides/variation) — `BodyVariation` knobs (cracks, lava, gas turbulence, …)
-- [Graphics uniforms](https://cedric-pouilleux.github.io/stellar-hex/guides/graphics-uniforms) — shared cloud / liquid / terrain uniform bag
-- [Hover cursor](https://cedric-pouilleux.github.io/stellar-hex/guides/hover-cursor) — ring + floor ring + emissive presets, tile overlay highlight
+- [Stars](https://cedric-pouilleux.github.io/stellex-js/guides/stars) — spectral types, kelvin helpers, godrays calibration
+- [Palettes & terrain](https://cedric-pouilleux.github.io/stellex-js/guides/palettes-and-terrain) — anchors, custom palettes, `MetallicBand`
+- [Variation visuelle](https://cedric-pouilleux.github.io/stellex-js/guides/variation) — `BodyVariation` knobs (cracks, lava, gas turbulence, …)
+- [Graphics uniforms](https://cedric-pouilleux.github.io/stellex-js/guides/graphics-uniforms) — shared cloud / liquid / terrain uniform bag
+- [Hover cursor](https://cedric-pouilleux.github.io/stellex-js/guides/hover-cursor) — ring + floor ring + emissive presets, tile overlay highlight
 
 **Wire game logic on top**
 
-- [Intégrer du gameplay](https://cedric-pouilleux.github.io/stellar-hex/guides/gameplay-integration) — paint hooks, distribution, persistence
-- [Performance](https://cedric-pouilleux.github.io/stellar-hex/guides/performance) — `tileSize`, BVH, `RenderQuality`
-- [Advanced API](https://cedric-pouilleux.github.io/stellar-hex/guides/advanced-api) — strategies, geometry primitives, lighting helpers, FX configs
+- [Intégrer du gameplay](https://cedric-pouilleux.github.io/stellex-js/guides/gameplay-integration) — paint hooks, distribution, persistence
+- [Performance](https://cedric-pouilleux.github.io/stellex-js/guides/performance) — `tileSize`, BVH, `RenderQuality`
+- [Advanced API](https://cedric-pouilleux.github.io/stellex-js/guides/advanced-api) — strategies, geometry primitives, lighting helpers, FX configs
 
 For an interactive playground (sliders for every shader knob), open
-<https://cedric-pouilleux.github.io/stellar-hex/playground/>.
+<https://cedric-pouilleux.github.io/stellex-js/playground/>.
 
 ## Public API stability
 
@@ -216,5 +216,5 @@ the exported types or signatures shows up as a diff on the corresponding
 
 ## License
 
-This project is licensed under the StellarHex Non-Commercial License (HC-NCL).
+This project is licensed under the StellexJS Non-Commercial License (HC-NCL).
 See LICENSE for details.

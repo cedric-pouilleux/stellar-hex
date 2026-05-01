@@ -2,7 +2,7 @@
 
 `useBody` est le happy path : il assemble géométrie, mesh, shaders, palette et raycast en un appel. Quand vous sortez de ce périmètre — éditeur de scène, builder custom, archétype visuel maison, helpers d'éclairage — la lib expose les **briques internes** comme API publique. Cette page recense les exports rarement nécessaires mais indispensables quand on en a besoin.
 
-Tous les exports cités sont stables et monitorés par `api-extractor` (cf. [`api/reports/`](https://github.com/cedric-pouilleux/stellar-hex/tree/main/api/reports)).
+Tous les exports cités sont stables et monitorés par `api-extractor` (cf. [`api/reports/`](https://github.com/cedric-pouilleux/stellex-js/tree/main/api/reports)).
 
 ## Stratégies par `SurfaceLook`
 
@@ -13,7 +13,7 @@ import {
   SURFACE_LOOK_STRATEGIES,
   strategyFor,
   type BodyTypeStrategy,
-} from '@cedric-pouilleux/stellar-hex/core'
+} from '@cedric-pouilleux/stellex-js/core'
 
 // Routing depuis un BodyConfig (étoiles → strategy fixe, planètes → SurfaceLook)
 const strategy = strategyFor(config)
@@ -56,7 +56,7 @@ Vous écrivez un éditeur visuel qui veut prévisualiser l'effet d'un changement
 import {
   configToLibParams,
   generateBodyVariation,
-} from '@cedric-pouilleux/stellar-hex/core'
+} from '@cedric-pouilleux/stellex-js/core'
 
 const variation = generateBodyVariation(config)
 const params    = configToLibParams(config, variation)
@@ -77,7 +77,7 @@ C'est la même fonction qu'invoque `useBody` en interne — la garantie « ce qu
 ### `buildLayeredPrismGeometry` — un seul prisme
 
 ```ts
-import { buildLayeredPrismGeometry } from '@cedric-pouilleux/stellar-hex/core'
+import { buildLayeredPrismGeometry } from '@cedric-pouilleux/stellex-js/core'
 
 const { geometry, range } = buildLayeredPrismGeometry(
   tile,                  // Tile retourné par generateHexasphere
@@ -95,7 +95,7 @@ Les murs et le fan inférieur sont **toujours émis** même quand le prisme s'ef
 ### `buildLayeredMergedGeometry` — toutes les tuiles d'un coup
 
 ```ts
-import { buildLayeredMergedGeometry } from '@cedric-pouilleux/stellar-hex/core'
+import { buildLayeredMergedGeometry } from '@cedric-pouilleux/stellex-js/core'
 
 const merged = buildLayeredMergedGeometry(
   tiles,            // readonly Tile[]
@@ -118,7 +118,7 @@ Si votre source de hauteur **est** la simulation standard, [`resolveSolHeight(ti
 L'atmo cliquable des planètes est une **hexasphère séparée** projetée sur la bande `[solOuter, silhouette]`. Mêmes primitives, mais sans staircase d'élévation — un seul niveau par tuile.
 
 ```ts
-import { buildAtmoBoardMesh } from '@cedric-pouilleux/stellar-hex/core'
+import { buildAtmoBoardMesh } from '@cedric-pouilleux/stellex-js/core'
 
 const atmoBoard = buildAtmoBoardMesh({
   tiles:        atmoTiles,                  // hexasphere distincte du sol
@@ -150,7 +150,7 @@ import {
   resolveAtmosphereThickness,
   resolveCoreRadiusRatio,
   resolveTerrainLevelCount,
-} from '@cedric-pouilleux/stellar-hex/core'
+} from '@cedric-pouilleux/stellex-js/core'
 
 const thickness = resolveAtmosphereThickness(config)
 const coreRatio = resolveCoreRadiusRatio(config)
@@ -164,7 +164,7 @@ C'est exactement la chaîne qu'invoque `useBody` en interne — la garantie « c
 [`bodyOuterRadius(config, palette?)`](/api/core/functions/bodyOuterRadius) retourne le rayon **hors-tout** d'un corps : `radius` plus la hauteur de la bande la plus haute. C'est l'ancrage à utiliser pour toute coquille (atmo custom, halo, anneau de débris) qui doit visuellement passer par-dessus le terrain hex.
 
 ```ts
-import { bodyOuterRadius } from '@cedric-pouilleux/stellar-hex/core'
+import { bodyOuterRadius } from '@cedric-pouilleux/stellex-js/core'
 
 const r = bodyOuterRadius(body.config, body.palette)
 const dustHalo = new THREE.Mesh(
@@ -183,7 +183,7 @@ Les shaders custom de la lib ne lisent **pas** l'`AmbientLight` ni n'agrègent p
 ### `findDominantLightWorldPos` — auto-discovery
 
 ```ts
-import { findDominantLightWorldPos, findSceneRoot } from '@cedric-pouilleux/stellar-hex/core'
+import { findDominantLightWorldPos, findSceneRoot } from '@cedric-pouilleux/stellex-js/core'
 import * as THREE from 'three'
 
 const sunPos = new THREE.Vector3()
@@ -196,7 +196,7 @@ Scanne tous les `PointLight` et `DirectionalLight` sous `root`, retient le plus 
 ### `findSceneRoot` — remonte au top du graphe
 
 ```ts
-import { findSceneRoot } from '@cedric-pouilleux/stellar-hex/core'
+import { findSceneRoot } from '@cedric-pouilleux/stellex-js/core'
 const root = findSceneRoot(body.group)  // remonte la chaîne parent jusqu'à la racine
 ```
 
@@ -210,7 +210,7 @@ Utile en couple avec `findDominantLightWorldPos` ou pour tout outil qui veut tra
 import {
   godRaysFromStar,
   GodRaysShader,
-} from '@cedric-pouilleux/stellar-hex/core'
+} from '@cedric-pouilleux/stellex-js/core'
 
 const params = godRaysFromStar({ spectralType: 'M' })
 // params : { exposure, decay, density, weight }
@@ -235,7 +235,7 @@ import {
   RING_ARCHETYPES,
   ARCHETYPE_PROFILES,
   seededPrng,
-} from '@cedric-pouilleux/stellar-hex/core'
+} from '@cedric-pouilleux/stellex-js/core'
 
 const rng = seededPrng(config.name + ':rings')
 const ring = generateRingVariation(config, rng)

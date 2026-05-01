@@ -98,7 +98,7 @@ Contrairement aux palettes rocky/gas où la hauteur dérive de [`terrainBandLayo
 Si vous voulez piloter chaque bande explicitement, passez `palette` à `useBody` (le 3e argument est `BodyRenderOptions`) :
 
 ```ts
-import { useBody, type TerrainLevel } from '@cedric-pouilleux/stellar-hex/core'
+import { useBody, type TerrainLevel } from '@cedric-pouilleux/stellex-js/core'
 import * as THREE from 'three'
 
 const palette: TerrainLevel[] = [

@@ -6,7 +6,7 @@ import {
   useBody,
   DEFAULT_TILE_SIZE,
   godRaysFromStar,
-} from '@cedric-pouilleux/stellar-hex/core'
+} from '@cedric-pouilleux/stellex-js/core'
 
 const scene    = new THREE.Scene()
 const camera   = new THREE.PerspectiveCamera(50, width / height, 0.1, 100)

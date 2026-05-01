@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Snippet â€” generate a deterministic body simulation server-side.
  * No Three.js, no DOM. Run in Node, in a worker, or as a CLI step.
  */
 export const headlessGenerateCode = `import {
   generateHexasphere,
   initBodySimulation,
-} from '@cedric-pouilleux/stellar-hex/sim'
+} from '@cedric-pouilleux/stellex-js/sim'
 
 const { tiles } = generateHexasphere(1, 6)
 const sim = initBodySimulation(tiles, {

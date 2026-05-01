@@ -1,4 +1,4 @@
-# @cedric-pouilleux/stellar-hex
+# @cedric-pouilleux/stellex-js
 
 ## Modules
 

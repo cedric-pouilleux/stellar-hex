@@ -31,7 +31,7 @@ La sim utilise une **quantification équi-fréquence** : chaque bande reçoit ap
 ## 2. Tuiles côtières
 
 ```ts
-import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellar-hex/sim'
+import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellex-js/sim'
 
 const nMap = buildNeighborMap(tiles)
 const sea  = sim.seaLevelElevation

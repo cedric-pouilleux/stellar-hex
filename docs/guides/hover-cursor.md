@@ -174,7 +174,7 @@ import {
   useBody,
   createHoverChannel,
   DEFAULT_TILE_SIZE,
-} from '@cedric-pouilleux/stellar-hex/core'
+} from '@cedric-pouilleux/stellex-js/core'
 
 const channel = createHoverChannel()
 
@@ -198,7 +198,7 @@ Indépendamment du curseur de hover, la lib expose une primitive plus bas niveau
 import {
   createTileOverlayMesh,
   DEFAULT_HOVER,
-} from '@cedric-pouilleux/stellar-hex/core'
+} from '@cedric-pouilleux/stellex-js/core'
 
 const overlay = createTileOverlayMesh(
   // Resolver tile id → géométrie (centre + niveau de bande)

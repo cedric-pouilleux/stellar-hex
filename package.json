@@ -1,5 +1,5 @@
 {
-  "name": "@cedric-pouilleux/stellar-hex",
+  "name": "@cedric-pouilleux/stellex-js",
   "version": "0.4.0",
   "type": "module",
   "description": "Deterministic, playable celestial body generator for Three.js and Vue 3.",
@@ -7,10 +7,10 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cedric-pouilleux/stellar-hex.git"
+    "url": "git+https://github.com/cedric-pouilleux/stellex-js.git"
   },
-  "homepage": "https://github.com/cedric-pouilleux/stellar-hex#readme",
-  "bugs": "https://github.com/cedric-pouilleux/stellar-hex/issues",
+  "homepage": "https://github.com/cedric-pouilleux/stellex-js#readme",
+  "bugs": "https://github.com/cedric-pouilleux/stellex-js/issues",
   "workspaces": [
     "docs",
     "playground"
@@ -25,12 +25,12 @@
     "api:update": "npm run build:types && api-extractor run --local --config api/sim.json && api-extractor run --local --config api/core.json && api-extractor run --local --config api/index.json",
     "api:check": "npm run build:types && api-extractor run --config api/sim.json && api-extractor run --config api/core.json && api-extractor run --config api/index.json",
     "publish:dist": "npm publish ./dist",
-    "docs:api": "npm run api     -w @cedric-pouilleux/stellar-hex-docs",
-    "docs:dev": "npm run dev     -w @cedric-pouilleux/stellar-hex-docs",
-    "docs:build": "npm run build   -w @cedric-pouilleux/stellar-hex-docs",
-    "docs:preview": "npm run preview -w @cedric-pouilleux/stellar-hex-docs",
-    "playground:dev": "npm run dev   -w @cedric-pouilleux/stellar-hex-playground",
-    "playground:build": "npm run build -w @cedric-pouilleux/stellar-hex-playground",
+    "docs:api": "npm run api     -w @cedric-pouilleux/stellex-js-docs",
+    "docs:dev": "npm run dev     -w @cedric-pouilleux/stellex-js-docs",
+    "docs:build": "npm run build   -w @cedric-pouilleux/stellex-js-docs",
+    "docs:preview": "npm run preview -w @cedric-pouilleux/stellex-js-docs",
+    "playground:dev": "npm run dev   -w @cedric-pouilleux/stellex-js-playground",
+    "playground:build": "npm run build -w @cedric-pouilleux/stellex-js-playground",
     "site:build": "npm run docs:build && npm run playground:build && node scripts/embed-playground.mjs"
   },
   "peerDependencies": {

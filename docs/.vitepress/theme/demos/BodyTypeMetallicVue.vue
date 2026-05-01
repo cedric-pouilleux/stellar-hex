@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref } from 'vue'
 import { TresCanvas } from '@tresjs/core'
 import {
@@ -7,8 +7,8 @@ import {
   DEFAULT_TILE_SIZE,
   Body,
   BodyWarmup,
-} from '@cedric-pouilleux/stellar-hex'
-import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
+} from '@cedric-pouilleux/stellex-js'
+import type { BodyConfig } from '@cedric-pouilleux/stellex-js/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**

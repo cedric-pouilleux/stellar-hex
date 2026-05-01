@@ -80,7 +80,7 @@ Trois corps animés ≈ 3 × `body.tick(dt)` par frame. Pour 50+ corps :
 Pour détecter quel corps l'utilisateur survole dans une scène avec plusieurs planètes, la lib expose `raycastBodies` — un raycast filtré qui élimine automatiquement les hits derrière le corps focus :
 
 ```ts
-import { raycastBodies, findBodyIndex } from '@cedric-pouilleux/stellar-hex/core'
+import { raycastBodies, findBodyIndex } from '@cedric-pouilleux/stellex-js/core'
 
 const raycaster = new THREE.Raycaster()
 raycaster.setFromCamera(pointer, camera)

@@ -2,7 +2,7 @@ import { ref, watch } from 'vue'
 
 export type ImplMode = 'three' | 'vue'
 
-const STORAGE_KEY = 'stellar-hex-impl-mode'
+const STORAGE_KEY = 'stellex-js-impl-mode'
 
 /** Module-level singleton so all DemoBlock instances share the same reactive state. */
 const mode = ref<ImplMode>('three')

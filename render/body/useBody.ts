@@ -21,7 +21,7 @@ import type { WarmupOptions } from '../types/bodyHandle.types'
 import { warmupBody, type WarmupPhaseSpec } from './warmupBody'
 
 // Re-exports for the public API surface — keep historical import paths
-// (`@cedric-pouilleux/stellar-hex/core` → `useBody`, `resolveTileHeight`, …)
+// (`@cedric-pouilleux/stellex-js/core` → `useBody`, `resolveTileHeight`, …)
 // stable while the implementations live in `bodyHelpers.ts`.
 export {
   tileSizeToSubdivisions,

@@ -101,7 +101,7 @@ watch(view, v => body.view.set(v))
 </template>
 ```
 
-Le raycast/peinture nécessite un composant utilitaire dans `<TresCanvas>` — voir [`HexPlanetVue.vue`](https://github.com/cedric-pouilleux/stellar-hex/blob/main/docs/.vitepress/theme/demos/HexPlanetVue.vue) pour une référence complète avec `useTresContext`.
+Le raycast/peinture nécessite un composant utilitaire dans `<TresCanvas>` — voir [`HexPlanetVue.vue`](https://github.com/cedric-pouilleux/stellex-js/blob/main/docs/.vitepress/theme/demos/HexPlanetVue.vue) pour une référence complète avec `useTresContext`.
 
 ## Quand préférer quoi
 

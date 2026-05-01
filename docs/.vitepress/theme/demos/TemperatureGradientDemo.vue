@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
@@ -37,7 +37,7 @@ let cleanups: Array<() => void> = []
 onMounted(async () => {
   const [THREE, { useBody, DEFAULT_TILE_SIZE }] = await Promise.all([
     import('three'),
-    import('@cedric-pouilleux/stellar-hex/core'),
+    import('@cedric-pouilleux/stellex-js/core'),
   ])
 
   type Cell = {

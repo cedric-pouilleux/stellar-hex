@@ -79,7 +79,7 @@ for (const body of bodies) {
 `generateBodyVariation(config)` est appelé par `useBody`. Il produit la `RingVariation`, la `BodyVariation` et tout ce qui dérive du seed. C'est **pur et déterministe** — vous pouvez le mettre en cache par `config.name` :
 
 ```ts
-import { generateBodyVariation } from '@cedric-pouilleux/stellar-hex/core'
+import { generateBodyVariation } from '@cedric-pouilleux/stellex-js/core'
 
 const cache = new Map<string, ReturnType<typeof generateBodyVariation>>()
 
@@ -148,7 +148,7 @@ Le plafond dur est `MAX_SPHERE_DETAIL = 7` (≈ 163 842 vertices après `mergeVe
 Le type [`SphereDetailQuality`](/api/core/type-aliases/SphereDetailQuality) (`'standard' | 'high' | 'ultra'`) est exposé si vous voulez binder un sélecteur d'UI dessus. Pour résoudre le niveau effectif d'icosphère depuis un preset (panneau debug, builder custom), [`resolveSphereDetail(baseDetail, quality?)`](/api/core/functions/resolveSphereDetail) applique le bump et clamp à `MAX_SPHERE_DETAIL` :
 
 ```ts
-import { resolveSphereDetail, MAX_SPHERE_DETAIL } from '@cedric-pouilleux/stellar-hex/core'
+import { resolveSphereDetail, MAX_SPHERE_DETAIL } from '@cedric-pouilleux/stellex-js/core'
 
 const level = resolveSphereDetail(4, { sphereDetail: 'ultra' })
 // 4 + 2, clampé à MAX_SPHERE_DETAIL

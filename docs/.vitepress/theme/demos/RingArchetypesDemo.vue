@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
@@ -30,7 +30,7 @@ let cleanups: Array<() => void> = []
 onMounted(async () => {
   const [THREE, lib] = await Promise.all([
     import('three'),
-    import('@cedric-pouilleux/stellar-hex/core'),
+    import('@cedric-pouilleux/stellex-js/core'),
   ])
   const { useBody, DEFAULT_TILE_SIZE, buildBodyRings, ARCHETYPE_PROFILES } = lib
 

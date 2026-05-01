@@ -37,7 +37,7 @@ const body = useBody({
 
 ```ts
 import * as THREE from 'three'
-import { buildBodyRings } from '@cedric-pouilleux/stellar-hex/core'
+import { buildBodyRings } from '@cedric-pouilleux/stellex-js/core'
 
 if (body.variation.rings) {
   // Le builder lit ce vecteur PAR RÉFÉRENCE chaque frame pour projeter

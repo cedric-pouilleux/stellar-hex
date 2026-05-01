@@ -1,6 +1,6 @@
 # Intégrer du gameplay
 
-`stellar-hex` rend des **planètes brutes** — géométrie hex, élévations quantifiées, niveau de la mer, palette résolue, état physique du liquide. Tout le reste — ressources, biomes, climats, factions, ennemis — vit dans votre code. Cette discipline est un **choix de design délibéré**, et ce guide explique comment brancher du gameplay par-dessus sans le combattre.
+`stellex-js` rend des **planètes brutes** — géométrie hex, élévations quantifiées, niveau de la mer, palette résolue, état physique du liquide. Tout le reste — ressources, biomes, climats, factions, ennemis — vit dans votre code. Cette discipline est un **choix de design délibéré**, et ce guide explique comment brancher du gameplay par-dessus sans le combattre.
 
 ## La doctrine en une phrase
 
@@ -85,7 +85,7 @@ const RESOURCE_COLORS: Record<Resource, { r: number; g: number; b: number }> = {
 Vous itérez les `tileStates` du body et appliquez vos règles :
 
 ```ts
-import { seededPrng } from '@cedric-pouilleux/stellar-hex/sim'
+import { seededPrng } from '@cedric-pouilleux/stellex-js/sim'
 
 function distributeResources(body: PlanetBody): Map<number, Resource> {
   const out = new Map<number, Resource>()
@@ -196,7 +196,7 @@ Au reload, vous re-générez la planète depuis `BodyConfig`, puis appliquez vos
 
 ## Le playground comme référence
 
-`playground/src/lib/paint/` ([GitHub](https://github.com/cedric-pouilleux/stellar-hex/tree/main/playground/src/lib/paint)) est une implémentation complète du pattern :
+`playground/src/lib/paint/` ([GitHub](https://github.com/cedric-pouilleux/stellex-js/tree/main/playground/src/lib/paint)) est une implémentation complète du pattern :
 
 - `bodyPaint.ts` — pipeline d'orchestration
 - `clusterDistribution.ts` — distribution par clusters BFS

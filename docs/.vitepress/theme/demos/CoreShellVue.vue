@@ -1,9 +1,9 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted, nextTick, ref } from 'vue'
 import { TresCanvas } from '@tresjs/core'
-import { useBody, DEFAULT_TILE_SIZE, Body, BodyWarmup } from '@cedric-pouilleux/stellar-hex'
-import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellar-hex/sim'
-import type { BodyConfig, RenderableBody } from '@cedric-pouilleux/stellar-hex/sim'
+import { useBody, DEFAULT_TILE_SIZE, Body, BodyWarmup } from '@cedric-pouilleux/stellex-js'
+import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellex-js/sim'
+import type { BodyConfig, RenderableBody } from '@cedric-pouilleux/stellex-js/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
 /**

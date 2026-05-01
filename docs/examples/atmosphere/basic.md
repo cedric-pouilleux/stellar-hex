@@ -39,7 +39,7 @@ L'épaisseur est résolue **au build** : changer la valeur en runtime nécessite
 La lib est agnostique du climat — elle ne dérive jamais une couleur d'atmosphère depuis une température. Quand aucun override n'est fourni, le halo prend une teinte neutre (bleu pâle universel). Pour un look climatique, le caller calcule la couleur côté jeu et la pousse via :
 
 ```ts
-import { buildAtmoShell } from '@cedric-pouilleux/stellar-hex/core'
+import { buildAtmoShell } from '@cedric-pouilleux/stellex-js/core'
 
 const shell = buildAtmoShell({
   config,

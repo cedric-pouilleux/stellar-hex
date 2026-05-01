@@ -18,7 +18,7 @@ onMounted(async () => {
   const [THREE, controls, lib] = await Promise.all([
     import('three'),
     import('three/examples/jsm/controls/OrbitControls.js'),
-    import('@cedric-pouilleux/stellar-hex/core'),
+    import('@cedric-pouilleux/stellex-js/core'),
   ])
   const { OrbitControls } = controls
   const { useBody, DEFAULT_TILE_SIZE, buildNeighborMap, getNeighbors } = lib

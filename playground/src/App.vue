@@ -255,7 +255,7 @@ const hiddenShaderGroups = computed(() => {
 <template>
   <div class="layout" :class="{ 'has-shader-pane': activePane === 'shader', 'is-star': !isPlanet }">
     <div class="topbar">
-      <strong>stellar-hex</strong>
+      <strong>stellex-js</strong>
       <span>playground</span>
       <div class="spacer"></div>
       <div class="pill" style="display:flex; align-items:center; gap:4px; padding:2px 6px;" title="Détail des sphères (smooth sphere, océan, halos, cœur, effets). HD = +1 subdivision (≈ 4× tris), Ultra = +2 (≈ 16× tris).">

@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: Stellar Hex
+  name: StellexJS
   text: Corps stellaires procéduraux
   tagline: Géométrie hexagonale, physique, simulation et rendu — pour Three.js et Vue 3.
   actions:
@@ -20,7 +20,7 @@ hero:
       link: /api/
     - theme: alt
       text: GitHub
-      link: https://github.com/cedric-pouilleux/stellar-hex
+      link: https://github.com/cedric-pouilleux/stellex-js
 
 features:
   - title: Trois points d'entrée
@@ -43,7 +43,7 @@ features:
 import {
   generateHexasphere,
   initBodySimulation,
-} from '@cedric-pouilleux/stellar-hex/sim'
+} from '@cedric-pouilleux/stellex-js/sim'
 
 const { tiles } = generateHexasphere(1, 6)
 const sim = initBodySimulation(tiles, {

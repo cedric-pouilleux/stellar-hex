@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import NeighborsBfsDemo    from '../../.vitepress/theme/demos/NeighborsBfsDemo.vue'
 import NeighborsBfsDemoRaw from '../../.vitepress/theme/demos/NeighborsBfsDemo.vue?raw'
 import NeighborsBfsVueRaw  from '../../.vitepress/theme/demos/NeighborsBfsVue.vue?raw'
@@ -24,7 +24,7 @@ Cliquez une tuile pour relancer un BFS coloré depuis ce point. Chaque anneau de
 ## API
 
 ```ts
-import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellar-hex/sim'
+import { buildNeighborMap, getNeighbors } from '@cedric-pouilleux/stellex-js/sim'
 
 const nMap = buildNeighborMap(tiles) // O(n) une fois
 const six  = getNeighbors(tileId, nMap) // 5 ou 6 ids

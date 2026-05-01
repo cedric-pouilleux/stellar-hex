@@ -37,7 +37,7 @@ Chaque branche est composée de profils orthogonaux pour que les consommateurs p
 Pattern caller :
 
 ```ts
-import type { BodyConfig, PlanetConfig, StarConfig } from '@cedric-pouilleux/stellar-hex/sim'
+import type { BodyConfig, PlanetConfig, StarConfig } from '@cedric-pouilleux/stellex-js/sim'
 
 // Construction d'une planète — `surfaceLook` est accepté, `spectralType` rejeté
 const planet: PlanetConfig = {

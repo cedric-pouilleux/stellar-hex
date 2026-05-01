@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { TresCanvas } from '@tresjs/core'
-import { useBody, DEFAULT_TILE_SIZE, Body, BodyWarmup } from '@cedric-pouilleux/stellar-hex'
-import type { BodyConfig, RenderableBody } from '@cedric-pouilleux/stellar-hex/sim'
+import { useBody, DEFAULT_TILE_SIZE, Body, BodyWarmup } from '@cedric-pouilleux/stellex-js'
+import type { BodyConfig, RenderableBody } from '@cedric-pouilleux/stellex-js/sim'
 
 /**
  * Vue / TresJS — four bodies along a temperature axis. Each cell pre-resolves

@@ -38,7 +38,7 @@ if (planetMat?.uniforms.uRingSunWorldPos) {
 Pour une scène où le soleil bouge (orbite, jour/nuit), refresh chaque frame :
 
 ```ts
-import { findDominantLightWorldPos, findSceneRoot } from '@cedric-pouilleux/stellar-hex/core'
+import { findDominantLightWorldPos, findSceneRoot } from '@cedric-pouilleux/stellex-js/core'
 
 // dans la boucle :
 findDominantLightWorldPos(

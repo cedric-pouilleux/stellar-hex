@@ -1,6 +1,6 @@
 # Intégration Vue 3 + TresJS
 
-La racine `@cedric-pouilleux/stellar-hex` ajoute des **composants Vue** par-dessus `/core`. Elle suppose `vue@^3.5` et `@tresjs/core@^5.8` installés dans votre projet.
+La racine `@cedric-pouilleux/stellex-js` ajoute des **composants Vue** par-dessus `/core`. Elle suppose `vue@^3.5` et `@tresjs/core@^5.8` installés dans votre projet.
 
 ## Composants exportés
 
@@ -23,8 +23,8 @@ import {
   Body,
   useBody,
   DEFAULT_TILE_SIZE,
-} from '@cedric-pouilleux/stellar-hex'
-import type { BodyConfig } from '@cedric-pouilleux/stellar-hex/sim'
+} from '@cedric-pouilleux/stellex-js'
+import type { BodyConfig } from '@cedric-pouilleux/stellex-js/sim'
 
 const config: BodyConfig = {
   name:                'Home',

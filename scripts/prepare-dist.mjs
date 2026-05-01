@@ -10,8 +10,8 @@
  *   relative imports (`../body`) keep resolving to source during monorepo
  *   development — stateful singletons (distributor, bridge) stay unified
  *   across features. The published package must have a full exports map
- *   so npm consumers can import `@cedric-pouilleux/stellar-hex`,
- *   `@cedric-pouilleux/stellar-hex/core` and `@cedric-pouilleux/stellar-hex/sim`
+ *   so npm consumers can import `@cedric-pouilleux/stellex-js`,
+ *   `@cedric-pouilleux/stellex-js/core` and `@cedric-pouilleux/stellex-js/sim`
  *   through the compiled output.
  *
  * Workflow:

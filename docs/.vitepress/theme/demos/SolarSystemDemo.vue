@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 
 /**
@@ -19,7 +19,7 @@ onMounted(async () => {
   const [THREE, ctrl, lib] = await Promise.all([
     import('three'),
     import('three/examples/jsm/controls/OrbitControls.js'),
-    import('@cedric-pouilleux/stellar-hex/core'),
+    import('@cedric-pouilleux/stellex-js/core'),
   ])
   const { OrbitControls } = ctrl
   const { useBody, DEFAULT_TILE_SIZE } = lib

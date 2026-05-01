@@ -1,6 +1,6 @@
 # Démarrer
 
-`@cedric-pouilleux/stellar-hex` est un générateur procédural de corps stellaires (planètes rocheuses, géantes gazeuses, planètes métalliques, étoiles). Il livre **trois points d'entrée** indépendants pour que vous n'importiez que le strict nécessaire.
+`@cedric-pouilleux/stellex-js` est un générateur procédural de corps stellaires (planètes rocheuses, géantes gazeuses, planètes métalliques, étoiles). Il livre **trois points d'entrée** indépendants pour que vous n'importiez que le strict nécessaire.
 
 ## Trois points d'entrée
 
@@ -15,7 +15,7 @@ Le sous-paquet `/sim` n'a **aucune dépendance WebGL** : il peut tourner dans No
 ## Installation
 
 ```bash
-npm install @cedric-pouilleux/stellar-hex three simplex-noise
+npm install @cedric-pouilleux/stellex-js three simplex-noise
 
 # Optionnel — uniquement si vous utilisez le surface Vue
 npm install vue @tresjs/core
@@ -31,7 +31,7 @@ Ce snippet construit une planète rocheuse déterministe en moins de 10 lignes �
 import {
   generateHexasphere,
   initBodySimulation,
-} from '@cedric-pouilleux/stellar-hex/sim'
+} from '@cedric-pouilleux/stellex-js/sim'
 
 const { tiles } = generateHexasphere(1, 6) // rayon=1, subdivisions=6
 const sim = initBodySimulation(tiles, {
@@ -54,7 +54,7 @@ Le résultat est entièrement sérialisable : vous pouvez le générer côté se
 
 ## Pourquoi cette lib (et pas Three.js « tout court ») ?
 
-`stellar-hex` part d'un postulat simple : **un corps stellaire est composé de géométrie + état physique + apparence**, et ces trois préoccupations sont orthogonales. La lib industrialise les trois, et **s'arrête là**. Tout ce qui concerne le gameplay (orbites, factions, ressources, climat) reste dans votre code.
+`stellex-js` part d'un postulat simple : **un corps stellaire est composé de géométrie + état physique + apparence**, et ces trois préoccupations sont orthogonales. La lib industrialise les trois, et **s'arrête là**. Tout ce qui concerne le gameplay (orbites, factions, ressources, climat) reste dans votre code.
 
 Ce que vous gagnez :
 
@@ -70,7 +70,7 @@ Ce que vous perdez (et c'est volontaire) :
 - **Pas de pause/replay built-in** — vous gérez le `dt` que vous passez à `body.tick()`.
 - **Pas de catalogue de ressources** — vous projetez le vôtre via les hooks de paint.
 
-Si vous voulez juste afficher une sphère texturée dans Three.js, `THREE.SphereGeometry` + `MeshStandardMaterial` suffit. `stellar-hex` justifie son coût quand vous voulez : un système solaire procédural reproductible, des tuiles cliquables avec gameplay, une intégration headless serveur, des shaders procéduraux unifiés sur quatre types de corps.
+Si vous voulez juste afficher une sphère texturée dans Three.js, `THREE.SphereGeometry` + `MeshStandardMaterial` suffit. `stellex-js` justifie son coût quand vous voulez : un système solaire procédural reproductible, des tuiles cliquables avec gameplay, une intégration headless serveur, des shaders procéduraux unifiés sur quatre types de corps.
 
 Le guide [Intégrer du gameplay](./gameplay-integration) détaille comment brancher votre catalogue par-dessus.
 
