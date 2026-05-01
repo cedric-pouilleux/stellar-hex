@@ -38,6 +38,63 @@ import type {
 export type InteractiveLayer = 'sol' | 'liquid' | 'atmo'
 
 /**
+ * Discrete phases reported by {@link BodyBase.warmup}. Stable across
+ * versions — callers may switch on these codes to map them to their own
+ * i18n strings or progress UX.
+ *
+ *   - `'collecting'`  : signal the warmup has started (synchronous,
+ *                       almost instantaneous — meshes are gathered into
+ *                       transient scenes).
+ *   - `'surface'`     : sol shaders compile (smooth display mesh +
+ *                       interactive sol mesh + opaque core mesh +
+ *                       body-hover ring).
+ *   - `'atmosphere'`  : atmospheric shaders compile (atmo halo shell +
+ *                       playable atmo board). Skipped on bodies without
+ *                       an atmosphere and on stars.
+ *   - `'cursor'`      : hover-cursor shaders compile (cap ring, floor
+ *                       ring, emissive light). Skipped when the body
+ *                       was built with no cursor primitives.
+ *   - `'done'`        : terminal — every program is ready, the body is
+ *                       safe to render in the next frame without freeze.
+ */
+export type WarmupPhase =
+  | 'collecting'
+  | 'surface'
+  | 'atmosphere'
+  | 'cursor'
+  | 'done'
+
+/**
+ * Snapshot pushed to {@link WarmupOptions.onProgress} at each phase
+ * boundary. Carries both a machine-readable code (`phase`) and a default
+ * English label, so callers can either route through their own i18n or
+ * display the fallback string directly.
+ */
+export interface WarmupProgress {
+  /** Machine-readable phase code — stable across versions, safe to switch on. */
+  phase:    WarmupPhase
+  /** Number of phases completed so far. */
+  current:  number
+  /** Total number of phases for this body — varies with body shape. */
+  total:    number
+  /** Convenience: `current / total`, in `[0, 1]`. */
+  progress: number
+  /** Default English label — caller may map `phase` to its own i18n strings. */
+  label:    string
+}
+
+/** Options accepted by {@link BodyBase.warmup}. */
+export interface WarmupOptions {
+  /**
+   * Called once when the warmup starts (`phase: 'collecting'`,
+   * `current: 0`), once after each compile phase resolves, and once at
+   * the end (`phase: 'done'`, `current: total`). Synchronous — runs on
+   * the main thread between compile resolutions.
+   */
+  onProgress?: (info: WarmupProgress) => void
+}
+
+/**
  * View selector for {@link BodyView.set} — three mutually exclusive
  * rendering modes:
  *
@@ -316,6 +373,35 @@ export interface BodyBase {
   // ── Lifecycle ───────────────────────────────────────────────────
   tick(dt: number): void
   dispose(): void
+  /**
+   * Pre-compiles every shader the body relies on, exploiting
+   * `KHR_parallel_shader_compile` when available so the CPU stays
+   * responsive while the GPU driver links programs in the background.
+   *
+   * Call once after `useBody()` and before the first render — the
+   * caller is expected to keep a loader / skeleton visible until the
+   * promise resolves. Subsequent calls are inexpensive (Three.js caches
+   * compiled programs by material identity).
+   *
+   * `onProgress` fires at each phase boundary — at the start
+   * (`collecting`), after every compile resolves, and at the end
+   * (`done`). Use it to drive a loading bar or a status string. Phase
+   * codes are stable across lib versions; see {@link WarmupPhase}.
+   *
+   * Multi-camera scenes only need a single warmup pass — Three.js
+   * compiled programs are not bound to a specific camera matrix.
+   *
+   * @param renderer - Renderer that owns the WebGL context. Programs are
+   *                   compiled into this renderer's program cache.
+   * @param camera   - Camera used to derive view-dependent uniforms
+   *                   during compilation. Any scene camera works.
+   * @param options  - Optional progress hook.
+   */
+  warmup(
+    renderer: THREE.WebGLRenderer,
+    camera:   THREE.Camera,
+    options?: WarmupOptions,
+  ): Promise<void>
 
   // ── Radii ───────────────────────────────────────────────────────
   /** World radius of the opaque inner core sphere (`radius * coreRadiusRatio`). */

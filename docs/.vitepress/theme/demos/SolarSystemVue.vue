@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount, ref } from 'vue'
 import * as THREE from 'three'
 import { TresCanvas } from '@tresjs/core'
-import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
+import { useBody, DEFAULT_TILE_SIZE, Body, BodyWarmup } from '@cedric-pouilleux/stellar-hex'
 import type { BodyConfig, RenderableBody } from '@cedric-pouilleux/stellar-hex/sim'
 import OrbitControlsBridge from './OrbitControlsBridge.vue'
 
@@ -83,25 +83,94 @@ const tick = () => {
 
 onMounted(() => tick())
 onBeforeUnmount(() => { if (animId) cancelAnimationFrame(animId) })
+
+// Multi-body warmup: one <BodyWarmup> per body, average their ratios.
+const allBodies = [star, ...planets.map(p => p.body)]
+const loading      = ref(true)
+const loadingLabel = ref('Preparing shaders…')
+const loadingRatio = ref(0)
+const ratios       = ref<number[]>(allBodies.map(() => 0))
+const readyCount   = ref(0)
+
+function onProgress(i: number, info: { label: string; progress: number }) {
+  loadingLabel.value = info.label
+  ratios.value[i]    = info.progress
+  loadingRatio.value = ratios.value.reduce((s, x) => s + x, 0) / ratios.value.length
+}
+
+function onReady() {
+  readyCount.value++
+  if (readyCount.value === allBodies.length) loading.value = false
+}
 </script>
 
 <template>
-  <TresCanvas class="vue-demo" :clear-color="'#000005'">
-    <TresPerspectiveCamera :position="[0, 9, 18]" :look-at="[0, 0, 0]" />
-    <primitive :object="sun" />
+  <div class="vue-demo-wrap">
+    <TresCanvas class="vue-demo" :clear-color="'#000005'">
+      <TresPerspectiveCamera :position="[0, 9, 18]" :look-at="[0, 0, 0]" />
+      <primitive :object="sun" />
 
-    <OrbitControlsBridge :auto-rotate="true" />
+      <OrbitControlsBridge :auto-rotate="true" />
 
-    <Body :body="(star as unknown as RenderableBody)" :preview-mode="true" />
-    <Body
-      v-for="p in planets"
-      :key="p.body.config.name"
-      :body="(p.body as unknown as RenderableBody)"
-      :sun-light="sun"
-    />
-  </TresCanvas>
+      <Body :body="(star as unknown as RenderableBody)" :preview-mode="true" />
+      <Body
+        v-for="p in planets"
+        :key="p.body.config.name"
+        :body="(p.body as unknown as RenderableBody)"
+        :sun-light="sun"
+      />
+      <BodyWarmup
+        v-for="(b, i) in allBodies"
+        :key="`warmup-${i}`"
+        :body="b"
+        @progress="info => onProgress(i, info)"
+        @ready="onReady"
+      />
+    </TresCanvas>
+    <div v-if="loading" class="hex-loader">
+      <div class="hex-loader__label">{{ loadingLabel }}</div>
+      <div class="hex-loader__bar">
+        <div class="hex-loader__fill" :style="{ width: (loadingRatio * 100) + '%' }" />
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.vue-demo { width: 100%; height: 420px; }
+.vue-demo-wrap { position: relative; width: 100%; height: 420px; }
+.vue-demo      { width: 100%; height: 100%; }
+
+.hex-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgba(8, 8, 15, 0.65);
+  backdrop-filter: blur(2px);
+  z-index: 2;
+}
+
+.hex-loader__label {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.04em;
+}
+
+.hex-loader__bar {
+  width: 220px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hex-loader__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ea3ff, #a78bff);
+  transition: width 120ms ease-out;
+}
 </style>

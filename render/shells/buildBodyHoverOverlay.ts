@@ -92,6 +92,12 @@ const _silNormalWorld = new THREE.Vector3()
  * visibility of the selection ring and releases its GPU resources.
  */
 export interface BodyHoverOverlay {
+  /**
+   * Underlying ring mesh. Exposed so the body's `warmup` can include the
+   * overlay shader in its compile pass; the mesh is mounted in the body
+   * group at construction time, callers should not re-parent it.
+   */
+  mesh: THREE.Mesh
   /** Show or hide the ring. */
   setVisible(visible: boolean): void
   /** Remove mesh from parent group and release GPU resources. */
@@ -203,5 +209,5 @@ export function buildBodyHoverOverlay(
     mat.dispose()
   }
 
-  return { setVisible, dispose }
+  return { mesh, setVisible, dispose }
 }

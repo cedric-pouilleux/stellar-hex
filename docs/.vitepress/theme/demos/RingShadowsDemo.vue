@@ -11,6 +11,11 @@ import { paintAtmoSample }    from './paintAtmoSample'
 
 const container = ref<HTMLDivElement>()
 const mode      = ref<ViewMode>('shader')
+
+const loading      = ref(true)
+const loadingLabel = ref('Preparing shaders…')
+const loadingRatio = ref(0)
+
 let applyMode: ((m: ViewMode) => void) | null = null
 let cleanup:   (() => void) | null = null
 
@@ -92,6 +97,14 @@ onMounted(async () => {
       }
     }
 
+    await body.warmup(renderer, camera, {
+      onProgress: (info: { label: string; progress: number }) => {
+        loadingLabel.value = info.label
+        loadingRatio.value = info.progress
+      },
+    })
+    loading.value = false
+
     let animId: number
     let last = performance.now()
     const loop = () => {
@@ -124,12 +137,53 @@ onBeforeUnmount(() => cleanup?.())
 
 <template>
   <div class="demo-wrap">
-    <div ref="container" class="demo-canvas" />
+    <div ref="container" class="demo-canvas">
+      <div v-if="loading" class="hex-loader">
+        <div class="hex-loader__label">{{ loadingLabel }}</div>
+        <div class="hex-loader__bar">
+          <div class="hex-loader__fill" :style="{ width: (loadingRatio * 100) + '%' }" />
+        </div>
+      </div>
+    </div>
     <BodyViewBar :body-type="'gaseous'" v-model:mode="mode" />
   </div>
 </template>
 
 <style scoped>
 .demo-wrap   { width: 100%; }
-.demo-canvas { width: 100%; height: 400px; }
+.demo-canvas { position: relative; width: 100%; height: 400px; }
+
+.hex-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgba(8, 8, 15, 0.65);
+  backdrop-filter: blur(2px);
+  z-index: 2;
+}
+
+.hex-loader__label {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.04em;
+}
+
+.hex-loader__bar {
+  width: 220px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hex-loader__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ea3ff, #a78bff);
+  transition: width 120ms ease-out;
+}
 </style>

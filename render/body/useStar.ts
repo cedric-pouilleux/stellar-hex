@@ -15,6 +15,8 @@ import { makeInteractiveController } from './interactiveController'
 import { accelerateRaycast } from '../lighting/accelerateRaycast'
 import { mountHoverCursor } from '../hover/mountHoverCursor'
 import type { HoverCursorConfig, HoverCursorPresets } from '../types/hoverCursor.types'
+import type { WarmupOptions } from '../types/bodyHandle.types'
+import { warmupBody, type WarmupPhaseSpec } from './warmupBody'
 
 /**
  * Pre-computed inputs the star factory needs from the dispatcher. Receiving
@@ -130,6 +132,34 @@ export function useStar(inputs: UseStarInputs): StarBody {
     interactive.dispose()
   }
 
+  // ── Warmup ───────────────────────────────────────────────────────
+  // Stars carry a single sol-like board — no atmosphere, no liquid.
+  // Surface phase compiles the smooth display + body-hover ring +
+  // the interactive sol mesh (detached from the group until the
+  // caller activates interactive mode).
+  function warmup(
+    renderer:        THREE.WebGLRenderer,
+    camera:          THREE.Camera,
+    progressOptions?: WarmupOptions,
+  ): Promise<void> {
+    const phases: WarmupPhaseSpec[] = [
+      {
+        phase:   'surface',
+        label:   'Compiling surface shaders…',
+        targets: [displayMesh, bodyHover.mesh, interactive.group],
+      },
+    ]
+    const cursorTargets = cursor.objects()
+    if (cursorTargets.length > 0) {
+      phases.push({
+        phase:   'cursor',
+        label:   'Compiling cursor shaders…',
+        targets: [...cursorTargets],
+      })
+    }
+    return warmupBody(renderer, camera, phases, progressOptions)
+  }
+
   return {
     kind: 'star',
     group, config, sim, palette, variation, tileCount,
@@ -143,6 +173,7 @@ export function useStar(inputs: UseStarInputs): StarBody {
 
     tick:    tickStar,
     dispose,
+    warmup,
 
     getCoreRadius:    () => config.radius * (config.coreRadiusRatio ?? 0),
     getSurfaceRadius: () => config.radius,

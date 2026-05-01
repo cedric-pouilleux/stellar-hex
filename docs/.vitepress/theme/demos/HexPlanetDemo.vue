@@ -17,6 +17,10 @@ const container = ref<HTMLDivElement>()
 const tooltip   = ref<TileInfo | null>(null)
 const tipPos    = ref({ x: 0, y: 0 })
 
+const loading      = ref(true)
+const loadingLabel = ref('Preparing shaders…')
+const loadingRatio = ref(0)
+
 let cleanup: (() => void) | null = null
 
 onMounted(async () => {
@@ -67,6 +71,17 @@ onMounted(async () => {
   const body = useBody(config, DEFAULT_TILE_SIZE)
   body.interactive.activate()
   scene.add(body.group)
+
+  // Pre-compile every shader before the first render — keeps the main
+  // thread responsive while the GPU driver links programs in the
+  // background (uses `KHR_parallel_shader_compile` when available).
+  await body.warmup(renderer, camera, {
+    onProgress: (info: { label: string; progress: number }) => {
+      loadingLabel.value = info.label
+      loadingRatio.value = info.progress
+    },
+  })
+  loading.value = false
 
   const sim         = (body as any).sim
   const raycaster   = new THREE.Raycaster()
@@ -154,6 +169,12 @@ onBeforeUnmount(() => cleanup?.())
 
 <template>
   <div ref="container" class="hex-demo">
+    <div v-if="loading" class="hex-loader">
+      <div class="hex-loader__label">{{ loadingLabel }}</div>
+      <div class="hex-loader__bar">
+        <div class="hex-loader__fill" :style="{ width: (loadingRatio * 100) + '%' }" />
+      </div>
+    </div>
     <div
       v-if="tooltip"
       class="hex-tooltip"
@@ -212,5 +233,39 @@ onBeforeUnmount(() => cleanup?.())
 .hex-tooltip__v {
   color: rgba(255, 255, 255, 0.9);
   text-align: right;
+}
+
+.hex-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgba(8, 8, 15, 0.65);
+  backdrop-filter: blur(2px);
+  z-index: 2;
+}
+
+.hex-loader__label {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.04em;
+}
+
+.hex-loader__bar {
+  width: 220px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hex-loader__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ea3ff, #a78bff);
+  transition: width 120ms ease-out;
 }
 </style>

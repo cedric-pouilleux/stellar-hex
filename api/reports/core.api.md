@@ -142,6 +142,7 @@ export interface BodyBase {
     tileCount: number;
     // (undocumented)
     variation: BodyVariation;
+    warmup(renderer: THREE.WebGLRenderer, camera: THREE.Camera, options?: WarmupOptions): Promise<void>;
 }
 
 // @public
@@ -1489,6 +1490,23 @@ export function useBody(config: BodyConfig, tileSize: number, options?: {
     hoverCursors?: HoverCursorPresets;
     defaultCursor?: string;
 }): Body_2;
+
+// @public
+export interface WarmupOptions {
+    onProgress?: (info: WarmupProgress) => void;
+}
+
+// @public
+export type WarmupPhase = 'collecting' | 'surface' | 'atmosphere' | 'cursor' | 'done';
+
+// @public
+export interface WarmupProgress {
+    current: number;
+    label: string;
+    phase: WarmupPhase;
+    progress: number;
+    total: number;
+}
 
 // (No @packageDocumentation comment for this package)
 

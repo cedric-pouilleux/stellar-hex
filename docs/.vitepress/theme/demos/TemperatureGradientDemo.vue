@@ -27,6 +27,11 @@ const specs: TempSpec[] = [
 ]
 
 const containers = ref<HTMLDivElement[]>([])
+
+const loading      = ref(true)
+const loadingLabel = ref('Preparing shaders…')
+const loadingRatio = ref(0)
+
 let cleanups: Array<() => void> = []
 
 onMounted(async () => {
@@ -34,6 +39,15 @@ onMounted(async () => {
     import('three'),
     import('@cedric-pouilleux/stellar-hex/core'),
   ])
+
+  type Cell = {
+    body:     ReturnType<typeof useBody>
+    renderer: InstanceType<typeof THREE.WebGLRenderer>
+    camera:   InstanceType<typeof THREE.PerspectiveCamera>
+    startLoop: () => void
+  }
+
+  const cells: Cell[] = []
 
   for (let i = 0; i < specs.length; i++) {
     const spec = specs[i]
@@ -70,26 +84,47 @@ onMounted(async () => {
     }, DEFAULT_TILE_SIZE)
     scene.add(body.group)
 
-    let animId: number
-    let last = performance.now()
-    const loop = () => {
-      animId = requestAnimationFrame(loop)
-      const now = performance.now()
-      const dt  = (now - last) / 1000
-      last = now
-      body.group.rotation.y += dt * 0.3
-      body.tick(dt)
-      renderer.render(scene, camera)
-    }
-    loop()
+    const startLoop = () => {
+      let animId: number
+      let last = performance.now()
+      const loop = () => {
+        animId = requestAnimationFrame(loop)
+        const now = performance.now()
+        const dt  = (now - last) / 1000
+        last = now
+        body.group.rotation.y += dt * 0.3
+        body.tick(dt)
+        renderer.render(scene, camera)
+      }
+      loop()
 
-    cleanups.push(() => {
-      cancelAnimationFrame(animId)
-      body.dispose()
-      renderer.dispose()
-      el.removeChild(renderer.domElement)
-    })
+      cleanups.push(() => {
+        cancelAnimationFrame(animId)
+        body.dispose()
+        renderer.dispose()
+        el.removeChild(renderer.domElement)
+      })
+    }
+
+    cells.push({ body, renderer, camera, startLoop })
   }
+
+  // Pre-compile every cell's shaders in parallel — `KHR_parallel_shader_compile`
+  // links all programs concurrently. Aggregate progress is the average of the
+  // latest per-cell ratios.
+  const ratios: number[] = cells.map(() => 0)
+  await Promise.all(cells.map((c, i) =>
+    c.body.warmup(c.renderer, c.camera, {
+      onProgress: (info: { label: string; progress: number }) => {
+        ratios[i] = info.progress
+        loadingLabel.value = info.label
+        loadingRatio.value = ratios.reduce((s, x) => s + x, 0) / ratios.length
+      },
+    })
+  ))
+  loading.value = false
+
+  cells.forEach(c => c.startLoop())
 })
 
 onBeforeUnmount(() => {
@@ -104,11 +139,18 @@ onBeforeUnmount(() => {
       <div :ref="(el) => { if (el) containers[i] = el as HTMLDivElement }" class="temp-canvas" />
       <p class="temp-label">{{ spec.label }}</p>
     </div>
+    <div v-if="loading" class="hex-loader">
+      <div class="hex-loader__label">{{ loadingLabel }}</div>
+      <div class="hex-loader__bar">
+        <div class="hex-loader__fill" :style="{ width: (loadingRatio * 100) + '%' }" />
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .temp-grid {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   grid-template-rows: repeat(2, 1fr);
@@ -129,5 +171,39 @@ onBeforeUnmount(() => {
   font-size: 0.7rem;
   color: rgba(255,255,255,0.65);
   margin: 0;
+}
+
+.hex-loader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: rgba(8, 8, 15, 0.65);
+  backdrop-filter: blur(2px);
+  z-index: 2;
+}
+
+.hex-loader__label {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.04em;
+}
+
+.hex-loader__bar {
+  width: 220px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hex-loader__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ea3ff, #a78bff);
+  transition: width 120ms ease-out;
 }
 </style>

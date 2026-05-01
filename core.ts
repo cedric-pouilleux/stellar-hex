@@ -33,6 +33,9 @@ export type {
   StarTiles,
   RGB,
   TileBaseVisual,
+  WarmupPhase,
+  WarmupProgress,
+  WarmupOptions,
 } from './render/types/bodyHandle.types'
 
 // ── Render config (body-scoped) ──────────────────────────────────

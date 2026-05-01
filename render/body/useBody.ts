@@ -17,6 +17,8 @@ import { hasAtmosphere, resolveAtmosphereThickness } from '../../physics/body'
 import { mountHoverCursor } from '../hover/mountHoverCursor'
 import { resolveLightWorldPos } from '../lighting/findDominantLight'
 import type { HoverCursorConfig, HoverCursorPresets } from '../types/hoverCursor.types'
+import type { WarmupOptions } from '../types/bodyHandle.types'
+import { warmupBody, type WarmupPhaseSpec } from './warmupBody'
 
 // Re-exports for the public API surface — keep historical import paths
 // (`@cedric-pouilleux/stellar-hex/core` → `useBody`, `resolveTileHeight`, …)
@@ -207,6 +209,48 @@ export function useBody(
     atmoBoard?.dispose()
   }
 
+  // ── Warmup (pre-compile every shader the body will use) ──────────
+  // The `'surface'` phase covers the smooth display mesh, the opaque
+  // core mesh, the body-hover ring and the interactive sol mesh
+  // (the latter is detached from the body group until `activate()`,
+  // hence enumerated explicitly so the first activation does not
+  // freeze on a fresh shader link).
+  // The `'atmosphere'` phase covers the atmo halo shell and the
+  // playable atmo board — present only on bodies with an atmosphere.
+  // The `'cursor'` phase covers the hover cursor primitives.
+  function warmup(
+    renderer: THREE.WebGLRenderer,
+    camera:   THREE.Camera,
+    progressOptions?: WarmupOptions,
+  ): Promise<void> {
+    const phases: WarmupPhaseSpec[] = [
+      {
+        phase:   'surface',
+        label:   'Compiling surface shaders…',
+        targets: [displayMesh, coreMesh.mesh, bodyHover.mesh, interactive.group],
+      },
+    ]
+    const atmoTargets: THREE.Object3D[] = []
+    if (atmoShell) atmoTargets.push(atmoShell.mesh)
+    if (atmoBoard) atmoTargets.push(atmoBoard.group)
+    if (atmoTargets.length > 0) {
+      phases.push({
+        phase:   'atmosphere',
+        label:   'Compiling atmosphere shaders…',
+        targets: atmoTargets,
+      })
+    }
+    const cursorTargets = cursor.objects()
+    if (cursorTargets.length > 0) {
+      phases.push({
+        phase:   'cursor',
+        label:   'Compiling cursor shaders…',
+        targets: [...cursorTargets],
+      })
+    }
+    return warmupBody(renderer, camera, phases, progressOptions)
+  }
+
   /**
    * Routes the hover query to the active board: liquid surface (priority,
    * sits on top), then sol mesh in surface view, atmo board in
@@ -274,6 +318,7 @@ export function useBody(
       }
     },
     dispose,
+    warmup,
 
     getCoreRadius:    () => coreMesh.radius,
     getSurfaceRadius: () => config.radius,

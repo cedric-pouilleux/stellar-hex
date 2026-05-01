@@ -133,6 +133,14 @@ export interface HoverCursorHandle {
   onHoverChange(listener: HoverListener): () => void
   /** Current hovered sol tile id — `null` outside of sol hovers. */
   getHoverId(): number | null
+  /**
+   * Live snapshot of every Three.js object the cursor owns (cap ring,
+   * floor ring, emissive light). Excludes primitives that were disabled
+   * at build time (no GPU resource allocated). Used by the body's
+   * `warmup` to compile cursor shaders into a dedicated phase rather
+   * than mixing them with the rest of the body group.
+   */
+  objects(): readonly THREE.Object3D[]
   /** Releases GPU resources. Idempotent. */
   dispose(): void
 }
@@ -420,12 +428,21 @@ export function buildHoverCursor(
     if (light) ports.group.remove(light)
   }
 
+  function objects(): readonly THREE.Object3D[] {
+    const out: THREE.Object3D[] = []
+    if (capRing)   out.push(capRing.mesh)
+    if (floorRing) out.push(floorRing.mesh)
+    if (light)     out.push(light)
+    return out
+  }
+
   return {
     setBoardTile,
     refresh,
     updateConfig,
     onHoverChange,
     getHoverId: () => currentSolId,
+    objects,
     dispose,
   }
 }

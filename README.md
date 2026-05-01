@@ -35,7 +35,7 @@ import { Body, BodyRings, ShadowUpdater }         from '@cedric-pouilleux/stella
 
 - **`@cedric-pouilleux/stellar-hex/sim`** — pure data & physics layer. No Three.js or Vue dependency, runtime or types; runs in workers, Node or any environment that can execute ES modules. Use for servers, CLIs, or deterministic tests.
 - **`@cedric-pouilleux/stellar-hex/core`** — adds the Three.js render layer (shaders, meshes, materials, raycasting). No Vue dependency — drop into a vanilla Three.js scene.
-- **`@cedric-pouilleux/stellar-hex`** — full Vue/TresJS component surface (`<Body>`, `<BodyController>`, `<BodyRings>`, `<ShadowUpdater>`, `<TileCenterProjector>`).
+- **`@cedric-pouilleux/stellar-hex`** — full Vue/TresJS component surface (`<Body>`, `<BodyController>`, `<BodyRings>`, `<BodyWarmup>`, `<ShadowUpdater>`, `<TileCenterProjector>`).
 
 ## Quick start (headless)
 
@@ -77,9 +77,22 @@ const body = useBody(
   DEFAULT_TILE_SIZE,
 )
 scene.add(body.group)
+
+// Pre-compile every shader before the first render — keeps the main
+// thread responsive while the GPU driver links programs in the
+// background (uses `KHR_parallel_shader_compile` when available).
+await body.warmup(renderer, camera, {
+  onProgress: ({ phase, progress, label }) => {
+    // Drive a loading bar — `phase` is a stable code, `label` an
+    // English fallback, `progress` ∈ [0, 1].
+  },
+})
+
 // in animation loop:
 body.tick(delta)
 ```
+
+On Vue/TresJS scenes, mount `<BodyWarmup :body="body" @ready="…" />` inside `<TresCanvas>` instead — it resolves the renderer / camera from the canvas context and emits the same progress events.
 
 ## Resources live off-lib
 
