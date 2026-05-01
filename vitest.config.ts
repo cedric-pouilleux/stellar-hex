@@ -27,6 +27,16 @@ export default defineConfig({
   test: {
     environment: 'node',
     include:     ['**/*.{spec,test}.ts'],
-    exclude:     ['**/node_modules/**', '**/dist/**', 'docs/**'],
+    // `docs/api/**` is TypeDoc-generated; `docs/.vitepress/{dist,cache}`
+    // are build artefacts. The narrowed exclude lets specs colocated with
+    // theme composables (e.g. `docs/.vitepress/theme/composables/*.spec.ts`)
+    // run alongside the lib's own suite.
+    exclude:     [
+      '**/node_modules/**',
+      '**/dist/**',
+      'docs/api/**',
+      'docs/.vitepress/dist/**',
+      'docs/.vitepress/cache/**',
+    ],
   },
 })
