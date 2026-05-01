@@ -55,9 +55,6 @@ export interface BodySimulation {
 // @public
 export type BodyType = 'planetary' | 'star';
 
-// @public @deprecated
-export type BodyVisualProfile = PlanetVisualProfile;
-
 // @public
 export function buildNeighborMap(tiles: readonly Tile[]): Map<number, number[]>;
 

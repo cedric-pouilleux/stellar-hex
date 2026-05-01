@@ -35,8 +35,8 @@ if (body.kind === 'planet') {
   body.tiles.sol.applyOverlay(map)             // → batch sol
   body.tiles.sol.updateTileSolHeight(map)      // → mute la hauteur (excavation)
 
-  // Atmo board (cliquable, pas de relief — null si atmosphereThickness === 0)
-  body.tiles.atmo?.applyOverlay(map)           // → stamp sur la bande atmo
+  // Atmosphère (cliquable, pas de relief — null si atmosphereThickness === 0)
+  body.tiles.atmo?.applyOverlay(map)           // → stamp sur l'atmosphère
 
   // Aides cross-board
   body.tiles.paintSmoothSphere(map)            // → vue d'ensemble (smooth sphere)
@@ -165,9 +165,9 @@ function tickFire(body: PlanetBody, fireMap: Map<number, number>) {
 
 Pas de coût GPU additionnel — c'est un patch in-place sur le `Float32BufferAttribute`.
 
-## Pattern « atmo polluée »
+## Pattern « atmosphère polluée »
 
-La bande atmo est cliquable + peignable indépendamment du sol (cf. [Atmosphère jouable](/examples/atmosphere/playable)) :
+L'atmosphère est cliquable + peignable indépendamment du sol (cf. [Atmosphère jouable](/examples/atmosphere/playable)) :
 
 ```ts
 if (body.tiles.atmo) {
@@ -210,4 +210,4 @@ C'est le template recommandé pour un projet de jeu sérieux — copier-coller, 
 - [Concepts fondamentaux §5 — Responsabilités du caller](/guides/core-concepts#_5-les-responsabilit%C3%A9s-du-caller)
 - [Mode jouable](/examples/hex-tiles/playable-mode) — survol + clic + paint
 - [Voisinage & BFS](/examples/hex-tiles/neighbors) — pathfinding et diffusion
-- [Atmosphère jouable](/examples/atmosphere/playable) — paint sur la bande atmo
+- [Atmosphère jouable](/examples/atmosphere/playable) — paint sur l'atmosphère

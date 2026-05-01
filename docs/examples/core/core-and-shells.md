@@ -179,4 +179,4 @@ C'est le pattern à privilégier pour Jupiter, Neptune, et toute géante dont vo
 
 ### Toggle « pas d'atmo » pareil ?
 
-Symétrique : `atmosphereThickness = 0` (ou `hasAtmosphere(config) === false`) skip le shell atmo, le `atmoBoardMesh` (bande atmo cliquable) et le mesh atmo de la `LayeredInteractive`. Une planète tellurique sèche minimale (sans atmo, sans liquide) ne mount donc que le noyau + le sol hex + (option) un anneau.
+Symétrique : `atmosphereThickness = 0` (ou `hasAtmosphere(config) === false`) skip le shell atmo, le `atmoBoardMesh` (atmosphère cliquable) et le mesh atmo de la `LayeredInteractive`. Une planète tellurique sèche minimale (sans atmo, sans liquide) ne mount donc que le noyau + le sol hex + (option) un anneau.

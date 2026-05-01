@@ -55,7 +55,6 @@ export type {
   ColorInput,
   MetallicBand,
   PlanetVisualProfile,
-  BodyVisualProfile,
 } from './body/visualProfile.types'
 
 // ── Composed config ───────────────────────────────────────────────

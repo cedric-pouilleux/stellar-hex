@@ -61,7 +61,6 @@ export type {
   PlanetPhysics,
   StarPhysics,
   BodyNoiseProfile,
-  BodyVisualProfile,
   PlanetVisualProfile,
   BodyType,
   SurfaceLook,

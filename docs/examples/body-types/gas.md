@@ -23,7 +23,8 @@ Corps entièrement gazeux à bandes latitudinales procédurales. Pas de relief s
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `type` | `'gaseous'` | Discriminant obligatoire |
+| `type` | `'planetary'` | Discriminant obligatoire |
+| `surfaceLook` | `'bands'` | Famille de rendu — bandes latitudinales gazeuses |
 | `name` / `radius` | `string` / `number` | Identité + rayon de la silhouette totale (gaz couvre tout) |
 | `rotationSpeed` | `number` | Vitesse de rotation (rad/s) |
 | `axialTilt` | `number` | Inclinaison de l'axe (rad) |

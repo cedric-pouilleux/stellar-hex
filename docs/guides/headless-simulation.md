@@ -61,7 +61,7 @@ console.log(sim.seaLevelElevation)
 | **Taxonomie** | `BodyType` (`'planetary' \| 'star'`), `SurfaceLook` (`'terrain' \| 'bands' \| 'metallic'`), `SpectralType` (`'O' \| 'B' \| … \| 'M'`) |
 | **Identity**  | `BodyIdentity`, `PlanetIdentity`, `StarIdentity` |
 | **Physics**   | `BodyPhysics`, `BodyPhysicsCore`, `PlanetPhysics`, `StarPhysics`, `StarPhysicsInput`, `ResolvedStarData` |
-| **Profils**   | `BodyNoiseProfile`, `PlanetVisualProfile` (alias deprecated `BodyVisualProfile`) |
+| **Profils**   | `BodyNoiseProfile`, `PlanetVisualProfile` |
 | **Config**    | `BodyConfig` (union discriminée), `PlanetConfig`, `StarConfig` |
 | **Visuel**    | `ColorInput` (string \| number), `MetallicBand` |
 | **Géométrie** | `Tile`, `Point3D`, `HexasphereData` |

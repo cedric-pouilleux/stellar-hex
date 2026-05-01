@@ -99,16 +99,6 @@ export interface PlanetVisualProfile {
   hasRings?:        boolean
 }
 
-/**
- * Backwards-compatible alias — visual fields used to live on a single
- * `BodyVisualProfile`. Stars never carried any of them, so the new
- * planet-scoped name is more accurate.
- *
- * @deprecated Prefer {@link PlanetVisualProfile} — this alias is kept so
- *             existing imports keep resolving.
- */
-export type BodyVisualProfile = PlanetVisualProfile
-
 // Note: cracks and lava are pure visual effects. The intensity / colour /
 // scale knobs live on `BodyVariation` (`crackIntensity`, `lavaIntensity`,
 // `lavaColor`, …); a value of `0` for either intensity disables the

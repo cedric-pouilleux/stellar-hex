@@ -164,7 +164,7 @@ Le pipeline étoile (`useStar`) est **structurellement différent** du pipeline 
 | `liquid` namespace | présent | **absent** |
 | `view` namespace (`'surface' \| 'atmosphere' \| 'shader'`) | présent | **absent** |
 | `atmoShell` | `AtmoShellHandle \| null` | **absent** |
-| `tiles.atmo` (bande atmo cliquable) | `BoardTiles \| null` | **absent** |
+| `tiles.atmo` (atmosphère cliquable) | `BoardTiles \| null` | **absent** |
 | `tiles.updateTileSolHeight` | présent | **absent** |
 | `surfaceLook` config | requis (default `'terrain'`) | ignoré |
 | `spectralType` config | rejeté (TS) | requis |

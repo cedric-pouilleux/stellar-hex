@@ -44,7 +44,7 @@ Le mesh interactif a **deux bandes** dans la même géométrie merged :
 Les deux boards ont leur **propre subdivision** : un id sol `42` et un id atmo `42` ne désignent pas la même verticale. Pour relier une tuile sol à la tuile atmo « au-dessus », faites un raycast vertical caller-side, ou consommez `body.tiles.atmo.getTilePosition(id)` côté atmo et faites un nearest-neighbour sur les centres sol.
 :::
 
-## Peindre la bande atmo
+## Peindre l'atmosphère
 
 Le namespace `body.tiles.atmo` (présent uniquement quand `atmosphereThickness > 0`) expose `applyOverlay(colors)` — stamp les couleurs sur la couche atmosphérique sans toucher au sol :
 
@@ -60,7 +60,7 @@ if (body.kind === 'planet' && body.tiles.atmo) {
 Cas d'usage typiques :
 
 - **Pollution / nuages toxiques** — tint des secteurs atmo pour visualiser une diffusion.
-- **Couverture nuageuse statique** — peint une carte d'opacité sur la bande atmo (la lib n'expose plus de couche de nuages procédurale séparée — le shader gaz, `buildAtmoShell` et les uniforms `cloudAmount` / `cloudColor` couvrent les autres besoins).
+- **Couverture nuageuse statique** — peint une carte d'opacité sur l'atmosphère (la lib n'expose plus de couche de nuages procédurale séparée — le shader gaz, `buildAtmoShell` et les uniforms `cloudAmount` / `cloudColor` couvrent les autres besoins).
 - **Zones contestées** — overlay de territoire affiché *au-dessus* de la planète sans masquer le sol quand on switch en vue surface.
 
 ## Raycaster atmo vs sol
@@ -70,7 +70,7 @@ Cas d'usage typiques :
 ```ts
 // En vue 'atmosphere' :
 body.interactive.queryHover(raycaster)
-// → tile id de la bande atmo
+// → tile id de l'atmosphère
 
 body.view.set('surface')
 

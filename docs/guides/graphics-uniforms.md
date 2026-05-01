@@ -111,7 +111,7 @@ Deux canaux différents pour deux familles de paramètres :
 
 Règle pratique :
 - Si le réglage doit s'appliquer à **plusieurs corps en même temps** ou à **plusieurs coquilles d'un même corps** → `graphicsUniforms`.
-- Si le réglage est **spécifique à un type** (rocky/gas/metallic/star) ou décrit l'**identité** du corps → `setParams`.
+- Si le réglage est **spécifique à une famille shader** (`LibBodyType` interne : `rocky` / `gaseous` / `metallic` / `star` — distinct de la taxonomie publique `BodyType` + `surfaceLook`, cf. [API avancée](/guides/advanced-api)) ou décrit l'**identité** du corps → `setParams`.
 
 ## Performance
 

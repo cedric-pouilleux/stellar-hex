@@ -28,7 +28,8 @@ La lib est **agnostique du climat** : elle ne lit aucun champ de température et
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `type` | `'rocky'` | Discriminant obligatoire |
+| `type` | `'planetary'` | Discriminant obligatoire |
+| `surfaceLook` | `'terrain'` | Famille de rendu — terrain hex à relief |
 | `name` | `string` | Seed déterministe — même nom = même planète |
 | `radius` | `number` | Rayon de la silhouette totale (sol + atmo, unités monde) |
 | `liquidState` | `'liquid' \| 'frozen' \| 'none'` | État physique du liquide de surface (défaut `'none'`) |

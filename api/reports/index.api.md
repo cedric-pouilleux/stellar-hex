@@ -410,9 +410,6 @@ export interface BodyView {
     set(view: InteractiveView): void;
 }
 
-// @public @deprecated
-export type BodyVisualProfile = PlanetVisualProfile;
-
 // @public
 export function buildAtmoBoardMesh(options: AtmoBoardMeshOptions): AtmoBoardMesh;
 

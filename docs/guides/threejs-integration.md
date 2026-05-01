@@ -140,7 +140,7 @@ Les couches additionnelles sont **opt-in**. Vous décidez explicitement quand le
 L'atmosphère visuelle est intégrée :
 
 - **Vue shader** — un halo procédural (`buildAtmoShell`) est monté automatiquement par `useBody` quand `atmosphereOpacity > 0` (cf. `body.atmoShell` sur les `PlanetBody`).
-- **Vue surface (jouable)** — la bande atmo de l'`InteractiveLayeredMesh` est cliquable + peignable.
+- **Vue surface (jouable)** — l'atmosphère de l'`InteractiveLayeredMesh` est cliquable + peignable.
 - **Lave / fissures** — pilotées par les flags `hasLava` / `hasCracks` du `BodyConfig` et leurs uniforms shader (`lavaAmount`, `lavaEmissive`, …) via `body.planetMaterial.setParams({ … })`.
 
 ### Anneaux
