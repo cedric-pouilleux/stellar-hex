@@ -22,7 +22,7 @@ Recette complète : géante gazeuse à bandes + anneau procédural + ombre proje
 ## Configuration
 
 ```ts
-import { useBody, DEFAULT_TILE_SIZE, Body } from '@cedric-pouilleux/stellar-hex'
+import { useBody, DEFAULT_TILE_SIZE, Body, type BodyConfig } from '@cedric-pouilleux/stellar-hex'
 
 const config: BodyConfig = {
   type:           'planetary',

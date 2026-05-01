@@ -121,7 +121,7 @@ Ordre de précédence pour le rocky :
 
 1. `BodyRenderOptions.palette` — full override, bande à bande
 2. `BodyConfig.terrainColorLow / High` — ancres de la rampe par défaut
-3. `DEFAULT_TERRAIN_LOW_COLOR / HIGH_COLOR` — fallback neutre
+3. [`DEFAULT_TERRAIN_LOW_COLOR`](/api/core/variables/DEFAULT_TERRAIN_LOW_COLOR) / [`DEFAULT_TERRAIN_HIGH_COLOR`](/api/core/variables/DEFAULT_TERRAIN_HIGH_COLOR) — fallback neutre (gris bas → gris haut)
 
 Pour le métallique, `metallicBands` joue le rôle des ancres (4 stops) ; pour le gazeux, c'est `bandColors` (4 stops). Dans tous les cas, `palette` les overshadow tous quand il est passé.
 :::

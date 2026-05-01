@@ -111,6 +111,8 @@ const merged = buildLayeredMergedGeometry(
 
 `SolHeightFn` est purement fonctionnel — vous pouvez la brancher sur n'importe quelle source (sim, save, override de jeu).
 
+Si votre source de hauteur **est** la simulation standard, [`resolveSolHeight(tile, sim, levels, maxHeight)`](/api/core/functions/resolveSolHeight) est exactement la fonction qu'invoque `buildLayeredInteractiveMesh` en interne : look-up de l'état de simulation, conversion bande → hauteur monde via la palette, clamp à `maxHeight`. Réutilisez-la pour qu'un mesh custom s'aligne sur la **même staircase** que le sol standard.
+
 ### `buildAtmoBoardMesh` — board atmo cliquable
 
 L'atmo cliquable des planètes est une **hexasphère séparée** projetée sur la bande `[solOuter, silhouette]`. Mêmes primitives, mais sans staircase d'élévation — un seul niveau par tuile.
@@ -130,6 +132,32 @@ scene.add(atmoBoard.group)
 ::: warning Sol et atmo sont deux hexaspheres distinctes
 Un id sol `42` et un id atmo `42` ne désignent **pas** la même verticale. Pour relier les deux, faites un nearest-neighbor sur `getTilePosition`.
 :::
+
+## Pré-calculs sans body
+
+Plusieurs résolveurs sont exposés pour pré-calculer des dérivés du `BodyConfig` **sans** allouer de mesh. Utiles pour des panneaux UI, des thumbnails, ou pour ancrer des coquilles custom sur les mêmes valeurs que la lib.
+
+| Helper | Entrée | Retour | Usage |
+| ------ | ------ | ------ | ----- |
+| [`resolveAtmosphereThickness(config)`](/api/core/functions/resolveAtmosphereThickness) | `BodyConfig` | fraction `[0, 1]` | Lit `atmosphereThickness` avec défauts (selon `surfaceLook`). Utile pour pré-allouer un halo custom à la même épaisseur que la lib |
+| [`resolveCoreRadiusRatio(config)`](/api/sim/functions/resolveCoreRadiusRatio) | `BodyConfig` | ratio `[0, 1]` | Override → dérivation `gasMassFraction` → défaut, avec garde-fou 5 % de sol (cf. [Concepts §8](/guides/core-concepts#_8-trois-invariants-qui-surprennent)) |
+| [`resolveTerrainLevelCount(radius, coreRatio)`](/api/core/functions/resolveTerrainLevelCount) | radius + ratio | `number` (≥ `MIN_TERRAIN_LEVEL_COUNT`) | Nombre de bandes que la sim utilisera — équivalent à `body.palette.length` |
+| [`terrainBandLayout(...)`](/api/core/functions/terrainBandLayout) | radius + count + coreRatio | `{ unit, baseRadius, bandHeight }` | Layout radial commun aux palettes rocky/gas |
+| [`bodyOuterRadius(config, palette?)`](/api/core/functions/bodyOuterRadius) | `BodyConfig` + palette opt. | `number` | Rayon hors-tout (`radius` + bande la plus haute) — ancrage des coquilles custom |
+
+```ts
+import {
+  resolveAtmosphereThickness,
+  resolveCoreRadiusRatio,
+  resolveTerrainLevelCount,
+} from '@cedric-pouilleux/stellar-hex/core'
+
+const thickness = resolveAtmosphereThickness(config)
+const coreRatio = resolveCoreRadiusRatio(config)
+const bandCount = resolveTerrainLevelCount(config.radius, coreRatio)
+```
+
+C'est exactement la chaîne qu'invoque `useBody` en interne — la garantie « ce que je pré-calcule = ce que la lib utilise » est structurelle.
 
 ## Outer radius — anchor pour vos coquilles custom
 

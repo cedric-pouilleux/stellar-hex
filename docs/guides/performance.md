@@ -145,6 +145,15 @@ const body = useBody(config, DEFAULT_TILE_SIZE, { quality: { sphereDetail: 'high
 
 Le plafond dur est `MAX_SPHERE_DETAIL = 7` (≈ 163 842 vertices après `mergeVertices`). `'ultra'` clamp à ce plafond — pousser plus loin (8 ≈ 655 k vertices) tue la GPU sans gain visuel correspondant.
 
+Le type [`SphereDetailQuality`](/api/core/type-aliases/SphereDetailQuality) (`'standard' | 'high' | 'ultra'`) est exposé si vous voulez binder un sélecteur d'UI dessus. Pour résoudre le niveau effectif d'icosphère depuis un preset (panneau debug, builder custom), [`resolveSphereDetail(baseDetail, quality?)`](/api/core/functions/resolveSphereDetail) applique le bump et clamp à `MAX_SPHERE_DETAIL` :
+
+```ts
+import { resolveSphereDetail, MAX_SPHERE_DETAIL } from '@cedric-pouilleux/stellar-hex/core'
+
+const level = resolveSphereDetail(4, { sphereDetail: 'ultra' })
+// 4 + 2, clampé à MAX_SPHERE_DETAIL
+```
+
 Quand l'utiliser :
 
 - **`'high'` ou `'ultra'`** : vue planétaire close-up + atmo épaisse (le shell atmo bénéficie particulièrement de la densité — moins de banding sur les gradients).

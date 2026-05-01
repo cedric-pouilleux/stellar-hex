@@ -42,6 +42,7 @@ import {
   buildSolidShell,
   resolveCoreRadiusRatio,
   DEFAULT_TILE_SIZE,
+  type PlanetConfig,
 } from '@cedric-pouilleux/stellar-hex/core'
 
 const config: PlanetConfig = {

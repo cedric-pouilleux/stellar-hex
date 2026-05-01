@@ -140,6 +140,8 @@ Les élévations sont **quantifiées en bandes entières** :
 
 C'est cette quantification qui permet de raycaster une tuile et de connaître son altitude **sans** échantillonner le bruit.
 
+`N` est borné par [`MIN_TERRAIN_LEVEL_COUNT`](/api/core/variables/MIN_TERRAIN_LEVEL_COUNT) (`= 4`) — même un corps minuscule ou une coquille très fine garde au moins 4 bandes utilisables, ce qui empêche les staircases dégénérées (1-2 paliers donnent des planètes "binaires" sans lisibilité).
+
 ### Quantification équi-fréquence
 
 La sim utilise un ranking : les `n` tuiles sont triées par valeur de bruit, puis découpées en `N` paquets de taille égale. **Chaque bande reçoit ~le même nombre de tuiles**, indépendamment de la forme du bruit.
