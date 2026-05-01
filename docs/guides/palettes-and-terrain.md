@@ -74,6 +74,25 @@ const body = useBody({
 
 Les champs absents tombent sur l'échelle par défaut (cf. `buildMetallicPalette`).
 
+### Anatomie d'une `MetallicBand`
+
+| Champ | Type | Défaut neutre (par slot) | Effet |
+| ----- | ---- | ------------------------ | ----- |
+| `color`             | `ColorInput`     | requis | Couleur de la bande (hex string ou `0xRRGGBB`) |
+| `metalness`         | `0..1`           | `0.62 → 0.96` | Métalicité PBR — gravit avec le slot (les pics sont plus métalliques que les fonds) |
+| `roughness`         | `0..1`           | `0.50 → 0.14` | Rugosité PBR — décroît avec le slot (les pics sont plus polis) |
+| `height`            | `number` (world units) | `0.000 → 0.120` | **Décalage radial absolu** au-dessus de la surface du noyau, en unités monde |
+| `emissive`          | `ColorInput`     | absent | Couleur émissive — quand omise, aucune émission n'est ajoutée |
+| `emissiveIntensity` | `0..1`           | `1.0` (si `emissive` est défini) | Intensité du canal émissif |
+
+::: tip `height` est en unités monde, pas en bandes
+Contrairement aux palettes rocky/gas où la hauteur dérive de [`terrainBandLayout`](/api/core/functions/terrainBandLayout) (`i × layout.unit`), les `MetallicBand.height` sont passés **verbatim** au shader. La règle pratique : choisis des valeurs proportionnelles à `config.radius` — pour un corps `radius = 1`, le défaut neutre `0.000 → 0.120` couvre 12 % du rayon, ce qui reste lisible sans concurrencer la silhouette.
+:::
+
+::: warning `emissive` ne s'allume pas tout seul
+`emissiveIntensity` est appliqué **uniquement** quand `emissive` est défini. Pousser `emissiveIntensity: 0.6` sans `emissive` est silencieusement ignoré — utile à savoir pour les UI de tuning.
+:::
+
 ## Override total
 
 Si vous voulez piloter chaque bande explicitement, passez `palette` à `useBody` (le 3e argument est `BodyRenderOptions`) :

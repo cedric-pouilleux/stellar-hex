@@ -72,6 +72,7 @@ export default defineConfig({
           items: [
             { text: 'Shaders & matériaux',     link: '/guides/shaders-and-materials' },
             { text: 'Palettes & terrain',      link: '/guides/palettes-and-terrain'  },
+            { text: 'Étoiles',                 link: '/guides/stars'                 },
             { text: 'Variation visuelle',      link: '/guides/variation'             },
             { text: 'Curseur de survol',       link: '/guides/hover-cursor'          },
             { text: 'Graphics uniforms',       link: '/guides/graphics-uniforms'     },
@@ -102,6 +103,12 @@ export default defineConfig({
           text: 'Palettes & couleurs',
           items: [
             { text: 'Gradient de température', link: '/examples/palettes/temperature-gradient' },
+          ],
+        },
+        {
+          text: 'Relief & bruit',
+          items: [
+            { text: 'Profil de bruit', link: '/examples/relief/noise-profile' },
           ],
         },
         {

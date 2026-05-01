@@ -101,6 +101,25 @@ if (body.kind === 'planet') {
 }
 ```
 
+### Les trois vues d'une planète
+
+`body.view.set(view)` sur les `PlanetBody` accepte trois modes mutuellement exclusifs ([`InteractiveView`](/api/core/type-aliases/InteractiveView)). Chacun pilote en parallèle la visibilité du sol hex, du board atmo, de la smooth sphere et du halo atmo procédural :
+
+| `view` | Sol hex (relief) | Board atmo (cliquable) | Smooth sphere | Halo atmo (`atmoShell`) | Quand l'utiliser |
+| ------ | ---------------- | ---------------------- | ------------- | ----------------------- | ---------------- |
+| `'surface'`    | **visible** (flat lighting + relief) | masqué | masqué (sauf gas giant : backdrop dimmé en `BackSide`) | mode halo discret au rim | gameplay terrain (mining, building, sélection) |
+| `'atmosphere'` | masqué | **visible** (flat lighting) | masqué | masqué | gameplay atmo (couches polluées, météo, zones contestées) |
+| `'shader'`     | masqué | masqué | **visible** (procédural complet) | **visible** plein (`FrontSide`, bands + clouds + tile paint) | overview / vue système / thumbnail (un seul corps en plan large) |
+
+::: tip Quand basculer
+- **`'surface'` ↔ `'atmosphere'`** : sur action joueur (toggle de couche dans le HUD) — les deux conservent l'éclairage flat pour la lisibilité gameplay.
+- **`'shader'`** : par défaut sur une vue système (multi-corps loin), puis bascule vers `'surface'` au focus / zoom in. Le shader procédural est plus joli mais flat-lighting absent — ne convient pas au gameplay actif.
+:::
+
+::: warning Les étoiles ignorent `surface` / `atmosphere`
+`StarBody` n'a pas de namespace `view` — les étoiles tournent en permanence sur le pipeline shader (granulation, pulsation, corona). Toute tentative d'accès est rejetée par TS sans narrowing.
+:::
+
 ## 5. Les responsabilités du *caller*
 
 La lib s'arrête volontairement avant trois préoccupations :

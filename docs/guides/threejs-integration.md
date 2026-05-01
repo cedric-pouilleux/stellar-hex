@@ -82,6 +82,34 @@ if (body.kind === 'planet') {
 }
 ```
 
+## Options de `useBody` — référence rapide
+
+Le 3e argument de `useBody` est un sac d'options, **toutes facultatives**. Chaque champ est documenté en détail dans son guide thématique ; ce tableau sert de point d'entrée unifié.
+
+```ts
+useBody(config, tileSize, {
+  sunLight, palette, variation, quality,
+  hoverChannel, graphicsUniforms,
+  hoverCursor, hoverCursors, defaultCursor,
+})
+```
+
+| Champ | Type | Défaut | Rôle | Détail |
+| ----- | ---- | ------ | ---- | ------ |
+| `sunLight`         | `THREE.PointLight \| THREE.DirectionalLight \| null` | `null` (auto-discovery) | Source pipée vers le shader (planet→sun direction) | encart « Une seule lumière » plus haut |
+| `palette`          | `TerrainLevel[]`         | dérivée de `config` | Override total de la palette terrain (longueur = `resolveTerrainLevelCount`) | [Palettes & terrain](/guides/palettes-and-terrain#override-total) |
+| `variation`        | `BodyVariation`          | `generateBodyVariation(config)` | Identité visuelle pré-calculée (cache, override partiel, lava forcé) | [Variation visuelle](/guides/variation) |
+| `quality`          | `RenderQuality`          | `{ sphereDetail: 'standard' }` | Bump des sphères lisses (`'standard' \| 'high' \| 'ultra'`) | [Performance §10](/guides/performance#_10-renderquality-bumper-la-finesse-des-sph%C3%A8res) |
+| `hoverChannel`     | `HoverChannel`           | `createHoverChannel()` | Channel partagé entre N corps (UX tooltip global) | [Hover cursor — HoverChannel](/guides/hover-cursor#hoverchannel) |
+| `graphicsUniforms` | `GraphicsUniforms`       | `createGraphicsUniforms()` | Bag d'uniforms cloud / liquid / terrain — partageable entre corps | [Graphics uniforms](/guides/graphics-uniforms) |
+| `hoverCursor`      | `HoverCursorConfig`      | défauts neutres | Style unique du curseur de tuile (ring + floorRing + emissive) | [Hover cursor](/guides/hover-cursor#initialisation-un-seul-style) |
+| `hoverCursors`     | `HoverCursorPresets`     | aucun | Dictionnaire de presets nommés (attack, build, inspect…) | [Hover cursor — presets](/guides/hover-cursor#initialisation-presets-multiples) |
+| `defaultCursor`    | `string`                 | première clé de `hoverCursors` | Préset actif au montage | idem |
+
+::: tip Mutuellement exclusifs
+`hoverCursor` (style unique) et `hoverCursors` (presets multiples) ne sont pas faits pour cohabiter sur le même body. Choisis `hoverCursor` pour un style figé ; `hoverCursors` dès que tu veux switcher à chaud (`body.hover.useCursor('attack')`). Cf. l'encart « Allocation par union » dans le guide hover.
+:::
+
 ## Boucle d'animation
 
 ```ts
